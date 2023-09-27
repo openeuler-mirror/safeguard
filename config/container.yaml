@@ -1,0 +1,8 @@
+network:
+  mode: block
+  target: container
+  cidr:
+    allow:
+      - 10.0.1.1/24
+    deny:
+      - 10.0.1.71/32

@@ -1,0 +1,31 @@
+# example.yml
+network:
+  mode: block
+  target: host
+  cidr:
+    allow:
+      - 0.0.0.0/0
+  domain:
+    deny:
+      #- example.com
+      - baidu.com
+  command:
+    allow:
+      #- systemd-resolved
+      #- curl
+      #- safeguard
+files:
+  enable: false
+  mode: block
+  target: host
+  #allow:
+    #- '/'
+  deny:
+    - '/etc/profile'
+    #- '/etc/passwd'
+process:
+  enable: true
+
+log:
+  format: json
+

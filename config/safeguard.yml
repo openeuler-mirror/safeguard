@@ -1,0 +1,36 @@
+network:
+  enable: true
+  mode: block
+  target: host
+  cidr:
+    allow:
+      - 0.0.0.0/0
+  domain:
+    deny:
+      #- example.com
+      - baidu.com
+  command:
+    allow:
+      #- systemd-resolved
+      #- curl
+      #- safeguard
+files:
+  enable: true
+  mode: block
+  target: host
+  allow:
+    - '/'
+  deny:
+    - '/etc/profile'
+    - '/home/vagrant/test'
+mount:
+  enable: false
+process:
+  enable: true
+  mode: monitor
+  target: host
+
+log:
+  level: info
+  format: json
+
