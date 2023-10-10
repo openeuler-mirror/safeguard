@@ -1,0 +1,16 @@
+network:
+  mode: block
+  target: host
+  cidr:
+    allow:
+      - 0.0.0.0/0
+    deny:
+      - 10.254.249.3/32
+  command:
+    allow:
+      - "wget"
+      - "systemd-resolve" # DNS
+    deny:
+      - "curl"
+log:
+  format: json
