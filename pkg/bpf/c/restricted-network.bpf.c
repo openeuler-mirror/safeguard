@@ -325,4 +325,15 @@ int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
   return can_access;
 }
 
+SEC("lsm/socket_bind")
+int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
+             int addrlen) {
+  u32 index = 0;
+  struct network_safeguard_config *c =
+      (struct network_safeguard_config *)bpf_map_lookup_elem(&network_safeguard_config_map, &index);
+
+  int can_access = get_net_perm(c, address);
+  reoprt_net_events(c, can_access, ctx, sock, address);
+  return can_access;
+}
 
