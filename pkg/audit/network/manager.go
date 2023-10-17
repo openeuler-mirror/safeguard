@@ -156,7 +156,7 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) Attach() error {
-	programs := []string{"socket_connect"}
+	programs := []string{"socket_connect", "socket_bind"}
 	for _, progName := range programs {
 		prog, err := m.mod.GetProgram(progName)
 
