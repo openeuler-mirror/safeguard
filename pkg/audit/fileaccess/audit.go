@@ -20,10 +20,12 @@ import (
 )
 
 const (
-	BPF_OBJECT_NAME        = "restricted-file"
-	BPF_PROGRAM_NAME       = "restricted_file_open"
-	ALLOWED_FILES_MAP_NAME = "allowed_access_files"
-	DENIED_FILES_MAP_NAME  = "denied_access_files"
+	BPF_OBJECT_NAME            = "restricted-file"
+	BPF_PROGRAM_NAME           = "restricted_file_open"
+	ALLOWED_FILES_MAP_NAME     = "allowed_access_files"
+	DENIED_FILES_MAP_NAME      = "denied_access_files"
+	ALLOWED_FILES_UID_MAP_NAME = "allowed_access_files_uid"
+	DENIED_FILES_UID_MAP_NAME  = "denied_access_files_uid"
 
 	NEW_UTS_LEN   = 64
 	PATH_MAX      = 255
