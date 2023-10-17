@@ -116,3 +116,36 @@ int BPF_PROG(restricted_file_open, struct file *file)
     bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
     return event.ret;
 }
+
+SEC("lsm/file_receive")
+int BPF_PROG(restricted_file_receive, struct file *file)
+{
+    struct file_open_audit_event event = {};
+    get_file_info(&event);
+    event.ret = get_file_perm(&event, file);
+    bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
+    return event.ret;
+}
+
+
+SEC("lsm/mmap_file")
+int BPF_PROG(restricted_mmap_file, struct file *file, unsigned long reqprot,
+             unsigned long prot, unsigned long flags)
+{
+    struct file_open_audit_event event = {};
+    get_file_info(&event);
+    event.ret = get_file_perm(&event, file);
+    bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
+    return event.ret;
+}
+
+
+SEC("lsm/file_ioctl")
+int BPF_PROG(restricted_file_ioctl, struct file *file, unsigned int cmd, unsigned long arg)
+{
+    struct file_open_audit_event event = {};
+    get_file_info(&event);
+    event.ret = get_file_perm(&event, file);
+    bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
+    return event.ret;
+}
