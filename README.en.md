@@ -1,36 +1,32 @@
-# safeguard
+# safeguard: KRSI(eBPF+LSM) based Linux security auditing tool
 
-#### Description
-Linux security audit, control, and behavior analysis tools based on KRSI(eBPF+LSM)
+safeguard is a Linux audit and observer tool based on eBPF.
+Security events can be audited and blocked based on the container of the process, and restrictions can be applied to container environments.
 
-#### Software Architecture
-Software architecture description
+# Features
 
-#### Installation
+* Restriction rules based on process context, such as command name or UID and more
+* Restrictions limited to containers
+* Network Access Control
+* File Access Control
+* Restictions bind mounts from host filesystem to containers
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+# Build
 
-#### Instructions
+```shell
+$ git clone --recursive https://gitee.com/openeuler/safeguard.git && cd safeguard
+# $ vagrant up && vagrant reload
+# $ vagrant ssh
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+$ make libbpf-static
+$ make build
 
-#### Contribution
-
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+sudo ./build/safeguard --config config/safeguard.yml #|grep BLOCK
+```
 
 
-#### Gitee Feature
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+# LICENSE
+
+safeguard's userspace program is licensed under Apache License 2.0 License.  
+eBPF programs inside [pkg/bpf directory](pkg/bpf) are licensed under [GNU General Public License version 2](./pkg/bpf/LICENSE.md).  

@@ -12,7 +12,7 @@
 * 入侵检测：提供多锚点的检测能力，能够实时、准确的感知入侵事件，发现失陷主机，并提供对入侵事件的响应手段。
 
 
-![architecture](docs/architecture1.jpeg)
+![architecture](docs/architecture.png)
 
 # 编译
 
