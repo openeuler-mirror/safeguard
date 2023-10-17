@@ -47,7 +47,7 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) Attach() error {
-	for _, prog_name := range []string{"restricted_file_open"} {
+	for _, prog_name := range []string{"restricted_file_open", "restricted_file_receive"} { //, "restricted_mmap_file", "restricted_file_ioctl"} {
 		prog, err := m.mod.GetProgram(prog_name)
 		if err != nil {
 			return err
