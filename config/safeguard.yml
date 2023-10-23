@@ -18,11 +18,12 @@ files:
   enable: true
   mode: block
   target: host
-  allow:
-    - '/'
   deny:
-    - '/etc/profile'
-    - '/home/vagrant/test'
+    - path: '/etc/profile'
+      uid: 
+        - 1000
+        - 1001
+    - path: '/home/vagrant/test'
 mount:
   enable: false
 process:
