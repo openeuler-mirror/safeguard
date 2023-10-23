@@ -89,6 +89,7 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
     struct callback_ctx cb = { .path = event->path, .found = false};
     cb.found = false;
     bpf_for_each_map_elem(&denied_access_files, cb_check_path, &cb, 0);
+    u32 uid = event->uid;
     if (cb.found && bpf_map_lookup_elem(&denied_access_files_uid, &uid)) {
         bpf_printk("Access Denied: %s\n", cb.path);
         ret = -EPERM;
