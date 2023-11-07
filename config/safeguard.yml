@@ -19,11 +19,8 @@ files:
   mode: block
   target: host
   deny:
-    - path: '/etc/profile'
-      uid: 
-        - 1000
-        - 1001
-    - path: '/home/vagrant/test'
+    - '/etc/profile'
+    - '/home/vagrant/test'
 mount:
   enable: false
 process:

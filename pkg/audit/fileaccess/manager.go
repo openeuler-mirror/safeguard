@@ -88,28 +88,14 @@ func (m *Manager) setAllowedFileAccessMap() error {
 		return err
 	}
 
-	map_allowed_files_uid, err := m.mod.GetMap(ALLOWED_FILES_UID_MAP_NAME)
-	if err != nil {
-		return err
-	}
-
 	allowed_paths := m.config.RestrictedFileAccessConfig.Allow
 
-	for i, config := range allowed_paths {
+	for i, path := range allowed_paths {
 		key := uint8(i)
-		value := []byte(config.Path)
+		value := []byte(path)
 		err = map_allowed_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
 		if err != nil {
 			return err
-		}
-
-		for j, uid := range config.UID {
-			keyj := uint8(j)
-			valuej := uint8(uid)
-			err = map_allowed_files_uid.Update(unsafe.Pointer(&keyj), unsafe.Pointer(&valuej))
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -121,28 +107,18 @@ func (m *Manager) setDeniedFileAccessMap() error {
 	if err != nil {
 		return err
 	}
-	denied_access_files_uid, err := m.mod.GetMap(DENIED_FILES_UID_MAP_NAME)
-	if err != nil {
-		return err
-	}
 
 	denied_paths := m.config.RestrictedFileAccessConfig.Deny
 
-	for i, config := range denied_paths {
+	for i, path := range denied_paths {
 		key := uint8(i)
-		value := []byte(config.Path)
-		err = map_denied_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
+		value := []byte(path)
+
+		keyPtr := unsafe.Pointer(&key)
+		valuePtr := unsafe.Pointer(&value[0])
+		err = map_denied_files.Update(keyPtr, valuePtr)
 		if err != nil {
 			return err
-		}
-
-		for _, uid := range config.UID {
-			//keyj := uint8(j)
-			valuej := uint32(uid)
-			err = denied_access_files_uid.Update(unsafe.Pointer(&valuej), unsafe.Pointer(&valuej))
-			if err != nil {
-				return err
-			}
 		}
 	}
 
