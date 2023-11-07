@@ -20,10 +20,10 @@ type RestrictedNetworkConfig struct {
 
 type RestrictedFileAccessConfig struct {
 	Enable bool
-	Mode   string          `yaml:"mode"`
-	Target string          `yaml:"target"`
-	Allow  []FileUidConfig `yaml:"allow"`
-	Deny   []FileUidConfig `yaml:"deny"`
+	Mode   string   `yaml:"mode"`
+	Target string   `yaml:"target"`
+	Allow  []string `yaml:"allow"`
+	Deny   []string `yaml:"deny"`
 }
 
 type RestrictedMountConfig struct {
@@ -73,11 +73,6 @@ type GIDConfig struct {
 	Deny  []uint `yaml:"deny"`
 }
 
-type FileUidConfig struct {
-	Path string `yaml:"path"`
-	UID  []uint `yaml:"uid"`
-}
-
 type LogConfig struct {
 	Level   string            `yaml:"level"`
 	Format  string            `yaml:"format"`
@@ -112,8 +107,8 @@ func DefaultConfig() *Config {
 			Enable: true,
 			Mode:   "monitor",
 			Target: "host",
-			Allow:  []FileUidConfig{{Path: "/", UID: []uint{}}},
-			Deny:   []FileUidConfig{},
+			Allow:  []string{"/"},
+			Deny:   []string{},
 		},
 		RestrictedMountConfig: RestrictedMountConfig{
 			Enable:         true,
