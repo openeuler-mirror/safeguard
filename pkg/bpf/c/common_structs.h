@@ -8,8 +8,8 @@
 #define TASK_COMM_LEN 16
 #define NEW_UTS_LEN 64
 
-// #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #define VERSION_5_10 KERNEL_VERSION(5,10,0)
+#define NULL ((void *)0)
 
 #define BPF_RING_BUF(name, size)        \
   struct                                \

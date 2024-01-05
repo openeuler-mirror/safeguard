@@ -198,8 +198,8 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
 #else
     struct path *path = __builtin_preserve_access_index(&file->f_path);
     struct buffer *string_buf = get_buffer();
-    if (string_buf == (void*)0) { return 0; }
-    u_char *file_path = (void*)0;
+    if (string_buf == NULL) { return 0; }
+    u_char *file_path = NULL;
     get_path_str_from_path(&file_path, path, string_buf);
     bpf_probe_read(event->path, sizeof(event->path), file_path);
 #endif
@@ -207,7 +207,7 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
     unsigned int key = 0;
     struct file_path *paths;
     paths = (struct file_path *)bpf_map_lookup_elem(&denied_access_files, &key);
-    if (paths == (void*)0) {
+    if (paths == NULL) {
             return 0;
     }
 
