@@ -10,6 +10,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 #define FILE_NAME_LEN	32
 #define NAME_MAX 255
+#define LOOP_NAME 80
 
 struct file_path {
     unsigned char path[NAME_MAX];
@@ -186,7 +187,7 @@ static inline void get_file_info(struct file_open_audit_event *event){
 }
 
 static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
-    int ret = 0;//-1;
+    int ret = 0;
     int findex = 0;
     struct fileopen_safeguard_config *config = (struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
 
@@ -209,40 +210,32 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
     if (paths == (void*)0) {
             return 0;
     }
-    // bpf_printk("test user path: %s\n", paths->path);
-    // bpf_printk("test kernel path: %s\n", event->path);
-    unsigned char kernel_path[20] = "/etc/profile";
 
-    int usum = 0;
-    int i = 0, j = 0;
+    unsigned int i = 0;
+    unsigned int j = 0;
     bool find = true;
-    // while (paths->path[i] != '\0') {
-// #pragma unroll
-    for(i = 0; i < 13; ) {
-    // while (i < 10) {
+    unsigned int equali = 0;
+#pragma unroll
+    for (i = 0; i < LOOP_NAME; i++) {
             if (paths->path[i] == '\0') {
-                bpf_printk("end0000000000");
                 break;
             }
-            if (paths->path[i]==kernel_path[j]) { //kernel_path[j]
-                    j++;
+            if (paths->path[i]==event->path[j]) {
+                    j = j + 1;
             } else {
-                    // bpf_printk("not-equel----");
                     j = 0;
                     find = false;
             }
-            i++;
-            // bpf_printk("usum:%d, j:%d", usum, j);
-            // bpf_printk("bool:%d", find);
-            if (paths->path[i] == '|' && find == true) {
-                    bpf_printk("testsssssssss");
-                    // ret = -EPERM;
-                    break;
-            }
+
             if (paths->path[i] == '|') {
-                i++;
                 find = true;
             }
+            equali = equali + 1;
+            if (paths->path[equali + 1] == '|' && find == true) {
+                  ret = -EPERM;
+                  break;
+            }
+
     }
 
 /* kernel version greater than 5.10
