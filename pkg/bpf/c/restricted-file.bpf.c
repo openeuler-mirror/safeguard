@@ -10,6 +10,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 #define FILE_NAME_LEN	32
 #define NAME_MAX 255
+#define LOOP_NAME 80
 
 struct file_path {
     unsigned char path[NAME_MAX];
@@ -49,11 +50,11 @@ BPF_HASH(denied_access_files, u32, struct file_path, 256);
 
 
 
-#define MAX_PATH_SIZE 512 // PATH_MAX from <linux/limits.h>
+#define MAX_PATH_SIZE 4096 // PATH_MAX from <linux/limits.h>
 #define LIMIT_PATH_SIZE(x) ((x) & (MAX_PATH_SIZE - 1))
 #define MAX_PATH_COMPONENTS 20
 
-#define MAX_PERCPU_ARRAY_SIZE (1 << 8)//(1 << 15)
+#define MAX_PERCPU_ARRAY_SIZE (1 << 15)
 #define HALF_PERCPU_ARRAY_SIZE (MAX_PERCPU_ARRAY_SIZE >> 1)
 #define LIMIT_PERCPU_ARRAY_SIZE(x) ((x) & (MAX_PERCPU_ARRAY_SIZE - 1))
 #define LIMIT_HALF_PERCPU_ARRAY_SIZE(x) ((x) & (HALF_PERCPU_ARRAY_SIZE - 1))
@@ -120,13 +121,8 @@ static long get_path_str_from_path(u_char **path_str, struct path *path, struct 
     // Is string buffer big enough for dentry name?
     if (name_len > buf_off) { break; }
     volatile size_t new_buff_offset = buf_off - name_len; // satisfy verifier
-    // ret = bpf_probe_read_kernel_str(
-    //   &(out_buf->data[LIMIT_HALF_PERCPU_ARRAY_SIZE(new_buff_offset) // satisfy verifier
-    // ]),
-    //   name_len,
-    //   name);
     ret = bpf_probe_read_kernel_str(
-      &(out_buf->data[10 // satisfy verifier
+      &(out_buf->data[LIMIT_HALF_PERCPU_ARRAY_SIZE(new_buff_offset) // satisfy verifier
     ]),
       name_len,
       name);
@@ -191,7 +187,7 @@ static inline void get_file_info(struct file_open_audit_event *event){
 }
 
 static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
-    int ret = -1;
+    int ret = 0;
     int findex = 0;
     struct fileopen_safeguard_config *config = (struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
 
@@ -208,6 +204,41 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
     bpf_probe_read(event->path, sizeof(event->path), file_path);
 #endif
 
+    unsigned int key = 0;
+    struct file_path *paths;
+    paths = (struct file_path *)bpf_map_lookup_elem(&denied_access_files, &key);
+    if (paths == (void*)0) {
+            return 0;
+    }
+
+    unsigned int i = 0;
+    unsigned int j = 0;
+    bool find = true;
+    unsigned int equali = 0;
+#pragma unroll
+    for (i = 0; i < LOOP_NAME; i++) {
+            if (paths->path[i] == '\0') {
+                break;
+            }
+            if (paths->path[i]==event->path[j]) {
+                    j = j + 1;
+            } else {
+                    j = 0;
+                    find = false;
+            }
+
+            if (paths->path[i] == '|') {
+                find = true;
+            }
+            equali = equali + 1;
+            if (paths->path[equali + 1] == '|' && find == true) {
+                  ret = -EPERM;
+                  break;
+            }
+
+    }
+
+/* kernel version greater than 5.10
     struct callback_ctx cb = { .path = event->path, .found = false};
     cb.found = false;
     bpf_for_each_map_elem(&denied_access_files, cb_check_path, &cb, 0);
@@ -222,7 +253,7 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
         ret = 0;
         goto out;
     }
-
+*/
 
 out:
     if (config && config->mode == MODE_MONITOR) {
