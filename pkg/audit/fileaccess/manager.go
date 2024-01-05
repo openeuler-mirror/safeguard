@@ -110,6 +110,7 @@ func (m *Manager) setDeniedFileAccessMap() error {
 
 	denied_paths := m.config.RestrictedFileAccessConfig.Deny
 
+	/* kernel version greater than 5.10
 	for i, path := range denied_paths {
 		key := uint8(i)
 		value := []byte(path)
@@ -120,6 +121,19 @@ func (m *Manager) setDeniedFileAccessMap() error {
 		if err != nil {
 			return err
 		}
+	}
+	*/
+
+	result := ""
+	for _, path := range denied_paths {
+		result += path
+		result += "|"
+	}
+	key := uint8(0)
+	value := []byte(result)
+	err = map_denied_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
+	if err != nil {
+		return err
 	}
 
 	return nil
