@@ -10,7 +10,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 #define FILE_NAME_LEN	32
 #define NAME_MAX 255
-#define LOOP_NAME 80
+#define LOOP_NAME 70
 
 struct file_path {
     unsigned char path[NAME_MAX];
