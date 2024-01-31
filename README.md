@@ -15,6 +15,7 @@
 ![architecture](docs/architecture.png)
 
 # 编译
+内核配置参考 https://gitee.com/openeuler/safeguard/blob/master/INSTALL.md
 
 ```shell
 $ git clone --recursive https://gitee.com/openeuler/safeguard.git && cd safeguard
@@ -25,6 +26,13 @@ $ make libbpf-static
 $ make build
 
 $ sudo ./build/safeguard --config config/safeguard.yml #|grep BLOCK
+```
+
+# 安装
+```shell
+$ wget https://gitee.com/openeuler/safeguard/releases/download/v2.0.1/safeguard-2.0.1-2.ule3.x86_64.rpm
+$ yum install safeguard-2.0.1-2.ule3.x86_64.rpm
+$ sudo safeguard --config /etc/safeguard/safeguard.yml
 ```
 
 # 项目功能(部分位于开发阶段)
