@@ -11,7 +11,7 @@ CONFIG_BPF_LSM=y
 CONFIF_BPF_JIT=y
 CONFIG_HAVE_EBPF_JIT=y
 CONFIG_BPF_EVENTS=y
-CONFIG_DEBUG_INTO_BTF=y
+CONFIG_DEBUG_INFO_BTF=y
 ```
 
 Kernel compile flags can usually be checked by looking at /proc/config.gz or /boot/config-<kernel-version>.
