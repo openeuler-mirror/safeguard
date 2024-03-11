@@ -10,7 +10,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 #define FILE_NAME_LEN	32
 #define NAME_MAX 255
-#define LOOP_NAME 70
+//#define LOOP_NAME 70
 
 struct file_path {
     unsigned char path[NAME_MAX];
@@ -176,7 +176,6 @@ static inline void get_file_info(struct file_open_audit_event *event){
     BPF_CORE_READ_INTO(&uts_ns, nsproxy, uts_ns);
     BPF_CORE_READ_INTO(&event->nodename, uts_ns, name.nodename);
     BPF_CORE_READ_INTO(&mnt_ns, nsproxy, mnt_ns);
-    // BPF_CORE_READ_INTO(&inum, mnt_ns, ns.inum);
     //event->cgroup = bpf_get_current_cgroup_id();
     event->pid = (u32)(bpf_get_current_pid_tgid() >> 32);
     bpf_get_current_comm(&event->task, sizeof(event->task));
@@ -187,7 +186,7 @@ static inline void get_file_info(struct file_open_audit_event *event){
 }
 
 static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
-    int ret = 0;
+    int ret = -1;
     int findex = 0;
     struct fileopen_safeguard_config *config = (struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
 
@@ -211,6 +210,22 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
             return 0;
     }
 
+    struct callback_ctx cb = { .path = event->path, .found = false};
+    cb.found = false;
+    bpf_for_each_map_elem(&denied_access_files, cb_check_path, &cb, 0);
+    if (cb.found) {
+        bpf_printk("Access Denied: %s\n", cb.path);
+        ret = -EPERM;
+        goto out;
+    }
+
+    bpf_for_each_map_elem(&allowed_access_files, cb_check_path, &cb, 0);
+    if (cb.found) {
+        ret = 0;
+        goto out;
+    }
+
+/* kernel version lower than 5.10
     unsigned int i = 0;
     unsigned int j = 0;
     bool find = true;
@@ -236,22 +251,6 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
                   break;
             }
 
-    }
-
-/* kernel version greater than 5.10
-    struct callback_ctx cb = { .path = event->path, .found = false};
-    cb.found = false;
-    bpf_for_each_map_elem(&denied_access_files, cb_check_path, &cb, 0);
-    if (cb.found) {
-        bpf_printk("Access Denied: %s\n", cb.path);
-        ret = -EPERM;
-        goto out;
-    }
-
-    bpf_for_each_map_elem(&allowed_access_files, cb_check_path, &cb, 0);
-    if (cb.found) {
-        ret = 0;
-        goto out;
     }
 */
 
