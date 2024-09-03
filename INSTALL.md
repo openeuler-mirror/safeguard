@@ -1,8 +1,15 @@
-# Installing safeguard
+# 安装 safeguard
 
-## Kernel Configuration
+## 编译工具
 
-The kernel must have been compiled with the following flags set:
+安装必要的编译工具，可能包括：
+```
+$ yum install libbpf-devel make clang llvm elfutils-libelf-devel bpftool bcc-tools bcc-devel dwarves
+```
+
+## 内核配置
+
+内核编译时必须开启以下内核选项：
 
 ```shell
 CONFIG_BPF=y
@@ -14,9 +21,9 @@ CONFIG_BPF_EVENTS=y
 CONFIG_DEBUG_INFO_BTF=y
 ```
 
-Kernel compile flags can usually be checked by looking at /proc/config.gz or /boot/config-<kernel-version>.
+内核编译标志可以通过查看`/proc/config.gz`或`/boot/config-<Kernel-version>` 来检查。
 
-Also, the `CONFIG_LSM` flag must contain `bpf`. This can also be controlled by boot parameters as following:
+此外，`CONFIG_LSM`标志必须包含`bpf`。可以通过以下引导参数进行控制：
 
 ```shell
 $ cat /etc/default/grub
@@ -24,7 +31,3 @@ $ cat /etc/default/grub
 GRUB_CMDLINE_LINUX="... lsm=lockdown,yama,apparmor,bpf"
 ...
 ```
-
-## Download Binary
-
-Download latest released binary 
