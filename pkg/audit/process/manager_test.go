@@ -52,7 +52,7 @@ func Test_SetConfigMap_AllowedFiles(t *testing.T) {
 			key := uint8(0)
 			actual, err := map_allowed_files.GetValue(unsafe.Pointer(&key))
 			if err != nil {
-				t.Fatalf("Faild to get value from eBPF map %s, err: %s", ALLOWED_FILES_MAP_NAME, err)
+				t.Fatalf("Failed to get value from eBPF map %s, err: %s", ALLOWED_FILES_MAP_NAME, err)
 			}
 
 			padding := bytes.Repeat([]byte{0x00}, PATH_MAX-len(test.expected))
@@ -97,7 +97,7 @@ func Test_SetConfigMap_DeniedFiles(t *testing.T) {
 				actual, err := map_denied_files.GetValue(keyPtr)
 
 				if err != nil {
-					t.Fatalf("Faild to get value from eBPF map %s, err: %s", DENIED_FILES_MAP_NAME, err)
+					t.Fatalf("Failed to get value from eBPF map %s, err: %s", DENIED_FILES_MAP_NAME, err)
 				}
 
 				padding := bytes.Repeat([]byte{0x00}, PATH_MAX-len(test.expected))
