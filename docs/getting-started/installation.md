@@ -14,10 +14,10 @@ The kernel must have been compiled with the following flags set:
 CONFIG_BPF=y
 CONFIG_BPF_SYSCALL=y
 CONFIG_BPF_LSM=y
-CONFIF_BPF_JIT=y
+CONFIG_BPF_JIT=y
 CONFIG_HAVE_EBPF_JIT=y
 CONFIG_BPF_EVENTS=y
-CONFIG_DEBUG_INTO_BTF=y
+CONFIG_DEBUG_INFO_BTF=y
 ```
 
 Kernel compile flags can usually be checked by looking at `/proc/config.gz` or `/boot/config-<kernel-version>`.
@@ -31,7 +31,7 @@ GRUB_CMDLINE_LINUX="... lsm=lockdown,yama,apparmor,bpf"
 ...
 ```
 
-Finary, run `update-grub2`.
+Finally, run `update-grub2`.
 
 ```shell
 sudo update-grub2

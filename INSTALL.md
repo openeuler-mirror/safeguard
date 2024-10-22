@@ -15,7 +15,7 @@ $ yum install libbpf-devel make clang llvm elfutils-libelf-devel bpftool bcc-too
 CONFIG_BPF=y
 CONFIG_BPF_SYSCALL=y
 CONFIG_BPF_LSM=y
-CONFIF_BPF_JIT=y
+CONFIG_BPF_JIT=y
 CONFIG_HAVE_EBPF_JIT=y
 CONFIG_BPF_EVENTS=y
 CONFIG_DEBUG_INFO_BTF=y
