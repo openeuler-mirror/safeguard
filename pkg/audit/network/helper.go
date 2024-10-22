@@ -10,7 +10,7 @@ const (
 	UDP                     = 2
 	TCP_STRING              = "TCP"
 	UDP_STRING              = "UDP"
-	PROTOCOL_UNKNOWN_STRING = "UNKOWN"
+	PROTOCOL_UNKNOWN_STRING = "UNKNOWN"
 )
 
 func byte2IPv4(addrBytes [4]byte) string {
