@@ -1,24 +1,32 @@
 SHELL := /bin/bash -o pipefail
 KERNEL_ARCH := $(shell uname -m | sed 's/x86_64/x86/')
 BPF_BUILDDIR := pkg/bpf/bytecode
-INCLUDES :=
-BASEDIR = $(abspath)
-OUTPUT = ./output
+BASEDIR = $(abspath .)
+OUTPUT = output
+INCLUDES := -I$(BASEDIR)/$(OUTPUT)
 LIBBPF_SRC = $(abspath libbpf/src)
 LIBBPF_OBJ = $(abspath $(OUTPUT)/libbpf.a)
 LIBBPF_OBJDIR = $(abspath ./$(OUTPUT)/libbpf)
 LIBBPF_DESTDIR = $(abspath ./$(OUTPUT))
 LLVM_STRIP ?= $(shell which llvm-strip || which llvm-strip-12)
 CLANG_BPF_SYS_INCLUDES := `shell $(CLANG) -v -E - </dev/null 2>&1 | sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }'`
-CGOFLAG = CGO_CFLAGS="-I$(abspath $(OUTPUT))" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)"
+CGOFLAG = CGO_CFLAGS="-I$(BASEDIR)/$(OUTPUT)" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)"
+STATIC=-extldflags -static
 
 .PHONY: libbpf-static
 libbpf-static: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
-	cp -r libbpf output/
-
 	CC="gcc" CFLAGS="-g -O2 -Wall -fpie" \
 	   $(MAKE) -C $(LIBBPF_SRC) \
 		BUILD_STATIC_ONLY=1 \
+		OBJDIR=$(LIBBPF_OBJDIR) \
+		DESTDIR=$(LIBBPF_DESTDIR) \
+		INCLUDEDIR= LIBDIR= UAPIDIR= install
+	STATIC='-extldflags -static'
+
+.PHONY: libbpf
+libbpf: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
+	CC="gcc" CFLAGS="-g -O2 -Wall -fpie" \
+	   $(MAKE) -C $(LIBBPF_SRC) \
 		OBJDIR=$(LIBBPF_OBJDIR) \
 		DESTDIR=$(LIBBPF_DESTDIR) \
 		INCLUDEDIR= LIBDIR= UAPIDIR= install
@@ -44,13 +52,17 @@ bpf-restricted-process: $(BPF_BUILDDIR)/restricted-process.bpf.o
 
 .PHONY: vmlinux
 vmlinux:
-	$(shell bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h)
+	$(shell bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(OUTPUT)/vmlinux.h)
 
 .PHONY: build
-build: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
+build: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process vmlinux
 	mkdir -p build
-	$(CGOFLAG) go build -tags netgo -ldflags '-w -s -extldflags "-static"' -o build/safeguard cmd/safeguard/safeguard.go
+	echo $(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
+	$(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
 
+clean:
+	rm -rf pkg/bpf/bytecode/*.o
+	rm -rf output build
 
 .PHONY: build/docker
 build/docker:
@@ -59,12 +71,12 @@ build/docker:
 .PHONY: test/unit
 test/unit: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
 	which gotestsum || go install gotest.tools/gotestsum@latest
-	$(CGOFLAG) sudo -E gotestsum -- --mod=vendor -bench=^$$ -race ./...
+	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- --mod=vendor -bench=^$$ -race ./...
 
 .PHONY: test
 test: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
 	which gotestsum || go install gotest.tools/gotestsum@latest
-	$(CGOFLAG) sudo -E gotestsum -- --tags=integration --mod=vendor -bench=^$$ -race ./...
+	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- --tags=integration --mod=vendor -bench=^$$ -race ./...
 
 .PHONY: test/integration/specify
 test/integration/specify: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
