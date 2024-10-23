@@ -22,8 +22,8 @@ import (
 const (
 	BPF_OBJECT_NAME  = "restricted-process"
 	BPF_PROGRAM_NAME = "restricted_process_fork"
-	// ALLOWED_FILES_MAP_NAME = "allowed_access_files"
-	// DENIED_FILES_MAP_NAME  = "denied_access_files"
+	ALLOWED_FILES_MAP_NAME = "allowed_access_files"
+	DENIED_FILES_MAP_NAME  = "denied_access_files"
 
 	NEW_UTS_LEN      = 64
 	PATH_MAX         = 255
@@ -57,7 +57,6 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 }
 
 func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
-	log.Info("Launching the process audit...")
 	defer wg.Done()
 
 	if !conf.RestrictedProcessConfig.Enable {
