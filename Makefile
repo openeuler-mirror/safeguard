@@ -55,7 +55,7 @@ vmlinux:
 	$(shell bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(OUTPUT)/vmlinux.h)
 
 .PHONY: build
-build: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
+build: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process vmlinux
 	mkdir -p build
 	echo $(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
 	$(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
