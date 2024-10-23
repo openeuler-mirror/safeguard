@@ -3,6 +3,7 @@
 #include <linux/errno.h>
 
 #define NAME_MAX 255
+#define LOOP_NAME 70
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
@@ -79,6 +80,39 @@ int BPF_PROG(restricted_mount, const char *dev_name, const struct path *path,
     bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
     bpf_probe_read_kernel_str(&event.source_path, sizeof(event.source_path), dev_name);
 
+    unsigned int key = 0;
+    struct file_path *paths;
+    paths = (struct file_path *)bpf_map_lookup_elem(&mount_denied_source_list, &key);
+    if (paths == NULL) {
+        return 0;
+    }
+
+    unsigned int i = 0;
+    unsigned int j = 0;
+    bool find = true;
+    unsigned int equali = 0;
+#pragma unroll
+    for (i = 0; i < LOOP_NAME; i++) {
+        if (paths->path[i] == '\0') {
+            break;
+        }
+        if (paths->path[i] == event.source_path[j]) {
+            j = j + 1;
+        } else {
+            j = 0;
+            find = false;
+        }
+
+        if (paths->path[i] == '|') {
+            find = true;
+        }
+        equali = equali + 1;
+        if (paths->path[equali] == '|' && find == true && (event.source_path[j] == '\0' || event.source_path[j] == '/')) {
+            ret = -EPERM;
+            goto out;
+        }
+    }
+/* kernel version greater than 5.10
     struct callback_ctx cb = { .source_path = event.source_path, .found = false };
     bpf_for_each_map_elem(&mount_denied_source_list, cb_check_path, &cb, 0);
     if (cb.found) {
@@ -88,6 +122,7 @@ int BPF_PROG(restricted_mount, const char *dev_name, const struct path *path,
     }
 
     ret = 0;
+*/
 
 out:
     if (config && config->target == TARGET_CONTAINER && inum == 0xF0000000) {

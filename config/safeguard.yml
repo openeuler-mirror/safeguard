@@ -22,7 +22,11 @@ files:
     - '/etc/profile'
     - '/home/vagrant/test'
 mount:
-  enable: false
+  enable: true
+  mode: block
+  target: host
+  deny:
+    - '/home/mount/test'
 process:
   enable: true
   mode: monitor
