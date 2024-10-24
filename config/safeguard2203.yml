@@ -1,0 +1,35 @@
+network:
+  enable: true
+  mode: block
+  target: host
+  cidr:
+    allow:
+      - 0.0.0.0/0
+  domain:
+    deny:
+      - baidu.com
+  command:
+    allow:
+      #- systemd-resolved
+      #- curl
+      #- safeguard
+
+files:
+  enable: true
+  mode: block
+  target: host
+  deny:
+    - '/etc/profile|/home/1' # use vertical bar as separation
+
+mount:
+  enable: false
+
+process:
+  enable: true
+  mode: monitor
+  target: host
+
+log:
+  level: info
+  format: json
+
