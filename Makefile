@@ -21,7 +21,7 @@ libbpf-static: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
 		OBJDIR=$(LIBBPF_OBJDIR) \
 		DESTDIR=$(LIBBPF_DESTDIR) \
 		INCLUDEDIR= LIBDIR= UAPIDIR= install
-	STATIC='-extldflags -static'
+	$(eval STATIC=-extldflags -static)
 
 .PHONY: libbpf
 libbpf: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
@@ -50,15 +50,15 @@ bpf-restricted-mount: $(BPF_BUILDDIR)/restricted-mount.bpf.o
 .PHONY: bpf-restricted-process
 bpf-restricted-process: $(BPF_BUILDDIR)/restricted-process.bpf.o
 
+.PHONY: build
+build:  vmlinux bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
+	mkdir -p build
+	$(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
+
 .PHONY: vmlinux
 vmlinux:
 	$(shell bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(OUTPUT)/vmlinux.h)
 
-.PHONY: build
-build: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process vmlinux
-	mkdir -p build
-	echo $(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
-	$(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
 
 clean:
 	rm -rf pkg/bpf/bytecode/*.o
