@@ -1,13 +1,15 @@
 module culinux
 
-go 1.17
+go 1.21
+
+toolchain go1.21.4
 
 require (
-	github.com/aquasecurity/libbpfgo v0.6.0-libbpf-1.3
+	github.com/aquasecurity/libbpfgo v0.7.0-libbpf-1.4
 	github.com/coreos/go-semver v0.3.0
 	github.com/miekg/dns v1.1.47
 	github.com/sirupsen/logrus v1.8.1
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.3.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
