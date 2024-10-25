@@ -33,6 +33,7 @@ libbpf: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
 
 $(BPF_BUILDDIR):
 	mkdir -p $(BPF_BUILDDIR)
+	mkdir -p build
 
 $(BPF_BUILDDIR)/%.bpf.o: pkg/bpf/c/%.bpf.c $(wildcard bpf/*.h) | $(BPF_BUILDDIR)
 	clang -g -O2 -target bpf -D__TARGET_ARCH_$(KERNEL_ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -E $(filter %.c,$^) -o "$@.i"
@@ -52,8 +53,10 @@ bpf-restricted-mount: $(BPF_BUILDDIR)/restricted-mount.bpf.o
 bpf-restricted-process: $(BPF_BUILDDIR)/restricted-process.bpf.o
 
 .PHONY: build
-build:  vmlinux bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
-	mkdir -p build
+build:  libbpf vmlinux bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
+	$(CGOFLAG) go build -tags netgo -ldflags "-w -s" -o build/safeguard cmd/safeguard/safeguard.go
+
+build-static:  libbpf vmlinux bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
 	$(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
 
 .PHONY: vmlinux
