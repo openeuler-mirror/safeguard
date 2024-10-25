@@ -214,13 +214,14 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
 		find = true;
 		goto out;
 	}
-
+/*
 	bpf_for_each_map_elem(&allowed_access_files, cb_check_path, &cb, 0);
 	if (cb.found) {
 		ret = 0;
 		find = true;
 		goto out;
 	}
+*/
 #else
     unsigned int key = 0;
     struct file_path *paths;
