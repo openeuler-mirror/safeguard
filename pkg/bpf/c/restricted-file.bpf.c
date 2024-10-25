@@ -186,9 +186,10 @@ static inline void get_file_info(struct file_open_audit_event *event){
 }
 
 static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
-    int ret = 0;
-    int findex = 0;
-    struct fileopen_safeguard_config *config = (struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
+    int ret = 0, findex =0;
+    bool find = false;
+    struct fileopen_safeguard_config *config =
+		(struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
 
 #if LINUX_VERSION_CODE > VERSION_5_10
 	if (bpf_d_path(&file->f_path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
@@ -210,12 +211,14 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
 	if (cb.found) {
 		bpf_printk("Access Denied: %s\n", cb.path);
 		ret = -EPERM;
+		find = true;
 		goto out;
 	}
 
 	bpf_for_each_map_elem(&allowed_access_files, cb_check_path, &cb, 0);
 	if (cb.found) {
 		ret = 0;
+		find = true;
 		goto out;
 	}
 #else
@@ -229,7 +232,6 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
 	// bpf_printk("denied files: %s\n", paths->path);
     unsigned int i = 0;
     unsigned int j = 0;
-    bool find = false;
     unsigned int equali = 0;
 
 	#pragma unroll
@@ -244,7 +246,6 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
                     j = j + 1;
             } else {
 				j = 0;
-				find = false;
 				continue;
             }
             if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
@@ -254,58 +255,49 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
 					 break;
 				} else {
 					j = 0;
-					find = false;
 				}
 		}
 	}
 #endif
 
 out:
-    if (config && config->mode == MODE_MONITOR) {
-        ret = 0;
+    if (find && config && config->mode == MODE_MONITOR) {
+        ret = 1;
     }
     return ret;
 }
 
+#define PROG_CODE \
+    struct file_open_audit_event event = {}; \
+    get_file_info(&event); \
+    event.ret = get_file_perm(&event, file); \
+    if (event.ret != 0) \
+		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event)); \
+	if (event.ret > 0) event.ret = 0; \
+    return event.ret;
+
 SEC("lsm/file_open")
 int BPF_PROG(restricted_file_open, struct file *file)
 {
-    struct file_open_audit_event event = {};
-    get_file_info(&event);
-    event.ret = get_file_perm(&event, file);
-    bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
-    return event.ret;
+	PROG_CODE
 }
 
 SEC("lsm/file_receive")
 int BPF_PROG(restricted_file_receive, struct file *file)
 {
-    struct file_open_audit_event event = {};
-    get_file_info(&event);
-    event.ret = get_file_perm(&event, file);
-    bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
-    return event.ret;
+	PROG_CODE
 }
-
 
 SEC("lsm/mmap_file")
 int BPF_PROG(restricted_mmap_file, struct file *file, unsigned long reqprot,
              unsigned long prot, unsigned long flags)
 {
-    struct file_open_audit_event event = {};
-    get_file_info(&event);
-    event.ret = get_file_perm(&event, file);
-    bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
-    return event.ret;
+	PROG_CODE
 }
 
 
 SEC("lsm/file_ioctl")
 int BPF_PROG(restricted_file_ioctl, struct file *file, unsigned int cmd, unsigned long arg)
 {
-    struct file_open_audit_event event = {};
-    get_file_info(&event);
-    event.ret = get_file_perm(&event, file);
-    bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
-    return event.ret;
+	PROG_CODE
 }
