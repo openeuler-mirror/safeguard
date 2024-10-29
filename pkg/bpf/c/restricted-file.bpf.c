@@ -75,21 +75,20 @@ static struct buffer *get_buffer() {
   return (struct buffer *)bpf_map_lookup_elem(&heaps_map, &zero);
 }
 
-static long get_path_str_from_path(u_char **path_str, struct path *path, struct buffer *out_buf) {
+static long get_path_str_from_path(u_char **path_str, const struct path *path, struct buffer *out_buf, struct dentry *append) {
+	long ret;
+	struct dentry *dentry, *dentry_parent, *dentry_mnt;
+	struct vfsmount *vfsmnt;
+	struct mount *mnt, *mnt_parent;
+	const u_char *name;
+	size_t name_len;
 
-  long ret;
-  struct dentry *dentry, *dentry_parent, *dentry_mnt;
-  struct vfsmount *vfsmnt;
-  struct mount *mnt, *mnt_parent;
-  const u_char *name;
-  size_t name_len;
+	dentry = BPF_CORE_READ(path, dentry);
+	vfsmnt = BPF_CORE_READ(path, mnt);
+	mnt = container_of(vfsmnt, struct mount, mnt);
+	mnt_parent = BPF_CORE_READ(mnt, mnt_parent);
 
-  dentry = BPF_CORE_READ(path, dentry);
-  vfsmnt = BPF_CORE_READ(path, mnt);
-  mnt = container_of(vfsmnt, struct mount, mnt);
-  mnt_parent = BPF_CORE_READ(mnt, mnt_parent);
-
-  size_t buf_off = HALF_PERCPU_ARRAY_SIZE;
+	size_t buf_off = HALF_PERCPU_ARRAY_SIZE - 1;
 
 #pragma unroll
   for (int i = 0; i < MAX_PATH_COMPONENTS; i++) {
@@ -117,27 +116,25 @@ static long get_path_str_from_path(u_char **path_str, struct path *path, struct 
     name_len = LIMIT_PATH_SIZE(BPF_CORE_READ(dentry, d_name.len));
     name = BPF_CORE_READ(dentry, d_name.name);
 
-    name_len = name_len + 1; // add slash
+    name_len = name_len + 1;
     // Is string buffer big enough for dentry name?
     if (name_len > buf_off) { break; }
     volatile size_t new_buff_offset = buf_off - name_len; // satisfy verifier
     ret = bpf_probe_read_kernel_str(
-      &(out_buf->data[LIMIT_HALF_PERCPU_ARRAY_SIZE(new_buff_offset) // satisfy verifier
-    ]),
-      name_len,
-      name);
+		&(out_buf->data[LIMIT_HALF_PERCPU_ARRAY_SIZE(new_buff_offset)]),// satisfy verifie
+		name_len, name);
 
     if (ret < 0) { return ret; }
 
     if (ret > 1) {
-      buf_off -= 1;                                    // remove null byte termination with slash sign
-      buf_off = LIMIT_HALF_PERCPU_ARRAY_SIZE(buf_off); // satisfy verifier
-      out_buf->data[buf_off] = '/';
-      buf_off -= ret - 1;
-      buf_off = LIMIT_HALF_PERCPU_ARRAY_SIZE(buf_off); // satisfy verifier
+		buf_off -= 1;                                    // remove null byte termination with slash sign
+		buf_off = LIMIT_HALF_PERCPU_ARRAY_SIZE(buf_off); // satisfy verifier
+		out_buf->data[buf_off] = '/';
+		buf_off -= ret - 1;
+		buf_off = LIMIT_HALF_PERCPU_ARRAY_SIZE(buf_off); // satisfy verifier
     } else {
-      // If sz is 0 or 1 we have an error (path can't be null nor an empty string)
-      break;
+		// If sz is 0 or 1 we have an error (path can't be null nor an empty string)
+		break;
     }
     dentry = dentry_parent;
   }
@@ -150,10 +147,22 @@ static long get_path_str_from_path(u_char **path_str, struct path *path, struct 
     out_buf->data[buf_off] = '/';
   }
 
-  // Null terminate the path string
-  out_buf->data[HALF_PERCPU_ARRAY_SIZE - 1] = 0;
-  *path_str = &out_buf->data[buf_off];
-  return HALF_PERCPU_ARRAY_SIZE - buf_off - 1;
+	// Null terminate the path string
+	out_buf->data[HALF_PERCPU_ARRAY_SIZE - 1] = 0;
+	*path_str = &out_buf->data[buf_off];
+	bpf_printk("yyy3 denied files: %s\n", out_buf->data + buf_off);
+
+	if (append) {
+		name_len = LIMIT_PATH_SIZE(BPF_CORE_READ(append, d_name.len));
+		name = BPF_CORE_READ(append, d_name.name);
+
+		ret = bpf_probe_read_kernel_str(&(out_buf->data[HALF_PERCPU_ARRAY_SIZE - 1]), name_len + 1, name);
+	} else {
+		out_buf->data[HALF_PERCPU_ARRAY_SIZE - 1 - 1] = 0;
+	}
+	bpf_printk("yyy4 denied files: %s\n", out_buf->data + buf_off);
+
+	return HALF_PERCPU_ARRAY_SIZE - buf_off - 1;
 }
 
 static u64 cb_check_path(struct bpf_map *map, u32 *key, struct file_path *map_path, struct callback_ctx *ctx) {
@@ -185,25 +194,11 @@ static inline void get_file_info(struct file_open_audit_event *event){
     event->uid = uid_gid & 0xFFFFFFFF;
 }
 
-static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
+static int get_perm(struct file_open_audit_event *event) {
     int ret = 0, findex =0;
     bool find = false;
     struct fileopen_safeguard_config *config =
 		(struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
-
-#if LINUX_VERSION_CODE > VERSION_5_10
-	if (bpf_d_path(&file->f_path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
-		return 0;
-	}
-#else
-    struct path *path = __builtin_preserve_access_index(&file->f_path);
-    struct buffer *string_buf = get_buffer();
-    if (string_buf == NULL) { return 0; }
-    u_char *file_path = NULL;
-    get_path_str_from_path(&file_path, path, string_buf);
-    bpf_probe_read(event->path, sizeof(event->path), file_path);
-#endif
-
 #if LINUX_VERSION_CODE > VERSION_5_10
 	struct callback_ctx cb = { .path = event->path, .found = false};
 	cb.found = false;
@@ -229,7 +224,8 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
             return 0;
     }
 
-	// bpf_printk("denied files: %s\n", paths->path);
+	bpf_printk("denied files: %s\n", paths->path);
+	bpf_printk("event files: %s\n", event->path);
     unsigned int i = 0;
     unsigned int j = 0;
     unsigned int equali = 0;
@@ -267,6 +263,39 @@ out:
     return ret;
 }
 
+static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
+#if LINUX_VERSION_CODE > VERSION_5_10
+	if (bpf_d_path(&file->f_path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
+		return 0;
+	}
+#else
+    struct path *path = __builtin_preserve_access_index(&file->f_path);
+    struct buffer *string_buf = get_buffer();
+    if (string_buf == NULL) { return 0; }
+    u_char *file_path = NULL;
+    get_path_str_from_path(&file_path, path, string_buf, NULL);
+    bpf_probe_read(event->path, sizeof(event->path), file_path);
+#endif
+
+	return get_perm(event);
+}
+
+static inline int get_path_perm(struct file_open_audit_event *event, const struct path *path, struct dentry *dentry){
+#if LINUX_VERSION_CODE > VERSION_5_10
+	if (bpf_d_path(path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
+		return 0;
+	}
+#else
+    struct buffer *string_buf = get_buffer();
+    if (string_buf == NULL) { return 0; }
+    u_char *file_path = NULL;
+    get_path_str_from_path(&file_path, path, string_buf, dentry);
+    bpf_probe_read(event->path, sizeof(event->path), file_path);
+#endif
+
+	return get_perm(event);
+}
+
 #define PROG_CODE \
     struct file_open_audit_event event = {}; \
     get_file_info(&event); \
@@ -280,6 +309,30 @@ SEC("lsm/file_open")
 int BPF_PROG(restricted_file_open, struct file *file)
 {
 	PROG_CODE
+}
+
+SEC("lsm/path_unlink")
+int BPF_PROG(restricted_path_unlink, const struct path *dir, struct dentry *dentry)
+{
+    struct file_open_audit_event event = {};
+    get_file_info(&event);
+    event.ret = get_path_perm(&event, dir, dentry);
+    if (event.ret != 0)
+		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
+	if (event.ret > 0) event.ret = 0;
+    return event.ret;
+}
+
+SEC("lsm/path_rename")
+int BPF_PROG(restricted_path_rename, const struct path *old_dir, struct dentry *old_dentry)
+{
+    struct file_open_audit_event event = {};
+    get_file_info(&event);
+    event.ret = get_path_perm(&event, old_dir, old_dentry);
+    if (event.ret != 0)
+		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
+	if (event.ret > 0) event.ret = 0;
+    return event.ret;
 }
 
 SEC("lsm/file_receive")
