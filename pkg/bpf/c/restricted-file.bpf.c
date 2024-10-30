@@ -8,7 +8,6 @@
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
-#define FILE_NAME_LEN	32
 #define NAME_MAX 255
 #define LOOP_NAME 80
 
@@ -16,17 +15,15 @@ struct file_path {
     unsigned char path[NAME_MAX];
 };
 
-
 struct callback_ctx {
     unsigned char *path;
     bool found;
 };
 
 struct file_open_audit_event {
-    //u64 cgroup;
+    u64 cgroup;
     u32 pid;
     u32 uid;
-    int ret;
     char nodename[NEW_UTS_LEN + 1];
     char task[TASK_COMM_LEN];
     char parent_task[TASK_COMM_LEN];
@@ -150,7 +147,6 @@ static long get_path_str_from_path(u_char **path_str, const struct path *path, s
 	// Null terminate the path string
 	out_buf->data[HALF_PERCPU_ARRAY_SIZE - 1] = 0;
 	*path_str = &out_buf->data[buf_off];
-	bpf_printk("yyy3 denied files: %s\n", out_buf->data + buf_off);
 
 	if (append) {
 		name_len = LIMIT_PATH_SIZE(BPF_CORE_READ(append, d_name.len));
@@ -160,7 +156,6 @@ static long get_path_str_from_path(u_char **path_str, const struct path *path, s
 	} else {
 		out_buf->data[HALF_PERCPU_ARRAY_SIZE - 1 - 1] = 0;
 	}
-	bpf_printk("yyy4 denied files: %s\n", out_buf->data + buf_off);
 
 	return HALF_PERCPU_ARRAY_SIZE - buf_off - 1;
 }
@@ -181,14 +176,16 @@ static inline void get_file_info(struct file_open_audit_event *event){
     struct nsproxy *nsproxy;
 
     current_task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
+
     BPF_CORE_READ_INTO(&nsproxy, current_task, nsproxy);
     BPF_CORE_READ_INTO(&uts_ns, nsproxy, uts_ns);
     BPF_CORE_READ_INTO(&event->nodename, uts_ns, name.nodename);
     BPF_CORE_READ_INTO(&mnt_ns, nsproxy, mnt_ns);
-    //event->cgroup = bpf_get_current_cgroup_id();
+
+    event->cgroup = bpf_get_current_cgroup_id();
     event->pid = (u32)(bpf_get_current_pid_tgid() >> 32);
     bpf_get_current_comm(&event->task, sizeof(event->task));
-    struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
     bpf_probe_read_kernel_str(&event->parent_task, sizeof(event->parent_task), &parent_task->comm);
     u64 uid_gid = bpf_get_current_uid_gid();
     event->uid = uid_gid & 0xFFFFFFFF;
@@ -221,37 +218,36 @@ static int get_perm(struct file_open_audit_event *event) {
     struct file_path *paths;
     paths = (struct file_path *)bpf_map_lookup_elem(&denied_access_files, &key);
     if (paths == NULL) {
-            return 0;
+		return 0;
     }
 
 	bpf_printk("denied files: %s\n", paths->path);
 	bpf_printk("event files: %s\n", event->path);
     unsigned int i = 0;
     unsigned int j = 0;
-    unsigned int equali = 0;
 
 	#pragma unroll
     for (i = 0; i < LOOP_NAME; i++) {
-            if (paths->path[i] == '\0') {
-                break;
-            }
-            if (paths->path[i] == '|') {
-                continue;
-            }
-            if (paths->path[i]==event->path[j]) {
-                    j = j + 1;
-            } else {
+		if (paths->path[i] == '\0') {
+			break;
+		}
+		if (paths->path[i] == '|') {
+			continue;
+		}
+		if (paths->path[i] == event->path[j]) {
+			j = j + 1;
+		} else {
+			j = 0;
+			continue;
+		}
+		if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
+			if (event->path[j] == '\0' || event->path[j] == '/') {
+				ret = -EPERM;
+				find = true;
+				break;
+			} else {
 				j = 0;
-				continue;
-            }
-            if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
-				if (event->path[j] == '\0' || event->path[j] == '/') {
-					 ret = -EPERM;
-					 find = true;
-					 break;
-				} else {
-					j = 0;
-				}
+			}
 		}
 	}
 #endif
@@ -297,13 +293,24 @@ static inline int get_path_perm(struct file_open_audit_event *event, const struc
 }
 
 #define PROG_CODE \
+	int ret = 0; \
     struct file_open_audit_event event = {}; \
     get_file_info(&event); \
-    event.ret = get_file_perm(&event, file); \
-    if (event.ret != 0) \
+    ret = get_file_perm(&event, file); \
+    if (ret != 0) \
 		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event)); \
-	if (event.ret > 0) event.ret = 0; \
-    return event.ret;
+	if (ret > 0) ret = 0; \
+    return ret;
+
+#define PROG_CODE_A \
+	int ret = 0; \
+    struct file_open_audit_event event = {};\
+    get_file_info(&event);\
+    ret = get_path_perm(&event, dir, dentry);\
+    if (ret != 0)\
+		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));\
+	if (ret > 0) ret = 0;\
+    return ret;
 
 SEC("lsm/file_open")
 int BPF_PROG(restricted_file_open, struct file *file)
@@ -314,25 +321,19 @@ int BPF_PROG(restricted_file_open, struct file *file)
 SEC("lsm/path_unlink")
 int BPF_PROG(restricted_path_unlink, const struct path *dir, struct dentry *dentry)
 {
-    struct file_open_audit_event event = {};
-    get_file_info(&event);
-    event.ret = get_path_perm(&event, dir, dentry);
-    if (event.ret != 0)
-		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
-	if (event.ret > 0) event.ret = 0;
-    return event.ret;
+	PROG_CODE_A
+}
+
+SEC("lsm/path_rmdir")
+int BPF_PROG(restricted_path_rmdir, const struct path *dir, struct dentry *dentry)
+{
+	PROG_CODE_A
 }
 
 SEC("lsm/path_rename")
-int BPF_PROG(restricted_path_rename, const struct path *old_dir, struct dentry *old_dentry)
+int BPF_PROG(restricted_path_rename, const struct path *dir, struct dentry *dentry)
 {
-    struct file_open_audit_event event = {};
-    get_file_info(&event);
-    event.ret = get_path_perm(&event, old_dir, old_dentry);
-    if (event.ret != 0)
-		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
-	if (event.ret > 0) event.ret = 0;
-    return event.ret;
+	PROG_CODE_A
 }
 
 SEC("lsm/file_receive")
@@ -347,7 +348,6 @@ int BPF_PROG(restricted_mmap_file, struct file *file, unsigned long reqprot,
 {
 	PROG_CODE
 }
-
 
 SEC("lsm/file_ioctl")
 int BPF_PROG(restricted_file_ioctl, struct file *file, unsigned int cmd, unsigned long arg)
