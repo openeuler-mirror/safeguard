@@ -10,7 +10,7 @@ LIBBPF_OBJDIR = $(abspath ./$(OUTPUT)/libbpf)
 LIBBPF_DESTDIR = $(abspath ./$(OUTPUT))
 LLVM_STRIP ?= $(shell which llvm-strip || which llvm-strip-12)
 CLANG_BPF_SYS_INCLUDES := `shell $(CLANG) -v -E - </dev/null 2>&1 | sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }'`
-CGOFLAG = CGO_CFLAGS="-I$(BASEDIR)/$(OUTPUT)" CGO_LDFLAGS="-lelf -lz -lzstd $(LIBBPF_OBJ)"
+CGOFLAG = CGO_CFLAGS="-I$(BASEDIR)/$(OUTPUT)" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)"
 STATIC=-extldflags -static
 
 .PHONY: libbpf-static
@@ -89,9 +89,9 @@ test/integration/specify: bpf-restricted-network bpf-restricted-file bpf-restric
 
 .PHONY: release/local
 release/local: build build/docker
-	CGO_CFLAGS="-I$(abspath $(OUTPUT))" CGO_LDFLAGS="-lelf -lz -lzstd $(LIBBPF_OBJ)" goreleaser release --snapshot --rm-dist
+	CGO_CFLAGS="-I$(abspath $(OUTPUT))" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)" goreleaser release --snapshot --rm-dist
 
 .PHONY: release
 release: build build/docker
-	CGO_CFLAGS="-I$(abspath $(OUTPUT))" CGO_LDFLAGS="-lelf -lz -lzstd $(LIBBPF_OBJ)" goreleaser release --rm-dist
+	CGO_CFLAGS="-I$(abspath $(OUTPUT))" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)" goreleaser release --rm-dist
 	sudo docker push ghcr.io/mrtc0/bouheki:latest
