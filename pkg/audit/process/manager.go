@@ -45,7 +45,7 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) Attach() error {
-	prog, err := m.mod.GetProgram(BPF_PROGRAM_NAME)
+	prog, err := m.mod.GetProgram(BPF_PROGRAM_FORK)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,17 @@ func (m *Manager) Attach() error {
 		return err
 	}
 
-	log.Debug(fmt.Sprintf("%s attached.", BPF_PROGRAM_NAME))
+	prog, err = m.mod.GetProgram(BPF_PROGRAM_EXEC)
+	if err != nil {
+		return err
+	}
+
+	_, err = prog.AttachTracepoint("sched", "sched_process_exec")
+	if err != nil {
+		return err
+	}
+
+	log.Debug(fmt.Sprintf("%s, %s attached.", BPF_PROGRAM_FORK, BPF_PROGRAM_EXEC))
 	return nil
 }
 
