@@ -24,7 +24,7 @@ struct {
 
 BPF_HASH(processes, u32, struct process_info, BPFCON_MAX_PROCESSES);
 
-static inline void get_process_info(struct process_info *info){
+static inline void get_process_info(struct process_info *info) {
     struct task_struct *current_task;
     struct uts_namespace *uts_ns;
     struct nsproxy *nsproxy;
@@ -53,6 +53,15 @@ add_process_to_map(struct process_info *info)
 
 SEC("tracepoint/sched/sched_process_fork")
 int BPF_PROG(restricted_process_fork, struct bpf_raw_tracepoint_args *args) {
+    struct process_info info = {};
+    get_process_info(&info);
+    add_process_to_map(&info);
+    bpf_perf_event_output(ctx, &process_events, BPF_F_CURRENT_CPU, &info, sizeof(info));
+    return 0;
+}
+
+SEC("tracepoint/sched/sched_process_exec")
+int BPF_PROG(restricted_process_exec, struct bpf_raw_tracepoint_args *args) {
     struct process_info info = {};
     get_process_info(&info);
     add_process_to_map(&info);

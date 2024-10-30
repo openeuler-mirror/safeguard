@@ -21,7 +21,8 @@ import (
 
 const (
 	BPF_OBJECT_NAME  = "restricted-process"
-	BPF_PROGRAM_NAME = "restricted_process_fork"
+	BPF_PROGRAM_FORK = "restricted_process_fork"
+	BPF_PROGRAM_EXEC = "restricted_process_exec"
 	ALLOWED_FILES_MAP_NAME = "allowed_access_files"
 	DENIED_FILES_MAP_NAME  = "denied_access_files"
 
