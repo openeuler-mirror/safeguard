@@ -19,10 +19,14 @@ files:
   mode: block
   target: host
   deny:
-    - '/etc/profile|/home/1' # use vertical bar as separation
+    - '|/home/1|/home/2|/test' # use vertical bar as separation
 
 mount:
-  enable: false
+  enable: true
+  mode: block
+  target: host
+  deny:
+    - '/dev/vdx1|/home/test|/dev/sdx1'
 
 process:
   enable: true
