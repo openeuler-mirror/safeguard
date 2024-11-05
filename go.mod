@@ -1,8 +1,6 @@
 module culinux
 
-go 1.21
-
-toolchain go1.21.4
+go 1.17
 
 require (
 	github.com/aquasecurity/libbpfgo v0.4.6-libbpf-1.1.0
