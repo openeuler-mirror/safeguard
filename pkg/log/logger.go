@@ -113,6 +113,7 @@ type LogLabels struct {
 }
 
 type AuditEventLog struct {
+	Module     string
 	Action     string
 	Hostname   string
 	PID        uint32
@@ -180,6 +181,7 @@ func (l *RestrictedFileAccessLog) Info() {
 
 func (l *RestrictedMountLog) Info() {
 	Logger.WithFields(logrus.Fields{
+		"Module":     l.Module,
 		"Action":     l.Action,
 		"Hostname":   l.Hostname,
 		"PID":        l.PID,
