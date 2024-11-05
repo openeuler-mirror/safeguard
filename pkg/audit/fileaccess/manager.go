@@ -51,9 +51,7 @@ func (m *Manager) Attach() error {
 									"restricted_path_unlink",
 									"restricted_path_rmdir",
 									"restricted_path_rename",
-									"restricted_file_receive"} {
-									//"restricted_mmap_file",
-									//"restricted_file_ioctl"
+									"restricted_file_receive"} { //, "restricted_mmap_file", "restricted_file_ioctl"} {
 		prog, err := m.mod.GetProgram(prog_name)
 		if err != nil {
 			return err
