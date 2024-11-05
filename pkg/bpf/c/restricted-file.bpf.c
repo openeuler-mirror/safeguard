@@ -24,6 +24,7 @@ struct file_open_audit_event {
     u64 cgroup;
     u32 pid;
     u32 uid;
+    int ret;
     char nodename[NEW_UTS_LEN + 1];
     char task[TASK_COMM_LEN];
     char parent_task[TASK_COMM_LEN];
@@ -206,13 +207,15 @@ static int get_perm(struct file_open_audit_event *event) {
 		find = true;
 		goto out;
 	}
-
+// error on openEuler 24.03
+/*
 	bpf_for_each_map_elem(&allowed_access_files, cb_check_path, &cb, 0);
 	if (cb.found) {
 		ret = 0;
 		find = true;
 		goto out;
 	}
+*/
 #else
     unsigned int key = 0;
     struct file_path *paths;
@@ -260,7 +263,7 @@ out:
 }
 
 static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
-#if LINUX_VERSION_CODE > VERSION_5_10
+#if 0 && LINUX_VERSION_CODE > VERSION_5_10
 	if (bpf_d_path(&file->f_path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
 		return 0;
 	}
@@ -277,7 +280,7 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
 }
 
 static inline int get_path_perm(struct file_open_audit_event *event, const struct path *path, struct dentry *dentry){
-#if LINUX_VERSION_CODE > VERSION_5_10
+#if 0 && LINUX_VERSION_CODE > VERSION_5_10
 	if (bpf_d_path(path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
 		return 0;
 	}
@@ -297,6 +300,7 @@ static inline int get_path_perm(struct file_open_audit_event *event, const struc
     struct file_open_audit_event event = {}; \
     get_file_info(&event); \
     ret = get_file_perm(&event, file); \
+    event.ret = ret; \
     if (ret != 0) \
 		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event)); \
 	if (ret > 0) ret = 0; \
@@ -307,6 +311,7 @@ static inline int get_path_perm(struct file_open_audit_event *event, const struc
     struct file_open_audit_event event = {};\
     get_file_info(&event);\
     ret = get_path_perm(&event, dir, dentry);\
+    event.ret = ret; \
     if (ret != 0)\
 		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));\
 	if (ret > 0) ret = 0;\
