@@ -24,6 +24,7 @@ struct file_open_audit_event {
     u64 cgroup;
     u32 pid;
     u32 uid;
+	int ret;
     char nodename[NEW_UTS_LEN + 1];
     char task[TASK_COMM_LEN];
     char parent_task[TASK_COMM_LEN];
@@ -170,12 +171,11 @@ static u64 cb_check_path(struct bpf_map *map, u32 *key, struct file_path *map_pa
 }
 
 static inline void get_file_info(struct file_open_audit_event *event){
-    struct task_struct *current_task;
     struct uts_namespace *uts_ns;
     struct mnt_namespace *mnt_ns;
     struct nsproxy *nsproxy;
 
-    current_task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
 
     BPF_CORE_READ_INTO(&event->nodename, current_task, nsproxy, uts_ns, name.nodename);
@@ -189,7 +189,7 @@ static inline void get_file_info(struct file_open_audit_event *event){
 }
 
 static int get_perm(struct file_open_audit_event *event) {
-    int ret = 0, findex =0;
+    int ret = 0, findex = 0;
     bool find = false;
     struct fileopen_safeguard_config *config =
 		(struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
@@ -218,8 +218,8 @@ static int get_perm(struct file_open_audit_event *event) {
 		return 0;
     }
 
-	bpf_printk("denied files: %s\n", paths->path);
-	bpf_printk("event files: %s\n", event->path);
+	//bpf_printk("denied files: %s\n", paths->path);
+	//bpf_printk("event files: %s\n", event->path);
     unsigned int i = 0;
     unsigned int j = 0;
 
@@ -294,6 +294,7 @@ static inline int get_path_perm(struct file_open_audit_event *event, const struc
     struct file_open_audit_event event = {}; \
     get_file_info(&event); \
     ret = get_file_perm(&event, file); \
+	event.ret = ret; \
     if (ret != 0) \
 		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event)); \
 	if (ret > 0) ret = 0; \
@@ -304,6 +305,7 @@ static inline int get_path_perm(struct file_open_audit_event *event, const struc
     struct file_open_audit_event event = {};\
     get_file_info(&event);\
     ret = get_path_perm(&event, dir, dentry);\
+	event.ret = ret; \
     if (ret != 0)\
 		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));\
 	if (ret > 0) ret = 0;\

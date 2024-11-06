@@ -31,7 +31,7 @@ const (
 )
 
 type auditLog struct {
-	//CGroupID uint64
+	CGroupID uint64
 	PID           uint32
 	UID           uint32
 	Ret           int32
