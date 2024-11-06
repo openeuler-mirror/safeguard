@@ -31,6 +31,7 @@ const (
 type auditLog struct {
 	CGroupID        uint64
 	PID             uint32
+	UID             uint32
 	Ret             int32
 	Nodename        [NEW_UTS_LEN + 1]byte
 	Command         [TASK_COMM_LEN]byte
