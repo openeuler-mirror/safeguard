@@ -32,9 +32,7 @@ static inline void get_process_info(struct process_info *info) {
     current_task = (struct task_struct *)bpf_get_current_task();
     info->pid = (u32)(bpf_get_current_pid_tgid() >> 32);
     info->ppid = (u32)(BPF_CORE_READ(current_task, real_parent, tgid));
-    BPF_CORE_READ_INTO(&nsproxy, current_task, nsproxy);
-    BPF_CORE_READ_INTO(&uts_ns, nsproxy, uts_ns);
-    BPF_CORE_READ_INTO(&info->nodename, uts_ns, name.nodename);
+    BPF_CORE_READ_INTO(&info->nodename, current_task, nsproxy, uts_ns, name.nodename);
     
     bpf_get_current_comm(&info->comm, sizeof(info->comm));
     struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);

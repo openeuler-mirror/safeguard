@@ -178,10 +178,7 @@ static inline void get_file_info(struct file_open_audit_event *event){
     current_task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
 
-    BPF_CORE_READ_INTO(&nsproxy, current_task, nsproxy);
-    BPF_CORE_READ_INTO(&uts_ns, nsproxy, uts_ns);
-    BPF_CORE_READ_INTO(&event->nodename, uts_ns, name.nodename);
-    BPF_CORE_READ_INTO(&mnt_ns, nsproxy, mnt_ns);
+    BPF_CORE_READ_INTO(&event->nodename, current_task, nsproxy, uts_ns, name.nodename);
 
     event->cgroup = bpf_get_current_cgroup_id();
     event->pid = (u32)(bpf_get_current_pid_tgid() >> 32);
