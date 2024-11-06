@@ -66,11 +66,8 @@ static inline void get_info(struct mount_audit_event *event, const char *dev_nam
     current_task = (struct task_struct *)bpf_get_current_task();
     parent_task = BPF_CORE_READ(current_task, real_parent);
 
-    BPF_CORE_READ_INTO(&nsproxy, current_task, nsproxy);
-    BPF_CORE_READ_INTO(&uts_ns, nsproxy, uts_ns);
-    BPF_CORE_READ_INTO(&event->nodename, uts_ns, name.nodename);
-    BPF_CORE_READ_INTO(&mnt_ns, nsproxy, mnt_ns);
-    BPF_CORE_READ_INTO(&inum, mnt_ns, ns.inum);
+	BPF_CORE_READ_INTO(&event.nodename, current_task, nsproxy, uts_ns, name.nodename);
+	BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum);
 
 	event->inum = inum;
     event->cgroup = bpf_get_current_cgroup_id();
@@ -175,11 +172,8 @@ int BPF_PROG(restricted_mount, const char *dev_name, const struct path *path,
     current_task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
 
-    BPF_CORE_READ_INTO(&nsproxy, current_task, nsproxy);
-    BPF_CORE_READ_INTO(&uts_ns, nsproxy, uts_ns);
-    BPF_CORE_READ_INTO(&event.nodename, uts_ns, name.nodename);
-    BPF_CORE_READ_INTO(&mnt_ns, nsproxy, mnt_ns);
-    BPF_CORE_READ_INTO(&inum, mnt_ns, ns.inum);
+	BPF_CORE_READ_INTO(&event.nodename, current_task, nsproxy, uts_ns, name.nodename);
+	BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum);
 
     event.cgroup = bpf_get_current_cgroup_id();
     event.pid = (u32)(bpf_get_current_pid_tgid() >> 32);

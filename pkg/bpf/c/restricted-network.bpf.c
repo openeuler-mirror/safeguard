@@ -71,11 +71,8 @@ static inline void report_ipv4_event(void *ctx, u64 cg, enum action action,
   struct nsproxy *nsproxy;
   current_task = (struct task_struct *)bpf_get_current_task();
 
-  BPF_CORE_READ_INTO(&nsproxy, current_task, nsproxy);
-  BPF_CORE_READ_INTO(&uts_ns, nsproxy, uts_ns);
-
   __builtin_memset(&ev, 0, sizeof(ev));
-  BPF_CORE_READ_INTO(&ev.hdr.nodename, uts_ns, name.nodename);
+  BPF_CORE_READ_INTO(ev.hdr.nodename, current_task, nsproxy, uts_ns, name.nodename);
 
   ev.hdr.cgroup = cg;
   ev.hdr.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
@@ -107,11 +104,8 @@ static inline void report_ipv6_event(void *ctx, u64 cg, enum action action,
   struct nsproxy *nsproxy;
   current_task = (struct task_struct *)bpf_get_current_task();
 
-  BPF_CORE_READ_INTO(&nsproxy, current_task, nsproxy);
-  BPF_CORE_READ_INTO(&uts_ns, nsproxy, uts_ns);
-
   __builtin_memset(&ev, 0, sizeof(ev));
-  BPF_CORE_READ_INTO(&ev.hdr.nodename, uts_ns, name.nodename);
+  BPF_CORE_READ_INTO(ev.hdr.nodename, current_task, nsproxy, uts_ns, name.nodename);
 
   ev.hdr.cgroup = cg;
   ev.hdr.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
