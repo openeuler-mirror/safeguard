@@ -73,7 +73,6 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
             if (cc[j] == '\0' || cc[j] == '/') {
                 ret = -EPERM;
                 find = true;
-				bpf_printk("from_path %s\n", cc);
                 break;
             } else {
                 j = 0;
@@ -148,7 +147,7 @@ int BPF_PROG(restricted_move_mount, const struct path *from_path, const struct p
         return 0;
     }
     bpf_probe_read_kernel_str(cc, DEV_LEN, name);
-	bpf_printk("from_path %s\n", cc);
+	//bpf_printk("from_path %s\n", cc);
 
     int j = 0;
 	#pragma unroll
