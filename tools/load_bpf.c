@@ -57,17 +57,14 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    printf("YYYY BPF %s\n", bpf_object__name(obj));
+    printf("BPF object name %s\n", bpf_object__name(obj));
 	struct bpf_program *p = NULL;
 	for(;;){
 		p = bpf_object__next_program(obj, p);
 		if (p == NULL) break;
-		printf("YYYY BPF %s prog, %s, type %d, %d\n", bpf_program__name(p), bpf_program__section_name(p), 
+		printf("BPF %s prog, %s, type %d, %d\n", bpf_program__name(p), bpf_program__section_name(p), 
 		bpf_program__type(p), bpf_program__expected_attach_type(p));
 	}
-	sleep(1);
-    //bpf_object__close(obj);
-	//return 0;
 
     err = bpf_object__load(obj);
     if (err) {

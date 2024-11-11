@@ -21,6 +21,7 @@ import (
 
 const (
 	BPF_OBJECT_NAME  = "restricted-mount"
+	MODULE = "mount"
 
 	NEW_UTS_LEN   = 64
 	TASK_COMM_LEN = 16
@@ -113,6 +114,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 func newAuditLog(event auditLog) log.RestrictedMountLog {
 	auditEvent := log.AuditEventLog{
+		Module:     MODULE,
 		Action:     retToaction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
