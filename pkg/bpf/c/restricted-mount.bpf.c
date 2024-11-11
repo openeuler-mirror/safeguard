@@ -24,7 +24,7 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
     bool find = false;
     int inum = 0, index = 0;
     struct mount_audit_event event = {};
-	char cc[NAME_MAX / 4];
+	char cc[DEV_LEN];
     struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
     struct mount_safeguard_config *config = (struct mount_safeguard_config *)bpf_map_lookup_elem(&mount_safeguard_config_map, &index);
@@ -54,7 +54,7 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
         return 0;
     }
     bpf_probe_read_kernel_str(&event.path, sizeof(event.path), dev_name);
-    bpf_probe_read_kernel_str(cc, NAME_MAX, dev_name);
+    bpf_probe_read_kernel_str(cc, DEV_LEN, dev_name);
 
     int j = 0;
 	#pragma unroll
@@ -108,18 +108,15 @@ static inline struct mount *real_mount(struct vfsmount *mnt)
 SEC("lsm/move_mount")
 int BPF_PROG(restricted_move_mount, const struct path *from_path, const struct path *to_path)
 {
-    struct mount *p;
-    struct mount *old;
     const char * name;
-    int index = 0, find = 0, ret = 0, inum = 0;
+	bool find = false;
+    int index = 0, ret = 0;
+	int inum = 0;
     struct mount_audit_event event = {};
-    struct uts_namespace *uts_ns;
-    struct mnt_namespace *mnt_ns;
-    struct nsproxy *nsproxy;
     struct mount_safeguard_config *config = (struct mount_safeguard_config *)bpf_map_lookup_elem(&mount_safeguard_config_map, &index);
 
-	old = real_mount(from_path->mnt);
-	p = real_mount(to_path->mnt);
+	struct mount *old = real_mount(from_path->mnt);
+	struct mount *p = real_mount(to_path->mnt);
 
     struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
@@ -131,10 +128,10 @@ int BPF_PROG(restricted_move_mount, const struct path *from_path, const struct p
     bpf_get_current_comm(&event.task, sizeof(event.task));
     bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
 
-    #if LINUX_VERSION_CODE > VERSION_5_10
     name = BPF_CORE_READ(old, mnt_devname);
     bpf_probe_read_kernel_str(&event.path, sizeof(event.path), name);
 
+    #if LINUX_VERSION_CODE > VERSION_5_10
     struct callback_ctx cb = { .path = event.path, .found = false };
     bpf_for_each_map_elem(&mount_denied_source_list, cb_check_path, &cb, 0);
     if (cb.found) {
@@ -144,6 +141,38 @@ int BPF_PROG(restricted_move_mount, const struct path *from_path, const struct p
         goto out;
     }
     #else
+	char cc[DEV_LEN];
+	unsigned int key = 0;
+    struct file_path *paths= (struct file_path *)bpf_map_lookup_elem(&mount_denied_source_list, &key);
+    if (paths == NULL) {
+        return 0;
+    }
+    bpf_probe_read_kernel_str(cc, DEV_LEN, name);
+	bpf_printk("from_path %s\n", cc);
+
+    int j = 0;
+	#pragma unroll
+    for (int i = 0; i < LOOP_NAME; i++) {
+		if (paths->path[i] == '\0'){
+			break;
+		}
+        if (paths->path[i] == cc[j]) {
+            j = j + 1;
+        } else {
+            j = 0;
+            continue;
+        }
+
+        if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
+            if (cc[j] == '\0' || cc[j] == '/') {
+                ret = -EPERM;
+                find = true;
+                break;
+            } else {
+                j = 0;
+            }
+        }
+	}
     #endif
 
 out:
