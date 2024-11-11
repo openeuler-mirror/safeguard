@@ -55,8 +55,6 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
     }
     bpf_probe_read_kernel_str(&event.path, sizeof(event.path), dev_name);
     bpf_probe_read_kernel_str(cc, NAME_MAX, dev_name);
-	bpf_printk("from_path %s\n", event.path);
-	bpf_printk("from_path %s\n", paths->path);
 
     int j = 0;
 	#pragma unroll
@@ -98,6 +96,64 @@ out:
 	if(ret != 0)
 		bpf_perf_event_output((void *)ctx, &mount_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
 	if(ret >0) ret = 0;
+
+    return ret;
+}
+
+static inline struct mount *real_mount(struct vfsmount *mnt)
+{
+    return container_of(mnt, struct mount, mnt);
+}
+
+SEC("lsm/move_mount")
+int BPF_PROG(restricted_move_mount, const struct path *from_path, const struct path *to_path)
+{
+    struct mount *p;
+    struct mount *old;
+    const char * name;
+    int index = 0, find = 0, ret = 0, inum = 0;
+    struct mount_audit_event event = {};
+    struct uts_namespace *uts_ns;
+    struct mnt_namespace *mnt_ns;
+    struct nsproxy *nsproxy;
+    struct mount_safeguard_config *config = (struct mount_safeguard_config *)bpf_map_lookup_elem(&mount_safeguard_config_map, &index);
+
+	old = real_mount(from_path->mnt);
+	p = real_mount(to_path->mnt);
+
+    struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
+    BPF_CORE_READ_INTO(&event.nodename, current_task, nsproxy, uts_ns, name.nodename);
+    BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum);
+
+    event.cgroup = bpf_get_current_cgroup_id();
+    event.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+    bpf_get_current_comm(&event.task, sizeof(event.task));
+    bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
+
+    #if LINUX_VERSION_CODE > VERSION_5_10
+    name = BPF_CORE_READ(old, mnt_devname);
+    bpf_probe_read_kernel_str(&event.path, sizeof(event.path), name);
+
+    struct callback_ctx cb = { .path = event.path, .found = false };
+    bpf_for_each_map_elem(&mount_denied_source_list, cb_check_path, &cb, 0);
+    if (cb.found) {
+        bpf_printk("Mount Denied: %s", cb.path);
+        find = true;
+        ret = -EPERM;
+        goto out;
+    }
+    #else
+    #endif
+
+out:
+    if (find && config && config->mode == MODE_MONITOR) {
+        ret = 1;
+    }
+	event.ret = ret;
+    if(ret != 0)
+        bpf_perf_event_output((void *)ctx, &mount_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
+    if(ret>0) ret = 0;
 
     return ret;
 }
