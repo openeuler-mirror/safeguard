@@ -25,6 +25,7 @@ const (
 	BPF_PROGRAM_EXEC = "restricted_process_exec"
 	ALLOWED_FILES_MAP_NAME = "allowed_access_files"
 	DENIED_FILES_MAP_NAME  = "denied_access_files"
+	MODULE = "process"
 
 	NEW_UTS_LEN      = 64
 	PATH_MAX         = 255
@@ -114,6 +115,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 func newAuditLog(event auditLog) log.RestrictedProcessLog {
 	auditEvent := log.AuditEventLog{
+		Module:     MODULE,
 		//Action:     retToaction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
