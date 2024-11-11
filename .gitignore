@@ -3,3 +3,5 @@ output
 pkg/bpf/bytecode/*
 *bpf.o
 tags
+tools/load_bpf
+load_bpf
