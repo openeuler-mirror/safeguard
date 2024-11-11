@@ -113,6 +113,7 @@ type LogLabels struct {
 }
 
 type AuditEventLog struct {
+	Module     string
 	Action     string
 	Hostname   string
 	PID        uint32
@@ -146,6 +147,7 @@ type RestrictedProcessLog struct {
 
 func (l *RestrictedNetworkLog) Info() {
 	Logger.WithFields(logrus.Fields{
+		"Module":     l.Module,
 		"Action":     l.Action,
 		"Hostname":   l.Hostname,
 		"PID":        l.PID,
@@ -160,6 +162,7 @@ func (l *RestrictedNetworkLog) Info() {
 
 func (l *RestrictedFileAccessLog) Info() {
 	Logger.WithFields(logrus.Fields{
+		"Module":     l.Module,
 		"Action":   l.Action,
 		"Hostname": l.Hostname,
 		"PID":      l.PID,
@@ -180,6 +183,7 @@ func (l *RestrictedFileAccessLog) Info() {
 
 func (l *RestrictedMountLog) Info() {
 	Logger.WithFields(logrus.Fields{
+		"Module":     l.Module,
 		"Action":     l.Action,
 		"Hostname":   l.Hostname,
 		"PID":        l.PID,
@@ -191,6 +195,7 @@ func (l *RestrictedMountLog) Info() {
 
 func (l *RestrictedProcessLog) Info() {
 	Logger.WithFields(logrus.Fields{
+		"Module":     l.Module,
 		//"Action":   l.Action,
 		"Hostname":   l.Hostname,
 		"PID":        l.PID,
