@@ -48,14 +48,15 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) Attach() error {
-	prog, err := m.mod.GetProgram(BPF_PROGRAM_NAME)
-	if err != nil {
-		return err
-	}
-
-	_, err = prog.AttachLSM()
-	if err != nil {
-		return err
+	for _, p := range BPF_PROGRAM_NAME {
+		prog, err := m.mod.GetProgram(p)
+		if err != nil {
+			return err
+		}
+		_, err = prog.AttachLSM()
+		if err != nil {
+			return err
+		}
 	}
 
 	log.Debug(fmt.Sprintf("%s attached.", BPF_PROGRAM_NAME))
