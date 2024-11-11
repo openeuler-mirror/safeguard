@@ -52,6 +52,9 @@ bpf-restricted-mount: $(BPF_BUILDDIR)/restricted-mount.bpf.o
 .PHONY: bpf-restricted-process
 bpf-restricted-process: $(BPF_BUILDDIR)/restricted-process.bpf.o
 
+tools: libbpf
+	gcc -I$(OUTPUT) -L$(OUTPUT) -lbpf tools/load_bpf.c -o tools/load_bpf
+
 .PHONY: build
 build:  libbpf vmlinux bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
 	$(CGOFLAG) go build -tags netgo -ldflags "-w -s" -o build/safeguard cmd/safeguard/safeguard.go
@@ -62,7 +65,6 @@ build-static:  libbpf vmlinux bpf-restricted-network bpf-restricted-file bpf-res
 .PHONY: vmlinux
 vmlinux:
 	$(shell bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(OUTPUT)/vmlinux.h)
-
 
 clean:
 	rm -rf pkg/bpf/bytecode/*
