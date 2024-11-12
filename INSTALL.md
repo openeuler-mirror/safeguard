@@ -4,7 +4,7 @@
 
 安装必要的编译工具，可能包括：
 ```
-$ yum install libbpf-devel make clang llvm elfutils-libelf-devel bpftool bcc-tools bcc-devel dwarves
+$ yum install clang llvm bpftool
 ```
 
 ## 内核配置
@@ -28,6 +28,6 @@ CONFIG_DEBUG_INFO_BTF=y
 ```shell
 $ cat /etc/default/grub
 ...
-GRUB_CMDLINE_LINUX="... lsm=lockdown,yama,apparmor,bpf"
+GRUB_CMDLINE_LINUX="... lsm=...,bpf"
 ...
 ```

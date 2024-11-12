@@ -22,10 +22,9 @@ $ git clone --recursive https://gitee.com/openeuler/safeguard.git && cd safeguar
 # $ vagrant up && vagrant reload
 # $ vagrant ssh
 
-$ make libbpf-static
 $ make build
 
-$ sudo ./build/safeguard --config config/safeguard.yml #|grep BLOCK
+$ sudo ./build/safeguard --config config/safeguard.yml
 ```
 
 # 安装
