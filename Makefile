@@ -68,7 +68,7 @@ vmlinux:
 
 clean:
 	rm -rf pkg/bpf/bytecode/*
-	rm -rf output build
+	rm -rf output build tools/load_bpf
 
 .PHONY: build/docker
 build/docker:

@@ -63,13 +63,15 @@ static int get_perm(struct file_open_audit_event *event) {
 		find = true;
 		goto out;
 	}
-
+/*
+	// it seems kernel above 6.x can not accept two bpf_for_each_map_elem in one function
 	bpf_for_each_map_elem(&allowed_access_files, cb_check_path, &cb, 0);
 	if (cb.found) {
 		ret = 0;
 		find = true;
 		goto out;
 	}
+*/
 #else
     unsigned int key = 0;
     struct file_path *paths;
@@ -117,7 +119,8 @@ out:
 }
 
 static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
-#if LINUX_VERSION_CODE > VERSION_5_10
+// bpf_d_path is constrained by btf_allowlist_d_path
+#if 0 && LINUX_VERSION_CODE > VERSION_5_10
 	if (bpf_d_path(&file->f_path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
 		return 0;
 	}
@@ -134,7 +137,7 @@ static inline int get_file_perm(struct file_open_audit_event *event,struct file 
 }
 
 static inline int get_path_perm(struct file_open_audit_event *event, const struct path *path, struct dentry *dentry){
-#if LINUX_VERSION_CODE > VERSION_5_10
+#if 0 && LINUX_VERSION_CODE > VERSION_5_10
 	if (bpf_d_path(path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
 		return 0;
 	}
