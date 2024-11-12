@@ -1,5 +1,5 @@
 network:
-  enable: true
+  enable: false
   mode: block
   target: host
   cidr:
@@ -8,7 +8,7 @@ network:
   domain:
     deny:
       #- example.com
-      - baidu.com
+      #- baidu.com
   command:
     allow:
       #- systemd-resolved
@@ -19,16 +19,18 @@ files:
   mode: block
   target: host
   deny:
-    - '/etc/profile'
+    - '/etc/test'
     - '/home/vagrant/test'
 mount:
-  enable: false
-process:
   enable: true
+  mode: block
+  target: host
+  deny:
+    - '/dev/vdxn'
+process:
+  enable: false
   mode: monitor
   target: host
-
 log:
   level: info
   format: json
-
