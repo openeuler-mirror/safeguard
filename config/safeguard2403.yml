@@ -1,0 +1,43 @@
+network:
+  enable: true
+  mode: block
+  target: host
+  cidr:
+    allow:
+      - 0.0.0.0/0
+  domain:
+    deny:
+      #- example.com
+      - baidu.com
+  command:
+    allow:
+      #- systemd-resolved
+      #- curl
+      #- safeguard
+
+files:
+  enable: true
+  mode: block
+  target: host
+  deny:
+    - '/etc/profile'
+    - '/home/test'
+    - '/home/2'
+    - '/home/1'
+
+mount:
+  enable: true
+  mode: block
+  target: host
+  deny:
+    - '/dev/vda1'
+    - '/dev/loop0'
+
+process:
+  enable: false
+  mode: monitor
+  target: host
+
+log:
+  level: info
+  format: json
