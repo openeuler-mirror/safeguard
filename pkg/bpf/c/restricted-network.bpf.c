@@ -8,14 +8,6 @@
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
-struct network_safeguard_config
-{
-  enum mode mode;
-  enum target target;
-  int has_allow_command;
-  int has_allow_uid;
-};
-
 BPF_RING_BUF(audit_events, AUDIT_EVENTS_RING_SIZE);
 BPF_HASH(network_safeguard_config_map, u32, struct network_safeguard_config, 256);
 

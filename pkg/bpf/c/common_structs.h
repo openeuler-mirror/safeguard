@@ -44,16 +44,16 @@ enum mode
   MODE_BLOCK
 };
 
-enum target
-{
-  TARGET_HOST,
-  TARGET_CONTAINER
-};
-
 enum lsm_hook_point
 {
   CONNECT,
   SENDMSG // Not implemented yet.
+};
+
+enum svrtarget
+{
+	TARGET_HOST,
+	TARGET_CONTAINER
 };
 
 struct file_path {
@@ -95,6 +95,14 @@ struct mount_audit_event {
 struct mount_safeguard_config {
     u32 mode;
     u32 target;
+};
+
+struct network_safeguard_config
+{
+  enum mode mode;
+  u32 target;
+  int has_allow_command;
+  int has_allow_uid;
 };
 
 struct buffer {
