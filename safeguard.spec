@@ -19,8 +19,8 @@ Safeguard is a tool for restricting network, file, mount and process operations 
 %setup -q -n safeguard
 
 %build
+export GO111MODULE="on"
 export GOPROXY="https://goproxy.cn,direct"
-go mod tidy
 make build
 
 %install
