@@ -20,13 +20,14 @@ import (
 )
 
 const (
-	BPF_OBJECT_NAME  = "restricted-mount"
-	MODULE = "mount"
+	BPF_OBJECT_NAME = "restricted-mount"
+	MODULE          = "mount"
 
 	NEW_UTS_LEN   = 64
 	TASK_COMM_LEN = 16
 	PATH_MAX      = 255
 )
+
 var BPF_PROGRAM_NAME []string = []string{"restricted_mount", "restricted_move_mount"}
 
 type auditLog struct {

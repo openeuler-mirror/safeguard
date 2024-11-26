@@ -34,7 +34,7 @@ const (
 	ACTION_MONITOR_STRING       = "MONITOR"
 	ACTION_BLOCKED_STRING       = "BLOCKED"
 	ACTION_UNKNOWN_STRING       = "UNKNOWN"
-	MODULE = "network"
+	MODULE                      = "network"
 
 	BLOCKED_IPV4 int32 = 0
 	BLOCKED_IPV6 int32 = 1
