@@ -24,7 +24,7 @@ const (
 	BPF_PROGRAM_NAME       = "restricted_file_open"
 	ALLOWED_FILES_MAP_NAME = "allowed_access_files"
 	DENIED_FILES_MAP_NAME  = "denied_access_files"
-	MODULE = "access"
+	MODULE                 = "access"
 
 	NEW_UTS_LEN   = 64
 	PATH_MAX      = 255
@@ -32,7 +32,7 @@ const (
 )
 
 type auditLog struct {
-	CGroupID uint64
+	CGroupID      uint64
 	PID           uint32
 	UID           uint32
 	Ret           int32
