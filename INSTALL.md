@@ -4,7 +4,7 @@
 
 安装必要的编译工具，可能包括：
 ```
-$ yum install clang llvm bpftool
+$ yum install clang llvm bpftool elfutils-devel zlib-devel 
 ```
 
 ## 内核配置
