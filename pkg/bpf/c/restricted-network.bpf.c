@@ -134,8 +134,9 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   int allow_uid = -EPERM;
   int allow_gid = -EPERM;
 
-  bool is_ipv6 = (address->sa_family == AF_INET6);
-  bool is_ipv4 = (address->sa_family == AF_INET);
+  unsigned short family = BPF_CORE_READ(address, sa_family);  
+  bool is_ipv6 = (family == AF_INET6);
+  bool is_ipv4 = (family == AF_INET);
 
   if (!(is_ipv4 || is_ipv6))
     return 0;
@@ -263,8 +264,9 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
 
 static inline void reoprt_net_events(struct network_safeguard_config *c, int can_access, unsigned long long *ctx, 
                                     struct socket *sock, struct sockaddr *address){
-  bool is_ipv6 = (address->sa_family == AF_INET6);
-  bool is_ipv4 = (address->sa_family == AF_INET);
+  unsigned short family = BPF_CORE_READ(address, sa_family);
+  bool is_ipv6 = (family == AF_INET6);
+  bool is_ipv4 = (family == AF_INET);
 
   u64 cg = bpf_get_current_cgroup_id();
 
