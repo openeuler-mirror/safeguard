@@ -134,9 +134,11 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   int allow_uid = -EPERM;
   int allow_gid = -EPERM;
 
-  unsigned short family = BPF_CORE_READ(address, sa_family);  
-  bool is_ipv6 = (family == AF_INET6);
-  bool is_ipv4 = (family == AF_INET);
+  struct sockaddr a;
+  bpf_probe_read_kernel(&a, sizeof(struct sockaddr), address);
+
+  bool is_ipv6 = (a.sa_family == AF_INET6);
+  bool is_ipv4 = (a.sa_family == AF_INET);
 
   if (!(is_ipv4 || is_ipv6))
     return 0;
@@ -145,9 +147,9 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   struct sockaddr_in6 *inet_addr6;
 
   if (is_ipv6) {
-    inet_addr6 = (struct sockaddr_in6 *)address;
+    inet_addr6 = (struct sockaddr_in6 *)&a;
   } else {
-    inet_addr4 = (struct sockaddr_in *)address;
+    inet_addr4 = (struct sockaddr_in *)&a;
   }
 
   if ((is_ipv6 && is_destination_port_zero_v6(inet_addr6)) ||
