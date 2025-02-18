@@ -34,6 +34,11 @@ $ yum install safeguard-2.0.1-2.ule3.x86_64.rpm
 $ sudo safeguard --config /etc/safeguard/safeguard.yml
 ```
 
+# configurate map
+```shell
+$ bpftool map update pinned /sys/fs/bpf/file_config key 00 00 00 00 value 01 00 00 00 00 00 00 00
+```
+
 # 项目功能(部分位于开发阶段)
 
 ### 审计控制
