@@ -43,6 +43,10 @@ func (m *Manager) Stop() {
 }
 
 func (m *Manager) Close() {
+	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
+	if err == nil {
+		configMap.Unpin("/sys/fs/bpf/file_config")
+	}
 	m.pb.Close()
 }
 
@@ -164,6 +168,10 @@ func (m *Manager) setModeAndTarget() error {
 
 	k := uint8(0)
 	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
+	if err != nil {
+		return err
+	}
+	err = configMap.Pin("/sys/fs/bpf/file_config")
 	if err != nil {
 		return err
 	}
