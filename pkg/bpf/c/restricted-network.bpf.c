@@ -64,8 +64,7 @@ static inline void report_ipv4_event(void *ctx, u64 cg, enum action action,
   current_task = (struct task_struct *)bpf_get_current_task();
 
   __builtin_memset(&ev, 0, sizeof(ev));
-  BPF_CORE_READ_INTO(ev.hdr.nodename, current_task, nsproxy, uts_ns, name.nodename);
-
+  BPF_CORE_READ_INTO(&ev.hdr.nodename, current_task, nsproxy, uts_ns, name.nodename);
   ev.hdr.cgroup = cg;
   ev.hdr.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
   ev.hdr.type = BLOCKED_IPV4;
