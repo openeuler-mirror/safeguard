@@ -7,7 +7,7 @@ URL: https://gitee.com/openeuler/safeguard
 Source0: %{name}-%{version}.tar.gz
 Source1: https://gitee.com/openeuler/safeguard/archive/refs/tags/v%{version}.tar.gz
 
-BuildRequires: gcc, clang, llvm, elfutils-libelf-devel, zlib-devel
+BuildRequires: gcc, clang, llvm, elfutils-libelf-devel, zlib-devel, golang
 Requires: bpftool
 
 %define debug_package %{nil}
