@@ -97,3 +97,12 @@ release/local: build build/docker
 release: build build/docker
 	CGO_CFLAGS="-I$(abspath $(OUTPUT))" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)" goreleaser release --rm-dist
 	sudo docker push safeguard:latest
+
+.PHONY: rpmbuild
+rpmbuild:
+	which rpmbuild || sudo yum install rpm-build -y
+	mkdir -p ~/rpmbuild/{SPECS,SOURCES}
+	cp safeguard.spec ~/rpmbuild/SPECS/
+	tar --transform "s/^\./safeguard/"  -zcvf ~/rpmbuild/SOURCES/safeguard-2.0.tar.gz .
+	cd ~/rpmbuild && sudo yum builddep -y SPECS/safeguard.spec && rpmbuild -ba SPECS/safeguard.spec
+
