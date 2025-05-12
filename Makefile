@@ -72,7 +72,7 @@ clean:
 
 .PHONY: build/docker
 build/docker:
-	sudo docker build -t ghcr.io/mrtc0/bouheki:latest .
+	sudo docker build -t safeguard:latest .
 
 .PHONY: test/unit
 test/unit: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
@@ -96,4 +96,4 @@ release/local: build build/docker
 .PHONY: release
 release: build build/docker
 	CGO_CFLAGS="-I$(abspath $(OUTPUT))" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)" goreleaser release --rm-dist
-	sudo docker push ghcr.io/mrtc0/bouheki:latest
+	sudo docker push safeguard:latest
