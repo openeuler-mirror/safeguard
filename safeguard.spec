@@ -5,9 +5,8 @@ Summary: A tool for restricting network, file, mount and process operations usin
 License: MIT
 URL: https://gitee.com/openeuler/safeguard
 Source0: %{name}-%{version}.tar.gz
-Source1: https://gitee.com/openeuler/safeguard/archive/refs/tags/v%{version}.tar.gz
 
-BuildRequires: gcc, clang, llvm, elfutils-libelf-devel, zlib-devel, golang
+BuildRequires: gcc, clang, llvm, elfutils-libelf-devel, zlib-devel, golang, bpftool
 Requires: bpftool
 
 %define debug_package %{nil}
