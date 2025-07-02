@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"culinux/pkg/config"
+	"safeguard/pkg/config"
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"

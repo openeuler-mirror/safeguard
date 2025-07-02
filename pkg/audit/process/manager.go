@@ -3,8 +3,8 @@ package process
 import (
 	"fmt"
 
-	"culinux/pkg/config"
-	log "culinux/pkg/log"
+	"safeguard/pkg/config"
+	log "safeguard/pkg/log"
 
 	"github.com/aquasecurity/libbpfgo"
 )

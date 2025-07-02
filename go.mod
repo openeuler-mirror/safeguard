@@ -1,4 +1,4 @@
-module culinux
+module safeguard
 
 go 1.17
 

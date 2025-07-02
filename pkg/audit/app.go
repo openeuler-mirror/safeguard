@@ -7,13 +7,13 @@ import (
 	"os/signal"
 	"sync"
 
-	"culinux/pkg/audit/fileaccess"
-	"culinux/pkg/audit/mount"
-	"culinux/pkg/audit/network"
-	"culinux/pkg/audit/process"
-	"culinux/pkg/config"
-	log "culinux/pkg/log"
-	"culinux/pkg/utils"
+	"safeguard/pkg/audit/fileaccess"
+	"safeguard/pkg/audit/mount"
+	"safeguard/pkg/audit/network"
+	"safeguard/pkg/audit/process"
+	"safeguard/pkg/config"
+	log "safeguard/pkg/log"
+	"safeguard/pkg/utils"
 
 	"github.com/urfave/cli/v2"
 )

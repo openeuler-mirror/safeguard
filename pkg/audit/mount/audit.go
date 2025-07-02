@@ -3,8 +3,8 @@ package mount
 import (
 	"C"
 
-	"culinux/pkg/bpf"
-	log "culinux/pkg/log"
+	"safeguard/pkg/bpf"
+	log "safeguard/pkg/log"
 
 	"github.com/aquasecurity/libbpfgo"
 )
@@ -15,8 +15,8 @@ import (
 	"io"
 	"sync"
 
-	"culinux/pkg/audit/helpers"
-	"culinux/pkg/config"
+	"safeguard/pkg/audit/helpers"
+	"safeguard/pkg/config"
 )
 
 const (

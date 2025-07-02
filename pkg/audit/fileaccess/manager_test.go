@@ -5,7 +5,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"culinux/pkg/config"
+	"safeguard/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 )

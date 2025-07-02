@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"culinux/pkg/config"
+	"safeguard/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 )

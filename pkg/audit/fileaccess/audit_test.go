@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	//"culinux/pkg/audit/fileaccess"
-	"culinux/pkg/audit/helpers"
-	"culinux/pkg/config"
+	//"safeguard/pkg/audit/fileaccess"
+	"safeguard/pkg/audit/helpers"
+	"safeguard/pkg/config"
 
 	"github.com/stretchr/testify/assert"
 )

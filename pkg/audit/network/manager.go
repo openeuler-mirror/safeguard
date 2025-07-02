@@ -7,8 +7,8 @@ import (
 	"sync"
 	"unsafe"
 
-	"culinux/pkg/config"
-	log "culinux/pkg/log"
+	"safeguard/pkg/config"
+	log "safeguard/pkg/log"
 
 	"github.com/aquasecurity/libbpfgo"
 	"github.com/miekg/dns"

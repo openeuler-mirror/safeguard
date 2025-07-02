@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"culinux/pkg/audit"
+	"safeguard/pkg/audit"
 
 	log "github.com/sirupsen/logrus"
 )

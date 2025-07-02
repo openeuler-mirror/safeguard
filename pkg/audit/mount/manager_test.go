@@ -5,8 +5,8 @@ import (
 	"testing"
 	"unsafe"
 
-	"culinux/pkg/config"
 	"github.com/stretchr/testify/assert"
+	"safeguard/pkg/config"
 )
 
 func Test_SetConfigMap(t *testing.T) {

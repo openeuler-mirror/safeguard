@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	log "culinux/pkg/log"
+	log "safeguard/pkg/log"
 
 	"github.com/miekg/dns"
 )

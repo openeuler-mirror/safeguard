@@ -40,7 +40,7 @@ For more information for configurations, see [here](../configuration/network-res
 ## Run
 
 ```shell
-git clone --recursive https://git.culinux.net/CULinux/safeguard.git && cd safeguard
+git clone --recursive git@gitee.com:openeuler/safeguard.git && cd safeguard
 $ vagrant up && vagrant reload
 $ vagrant ssh
 
