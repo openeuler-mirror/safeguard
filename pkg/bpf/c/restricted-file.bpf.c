@@ -6,213 +6,219 @@
 #include <linux/errno.h>
 #include <linux/version.h>
 
-char LICENSE[] SEC("license") = "Dual BSD/GPL";
+// 定义许可证信息
+char license_info[] SEC("license") = "Dual BSD/GPL";
+
+// 定义性能事件数组和哈希表
+struct {
+    __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+    __uint(key_size, sizeof(u32));
+    __uint(value_size, sizeof(u32));
+} file_access_logs SEC(".maps");
+
+BPF_HASH(file_security_config, u32, struct fileopen_safeguard_config, 256);
+BPF_HASH(permitted_file_paths, u32, struct file_path, 256);
+BPF_HASH(blocked_file_paths, u32, struct file_path, 256);
 
 struct {
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
-} fileopen_events SEC(".maps");
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __type(key, u32);
+    __type(value, struct buffer);
+    __uint(max_entries, 1);
+} temp_storage SEC(".maps");
 
-BPF_HASH(fileopen_safeguard_config_map, u32, struct fileopen_safeguard_config, 256);
-BPF_HASH(allowed_access_files, u32, struct file_path, 256);
-BPF_HASH(denied_access_files, u32, struct file_path, 256);
-
-struct {
-  __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-  __type(key, u32);
-  __type(value, struct buffer);
-  __uint(max_entries, 1);
-} heaps_map SEC(".maps");
-
-static struct buffer *get_buffer() {
-  u32 zero = 0;
-  return (struct buffer *)bpf_map_lookup_elem(&heaps_map, &zero);
+// 获取临时缓冲区
+static struct buffer *fetch_temp_buffer() {
+    u32 index = 0;
+    return (struct buffer *)bpf_map_lookup_elem(&temp_storage, &index);
 }
 
-static inline void get_file_info(struct file_open_audit_event *event){
-    struct uts_namespace *uts_ns;
-    struct mnt_namespace *mnt_ns;
-    struct nsproxy *nsproxy;
+// 获取文件相关信息
+static inline void collect_file_details(struct file_open_audit_event *record) {
+    struct uts_namespace *uts_space;
+    struct mnt_namespace *mnt_space;
+    struct nsproxy *proxy_space;
 
-    struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
-    struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
+    // 获取当前任务和父任务
+    struct task_struct *current = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *parent = BPF_CORE_READ(current, real_parent);
 
-    BPF_CORE_READ_INTO(&event->nodename, current_task, nsproxy, uts_ns, name.nodename);
+    // 读取节点名称
+    BPF_CORE_READ_INTO(&record->nodename, current, nsproxy, uts_ns, name.nodename);
 
-    event->cgroup = bpf_get_current_cgroup_id();
-    event->pid = (u32)(bpf_get_current_pid_tgid() >> 32);
-    bpf_get_current_comm(&event->task, sizeof(event->task));
-    bpf_probe_read_kernel_str(&event->parent_task, sizeof(event->parent_task), &parent_task->comm);
+    // 填充记录信息
+    record->cgroup = bpf_get_current_cgroup_id();
+    record->pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+    bpf_get_current_comm(&record->task, sizeof(record->task));
+    bpf_probe_read_kernel_str(&record->parent_task, sizeof(record->parent_task), &parent->comm);
     u64 uid_gid = bpf_get_current_uid_gid();
-    event->uid = uid_gid & 0xFFFFFFFF;
+    record->uid = uid_gid & 0xFFFFFFFF;
 }
 
-static int get_perm(struct file_open_audit_event *event) {
-    int ret = 0, findex = 0;
-    bool find = false;
-    struct fileopen_safeguard_config *config =
-		(struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
+// 检查文件访问权限
+static int evaluate_access(struct file_open_audit_event *record) {
+    int result = 0, config_index = 0;
+    bool is_denied = false;
+    struct fileopen_safeguard_config *security_config =
+        (struct fileopen_safeguard_config *)bpf_map_lookup_elem(&file_security_config, &config_index);
+
 #if LINUX_VERSION_CODE > VERSION_5_10
-	struct callback_ctx cb = { .path = event->path, .found = false};
-	cb.found = false;
-	bpf_for_each_map_elem(&denied_access_files, cb_check_path, &cb, 0);
-	if (cb.found) {
-		bpf_printk("Access Denied: %s\n", cb.path);
-		ret = -EPERM;
-		find = true;
-		goto out;
-	}
-/*
-	// it seems kernel above 6.x can not accept two bpf_for_each_map_elem in one function
-	bpf_for_each_map_elem(&allowed_access_files, cb_check_path, &cb, 0);
-	if (cb.found) {
-		ret = 0;
-		find = true;
-		goto out;
-	}
-*/
+    // 使用回调函数检查路径是否在黑名单中
+    struct callback_ctx path_check = { .path = record->path, .found = false };
+    path_check.found = false;
+    bpf_for_each_map_elem(&blocked_file_paths, cb_check_path, &path_check, 0);
+    if (path_check.found) {
+        bpf_printk("File Access Denied: %s\n", path_check.path);
+        result = -EPERM;
+        is_denied = true;
+        goto audit_output;
+    }
 #else
-    unsigned int key = 0;
-    struct file_path *paths;
-    paths = (struct file_path *)bpf_map_lookup_elem(&denied_access_files, &key);
-    if (paths == NULL) {
-		return 0;
+    // 手动检查路径是否在黑名单中
+    unsigned int map_key = 0;
+    struct file_path *path_list = (struct file_path *)bpf_map_lookup_elem(&blocked_file_paths, &map_key);
+    if (path_list == NULL) {
+        return 0;
     }
 
-	//bpf_printk("denied files: %s\n", paths->path);
-	//bpf_printk("event files: %s\n", event->path);
-    unsigned int i = 0;
-    unsigned int j = 0;
+    unsigned int path_index = 0;
+    unsigned int match_index = 0;
 
-	#pragma unroll
-    for (i = 0; i < LOOP_NAME; i++) {
-		if (paths->path[i] == '\0') {
-			break;
-		}
-		if (paths->path[i] == '|') {
-			continue;
-		}
-		if (paths->path[i] == event->path[j]) {
-			j = j + 1;
-		} else {
-			j = 0;
-			continue;
-		}
-		if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
-			if (event->path[j] == '\0' || event->path[j] == '/') {
-				ret = -EPERM;
-				find = true;
-				break;
-			} else {
-				j = 0;
-			}
-		}
-	}
-#endif
-
-out:
-    if (find && config && config->mode == MODE_MONITOR) {
-        ret = 1;
+    #pragma unroll
+    for (path_index = 0; path_index < LOOP_NAME; path_index++) {
+        if (path_list->path[path_index] == '\0') {
+            break;
+        }
+        if (path_list->path[path_index] == '|') {
+            continue;
+        }
+        if (path_list->path[path_index] == record->path[match_index]) {
+            match_index++;
+        } else {
+            match_index = 0;
+            continue;
+        }
+        if (path_list->path[path_index + 1] == '\0' || path_list->path[path_index + 1] == '|') {
+            if (record->path[match_index] == '\0' || record->path[match_index] == '/') {
+                result = -EPERM;
+                is_denied = true;
+                break;
+            } else {
+                match_index = 0;
+            }
+        }
     }
-    return ret;
-}
-
-static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
-// bpf_d_path is constrained by btf_allowlist_d_path
-#if 0 && LINUX_VERSION_CODE > VERSION_5_10
-	if (bpf_d_path(&file->f_path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
-		return 0;
-	}
-#else
-    struct path *path = __builtin_preserve_access_index(&file->f_path);
-    struct buffer *string_buf = get_buffer();
-    if (string_buf == NULL) { return 0; }
-    u_char *file_path = NULL;
-    get_path_str_from_path(&file_path, path, string_buf, NULL);
-    bpf_probe_read(event->path, sizeof(event->path), file_path);
 #endif
 
-	return get_perm(event);
+audit_output:
+    // 如果是监控模式且发现违规，设置返回值为 1
+    if (is_denied && security_config && security_config->mode == MODE_MONITOR) {
+        result = 1;
+    }
+    return result;
 }
 
-static inline int get_path_perm(struct file_open_audit_event *event, const struct path *path, struct dentry *dentry){
+// 检查文件权限（基于文件结构）
+static inline int assess_file_access(struct file_open_audit_event *record, struct file *file_ptr) {
 #if 0 && LINUX_VERSION_CODE > VERSION_5_10
-	if (bpf_d_path(path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
-		return 0;
-	}
+    if (bpf_d_path(&file_ptr->f_path, (char *)record->path, NAME_MAX) < 0) {
+        return 0;
+    }
 #else
-    struct buffer *string_buf = get_buffer();
-    if (string_buf == NULL) { return 0; }
-    u_char *file_path = NULL;
-    get_path_str_from_path(&file_path, path, string_buf, dentry);
-    bpf_probe_read(event->path, sizeof(event->path), file_path);
+    struct path *file_path = __builtin_preserve_access_index(&file_ptr->f_path);
+    struct buffer *temp_buf = fetch_temp_buffer();
+    if (temp_buf == NULL) {
+        return 0;
+    }
+    u_char *path_str = NULL;
+    get_path_str_from_path(&path_str, file_path, temp_buf, NULL);
+    bpf_probe_read(record->path, sizeof(record->path), path_str);
 #endif
 
-	return get_perm(event);
+    return evaluate_access(record);
 }
 
-#define PROG_CODE \
-	int ret = 0; \
-    struct file_open_audit_event event = {}; \
-    get_file_info(&event); \
-    ret = get_file_perm(&event, file); \
-	event.ret = ret; \
-    if (ret != 0) \
-		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event)); \
-	if (ret > 0) ret = 0; \
-    return ret;
+// 检查文件权限（基于路径结构）
+static inline int assess_path_access(struct file_open_audit_event *record, const struct path *file_path, struct dentry *entry) {
+#if 0 && LINUX_VERSION_CODE > VERSION_5_10
+    if (bpf_d_path(file_path, (char *)record->path, NAME_MAX) < 0) {
+        return 0;
+    }
+#else
+    struct buffer *temp_buf = fetch_temp_buffer();
+    if (temp_buf == NULL) {
+        return 0;
+    }
+    u_char *path_str = NULL;
+    get_path_str_from_path(&path_str, file_path, temp_buf, entry);
+    bpf_probe_read(record->path, sizeof(record->path), path_str);
+#endif
 
-#define PROG_CODE_A \
-	int ret = 0; \
-    struct file_open_audit_event event = {};\
-    get_file_info(&event);\
-    ret = get_path_perm(&event, dir, dentry);\
-	event.ret = ret; \
-    if (ret != 0)\
-		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));\
-	if (ret > 0) ret = 0;\
-    return ret;
+    return evaluate_access(record);
+}
 
+// 定义通用逻辑宏
+#define FILE_ACCESS_LOGIC \
+    int result = 0; \
+    struct file_open_audit_event audit_record = {0}; \
+    collect_file_details(&audit_record); \
+    result = assess_file_access(&audit_record, file_ptr); \
+    audit_record.ret = result; \
+    if (result != 0) \
+        bpf_perf_event_output((void *)ctx, &file_access_logs, BPF_F_CURRENT_CPU, &audit_record, sizeof(audit_record)); \
+    if (result > 0) result = 0; \
+    return result;
+
+#define PATH_ACCESS_LOGIC \
+    int result = 0; \
+    struct file_open_audit_event audit_record = {0}; \
+    collect_file_details(&audit_record); \
+    result = assess_path_access(&audit_record, dir_path, dir_entry); \
+    audit_record.ret = result; \
+    if (result != 0) \
+        bpf_perf_event_output((void *)ctx, &file_access_logs, BPF_F_CURRENT_CPU, &audit_record, sizeof(audit_record)); \
+    if (result > 0) result = 0; \
+    return result;
+
+// LSM 钩子函数：限制文件打开
 SEC("lsm/file_open")
-int BPF_PROG(restricted_file_open, struct file *file)
-{
-	PROG_CODE
+int BPF_PROG(control_file_open, struct file *file_ptr) {
+    FILE_ACCESS_LOGIC
 }
 
+// LSM 钩子函数：限制路径删除
 SEC("lsm/path_unlink")
-int BPF_PROG(restricted_path_unlink, const struct path *dir, struct dentry *dentry)
-{
-	PROG_CODE_A
+int BPF_PROG(control_path_unlink, const struct path *dir_path, struct dentry *dir_entry) {
+    PATH_ACCESS_LOGIC
 }
 
+// LSM 钩子函数：限制目录删除
 SEC("lsm/path_rmdir")
-int BPF_PROG(restricted_path_rmdir, const struct path *dir, struct dentry *dentry)
-{
-	PROG_CODE_A
+int BPF_PROG(control_path_rmdir, const struct path *dir_path, struct dentry *dir_entry) {
+    PATH_ACCESS_LOGIC
 }
 
+// LSM 钩子函数：限制路径重命名
 SEC("lsm/path_rename")
-int BPF_PROG(restricted_path_rename, const struct path *dir, struct dentry *dentry)
-{
-	PROG_CODE_A
+int BPF_PROG(control_path_rename, const struct path *dir_path, struct dentry *dir_entry) {
+    PATH_ACCESS_LOGIC
 }
 
+// LSM 钩子函数：限制文件接收
 SEC("lsm/file_receive")
-int BPF_PROG(restricted_file_receive, struct file *file)
-{
-	PROG_CODE
+int BPF_PROG(control_file_receive, struct file *file_ptr) {
+    FILE_ACCESS_LOGIC
 }
 
+// LSM 钩子函数：限制文件映射
 SEC("lsm/mmap_file")
-int BPF_PROG(restricted_mmap_file, struct file *file, unsigned long reqprot,
-             unsigned long prot, unsigned long flags)
-{
-	PROG_CODE
+int BPF_PROG(control_mmap_file, struct file *file_ptr, unsigned long req_prot,
+             unsigned long prot, unsigned long flags) {
+    FILE_ACCESS_LOGIC
 }
 
+// LSM 钩子函数：限制文件 IO 控制
 SEC("lsm/file_ioctl")
-int BPF_PROG(restricted_file_ioctl, struct file *file, unsigned int cmd, unsigned long arg)
-{
-	PROG_CODE
+int BPF_PROG(control_file_ioctl, struct file *file_ptr, unsigned int cmd, unsigned long arg) {
+    FILE_ACCESS_LOGIC
 }

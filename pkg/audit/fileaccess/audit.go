@@ -8,6 +8,7 @@ import (
 
 	"github.com/aquasecurity/libbpfgo"
 )
+
 import (
 	"bytes"
 	"context"
@@ -20,18 +21,18 @@ import (
 )
 
 const (
-	BPF_OBJECT_NAME        = "restricted-file"
-	BPF_PROGRAM_NAME       = "restricted_file_open"
-	ALLOWED_FILES_MAP_NAME = "allowed_access_files"
-	DENIED_FILES_MAP_NAME  = "denied_access_files"
-	MODULE                 = "access"
+	BPF_OBJECT_IDENTIFIER    = "secure-file-access"
+	BPF_PROGRAM_IDENTIFIER   = "control_file_open"
+	PERMITTED_PATHS_MAP_NAME = "permitted_file_paths"
+	BLOCKED_PATHS_MAP_NAME   = "blocked_file_paths"
+	AUDIT_MODULE             = "access"
 
 	NEW_UTS_LEN   = 64
 	PATH_MAX      = 255
 	TASK_COMM_LEN = 16
 )
 
-type auditLog struct {
+type fileAccessLog struct {
 	CGroupID      uint64
 	PID           uint32
 	UID           uint32
@@ -42,58 +43,61 @@ type auditLog struct {
 	Path          [PATH_MAX]byte
 }
 
-func setupBPFProgram() (*libbpfgo.Module, error) {
+func initializeBPFModule() (*libbpfgo.Module, error) {
 	bytecode, err := bpf.EmbedFS.ReadFile("bytecode/restricted-file.bpf.o")
 	if err != nil {
 		return nil, err
 	}
-	mod, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_NAME)
+	module, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_IDENTIFIER)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = mod.BPFLoadObject(); err != nil {
+	if err = module.BPFLoadObject(); err != nil {
 		return nil, err
 	}
 
-	return mod, nil
+	return module, nil
 }
 
-func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
+func StartFileAccessAudit(ctx context.Context, wg *sync.WaitGroup, settings *config.Config) error {
 	defer wg.Done()
 
-	if !conf.RestrictedFileAccessConfig.Enable {
-		log.Info("fileaccess audit is disable. shutdown...")
+	if !settings.RestrictedFileAccessConfig.Enable {
+		log.Info("File access audit is disabled. Shutting down...")
 		return nil
 	}
 
-	mod, err := setupBPFProgram()
+	module, err := initializeBPFModule()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer mod.Close()
+	defer module.Close()
 
-	mgr := Manager{
-		mod:    mod,
-		config: conf,
+	controller := FileAccessController{
+		bpfModule: module,
+		settings:  settings,
 	}
 
-	mgr.SetConfigToMap()
-	if err != nil {
+	if err := controller.SetConfigToMap(); err != nil {
 		log.Fatal(err)
 	}
 
-	mgr.Attach()
+	if err := controller.Attach(); err != nil {
+		log.Fatal(err)
+	}
 
-	log.Info("Start the fileaccess audit.")
+	log.Info("Starting file access audit.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
-	mgr.Start(eventChannel, lostChannel)
+	if err := controller.Start(eventChannel, lostChannel); err != nil {
+		log.Fatal(err)
+	}
 
 	go func() {
 		for {
-			eventBytes := <-eventChannel
-			event, err := parseEvent(eventBytes)
+			eventData := <-eventChannel
+			event, err := decodeEvent(eventData)
 			if err != nil {
 				if err == io.EOF {
 					return
@@ -102,22 +106,22 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 				continue
 			}
 
-			auditLog := newAuditLog(event)
+			auditLog := createAuditLog(event)
 			auditLog.Info()
 		}
 	}()
 
 	<-ctx.Done()
-	mgr.Close()
-	log.Info("Terminated the fileaccess audit.")
+	controller.Close()
+	log.Info("Terminated file access audit.")
 
 	return nil
 }
 
-func newAuditLog(event auditLog) log.RestrictedFileAccessLog {
+func createAuditLog(event fileAccessLog) log.RestrictedFileAccessLog {
 	auditEvent := log.AuditEventLog{
-		Module:     MODULE,
-		Action:     retToaction(event.Ret),
+		Module:     AUDIT_MODULE,
+		Action:     convertRetToAction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
 		UID:        event.UID,
@@ -127,39 +131,38 @@ func newAuditLog(event auditLog) log.RestrictedFileAccessLog {
 
 	fileAccessLog := log.RestrictedFileAccessLog{
 		AuditEventLog: auditEvent,
-		Path:          pathToString(event.Path),
+		Path:          convertPathToString(event.Path),
 	}
 
 	return fileAccessLog
 }
 
-func parseEvent(eventBytes []byte) (auditLog, error) {
-	buf := bytes.NewBuffer(eventBytes)
-	var event auditLog
+func decodeEvent(eventData []byte) (fileAccessLog, error) {
+	buf := bytes.NewBuffer(eventData)
+	var event fileAccessLog
 	err := binary.Read(buf, binary.LittleEndian, &event)
 	if err != nil {
-		return auditLog{}, err
+		return fileAccessLog{}, err
 	}
 
 	return event, nil
 }
 
-func retToaction(ret int32) string {
+func convertRetToAction(ret int32) string {
 	if ret == 0 {
 		return "ALLOWED"
-	} else {
-		return "BLOCKED"
 	}
+	return "BLOCKED"
 }
 
-func pathToString(path [PATH_MAX]byte) string {
-	var s string
+func convertPathToString(path [PATH_MAX]byte) string {
+	var result string
 	for _, b := range path {
 		if b != 0x00 {
-			s += string(b)
+			result += string(b)
 		} else {
 			break
 		}
 	}
-	return s
+	return result
 }

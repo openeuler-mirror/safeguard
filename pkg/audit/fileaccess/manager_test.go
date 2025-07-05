@@ -13,10 +13,10 @@ import (
 func Test_Attach(t *testing.T) {
 	t.Run("expect to be attach BPF Program", func(t *testing.T) {
 		config := config.DefaultConfig()
-		mgr := createManager(config)
-		defer mgr.mod.Close()
+		ctrl := createController(config)
+		defer ctrl.bpfModule.Close()
 
-		actual := mgr.Attach()
+		actual := ctrl.Attach()
 		assert.Equal(t, nil, actual)
 	})
 }
@@ -41,18 +41,18 @@ func Test_SetConfigMap_AllowedFiles(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config.RestrictedFileAccessConfig.Allow = test.allowedFiles
 			config.RestrictedFileAccessConfig.Deny = test.deniedFiles
-			mgr := createManager(config)
-			defer mgr.mod.Close()
+			ctrl := createController(config)
+			defer ctrl.bpfModule.Close()
 
-			map_allowed_files, err := mgr.mod.GetMap(ALLOWED_FILES_MAP_NAME)
+			mapPermittedFiles, err := ctrl.bpfModule.GetMap(PERMITTED_FILE_PATHS_MAP)
 			if err != nil {
-				t.Fatalf("Failed open eBPF map for %s, err: %s", ALLOWED_FILES_MAP_NAME, err)
+				t.Fatalf("Failed open eBPF map for %s, err: %s", PERMITTED_FILE_PATHS_MAP, err)
 			}
 
 			key := uint8(0)
-			actual, err := map_allowed_files.GetValue(unsafe.Pointer(&key))
+			actual, err := mapPermittedFiles.GetValue(unsafe.Pointer(&key))
 			if err != nil {
-				t.Fatalf("Failed to get value from eBPF map %s, err: %s", ALLOWED_FILES_MAP_NAME, err)
+				t.Fatalf("Failed to get value from eBPF map %s, err: %s", PERMITTED_FILE_PATHS_MAP, err)
 			}
 
 			padding := bytes.Repeat([]byte{0x00}, PATH_MAX-len(test.expected))
@@ -82,22 +82,22 @@ func Test_SetConfigMap_DeniedFiles(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			config.RestrictedFileAccessConfig.Allow = test.allowedFiles
 			config.RestrictedFileAccessConfig.Deny = test.deniedFiles
-			mgr := createManager(config)
-			defer mgr.mod.Close()
+			ctrl := createController(config)
+			defer ctrl.bpfModule.Close()
 
-			map_denied_files, err := mgr.mod.GetMap(DENIED_FILES_MAP_NAME)
+			mapBlockedFiles, err := ctrl.bpfModule.GetMap(BLOCKED_FILE_PATHS_MAP)
 			if err != nil {
-				t.Fatalf("Failed open eBPF map for %s, err: %s", DENIED_FILES_MAP_NAME, err)
+				t.Fatalf("Failed open eBPF map for %s, err: %s", BLOCKED_FILE_PATHS_MAP, err)
 			}
 
-			iter := map_denied_files.Iterator()
+			iter := mapBlockedFiles.Iterator()
 			if iter.Next() {
 				key := iter.Key()
 				keyPtr := unsafe.Pointer(&key[0])
-				actual, err := map_denied_files.GetValue(keyPtr)
+				actual, err := mapBlockedFiles.GetValue(keyPtr)
 
 				if err != nil {
-					t.Fatalf("Failed to get value from eBPF map %s, err: %s", DENIED_FILES_MAP_NAME, err)
+					t.Fatalf("Failed to get value from eBPF map %s, err: %s", BLOCKED_FILE_PATHS_MAP, err)
 				}
 
 				padding := bytes.Repeat([]byte{0x00}, PATH_MAX-len(test.expected))
@@ -108,21 +108,21 @@ func Test_SetConfigMap_DeniedFiles(t *testing.T) {
 	}
 }
 
-func createManager(conf *config.Config) Manager {
-	mod, err := setupBPFProgram()
+func createController(conf *config.Config) FileAccessController {
+	mod, err := initializeBPFModule()
 	if err != nil {
 		panic(err)
 	}
 
-	mgr := Manager{
-		mod:    mod,
-		config: conf,
+	ctrl := FileAccessController{
+		bpfModule: mod,
+		settings:  conf,
 	}
 
-	err = mgr.SetConfigToMap()
+	err = ctrl.SetConfigToMap()
 	if err != nil {
 		panic(err)
 	}
 
-	return mgr
+	return ctrl
 }

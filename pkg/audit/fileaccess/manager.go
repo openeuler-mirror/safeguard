@@ -12,51 +12,57 @@ import (
 )
 
 const (
-	FILEACCESS_CONFIG = "fileopen_safeguard_config_map"
-	MODE_MONITOR      = uint32(0)
-	MODE_BLOCK        = uint32(1)
+	FILE_SECURITY_CONFIG_MAP = "file_security_config"
+	MODE_MONITOR             = uint32(0)
+	MODE_BLOCK               = uint32(1)
 
 	TARGET_HOST      = uint32(0)
 	TARGET_CONTAINER = uint32(1)
+
+	// BPF Map Names
+	PERMITTED_FILE_PATHS_MAP = "permitted_file_paths"
+	BLOCKED_FILE_PATHS_MAP   = "blocked_file_paths"
 )
 
-type Manager struct {
-	mod    *libbpfgo.Module
-	config *config.Config
-	pb     *libbpfgo.PerfBuffer
+type FileAccessController struct {
+	bpfModule  *libbpfgo.Module
+	settings   *config.Config
+	eventQueue *libbpfgo.PerfBuffer
 }
 
-func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
-	pb, err := m.mod.InitPerfBuf("fileopen_events", eventChannel, lostChannel, 1024)
+func (c *FileAccessController) Start(eventChannel chan []byte, lostChannel chan uint64) error {
+	queue, err := c.bpfModule.InitPerfBuf("file_access_logs", eventChannel, lostChannel, 1024)
 	if err != nil {
 		return err
 	}
 
-	pb.Start()
-	m.pb = pb
+	queue.Start()
+	c.eventQueue = queue
 
 	return nil
 }
 
-func (m *Manager) Stop() {
-	m.pb.Stop()
+func (c *FileAccessController) Stop() {
+	c.eventQueue.Stop()
 }
 
-func (m *Manager) Close() {
-	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
+func (c *FileAccessController) Close() {
+	configMap, err := c.bpfModule.GetMap(FILE_SECURITY_CONFIG_MAP)
 	if err == nil {
-		configMap.Unpin("/sys/fs/bpf/file_config")
+		configMap.Unpin("/sys/fs/bpf/file_security_config")
 	}
-	m.pb.Close()
+	c.eventQueue.Close()
 }
 
-func (m *Manager) Attach() error {
-	for _, prog_name := range []string{"restricted_file_open",
-		"restricted_path_unlink",
-		"restricted_path_rmdir",
-		"restricted_path_rename",
-		"restricted_file_receive"} { //, "restricted_mmap_file", "restricted_file_ioctl"} {
-		prog, err := m.mod.GetProgram(prog_name)
+func (c *FileAccessController) Attach() error {
+	for _, progName := range []string{
+		"control_file_open",
+		"control_path_unlink",
+		"control_path_rmdir",
+		"control_path_rename",
+		"control_file_receive",
+	} {
+		prog, err := c.bpfModule.GetProgram(progName)
 		if err != nil {
 			return err
 		}
@@ -66,42 +72,39 @@ func (m *Manager) Attach() error {
 			return err
 		}
 
-		log.Debug(fmt.Sprintf("%s attached.", prog_name))
+		log.Debug(fmt.Sprintf("%s attached successfully.", progName))
 	}
 	return nil
 }
 
-func (m *Manager) SetConfigToMap() error {
-	err := m.setModeAndTarget()
-	if err != nil {
+func (c *FileAccessController) SetConfigToMap() error {
+	if err := c.configureModeAndTarget(); err != nil {
 		return err
 	}
 
-	err = m.setAllowedFileAccessMap()
-	if err != nil {
+	if err := c.configurePermittedFileAccess(); err != nil {
 		return err
 	}
 
-	err = m.setDeniedFileAccessMap()
-	if err != nil {
+	if err := c.configureBlockedFileAccess(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *Manager) setAllowedFileAccessMap() error {
-	map_allowed_files, err := m.mod.GetMap(ALLOWED_FILES_MAP_NAME)
+func (c *FileAccessController) configurePermittedFileAccess() error {
+	permittedMap, err := c.bpfModule.GetMap(PERMITTED_FILE_PATHS_MAP)
 	if err != nil {
 		return err
 	}
 
-	allowed_paths := m.config.RestrictedFileAccessConfig.Allow
+	allowedPaths := c.settings.RestrictedFileAccessConfig.Allow
 
-	for i, path := range allowed_paths {
-		key := uint8(i)
+	for idx, path := range allowedPaths {
+		key := uint8(idx)
 		value := []byte(path)
-		err = map_allowed_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
+		err = permittedMap.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
 		if err != nil {
 			return err
 		}
@@ -110,57 +113,43 @@ func (m *Manager) setAllowedFileAccessMap() error {
 	return nil
 }
 
-func (m *Manager) setDeniedFileAccessMap() error {
-	map_denied_files, err := m.mod.GetMap(DENIED_FILES_MAP_NAME)
+func (c *FileAccessController) configureBlockedFileAccess() error {
+	blockedMap, err := c.bpfModule.GetMap(BLOCKED_FILE_PATHS_MAP)
 	if err != nil {
 		return err
 	}
 
-	denied_paths := m.config.RestrictedFileAccessConfig.Deny
+	deniedPaths := c.settings.RestrictedFileAccessConfig.Deny
 
-	for i, path := range denied_paths {
-		key := uint8(i)
+	for idx, path := range deniedPaths {
+		key := uint8(idx)
 		value := []byte(path)
 
 		keyPtr := unsafe.Pointer(&key)
 		valuePtr := unsafe.Pointer(&value[0])
-		err = map_denied_files.Update(keyPtr, valuePtr)
+		err = blockedMap.Update(keyPtr, valuePtr)
 		if err != nil {
 			return err
 		}
 	}
 
-	/* kernel version lower than 5.10
-	result := ""
-	for _, path := range denied_paths {
-		result += path
-		result += "|"
-	}
-	key := uint8(0)
-	value := []byte(result)
-	err = map_denied_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
-	if err != nil {
-		return err
-	}
-	*/
-
 	return nil
 }
 
-func (m *Manager) setModeAndTarget() error {
+func (c *FileAccessController) configureModeAndTarget() error {
 	key := make([]byte, 8)
-	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
+	configMap, err := c.bpfModule.GetMap(FILE_SECURITY_CONFIG_MAP)
 	if err != nil {
 		return err
 	}
 
-	if m.config.IsRestrictedMode("fileaccess") {
+	if c.settings.IsRestrictedMode("fileaccess") {
 		binary.LittleEndian.PutUint32(key[0:4], MODE_BLOCK)
 	} else {
 		binary.LittleEndian.PutUint32(key[0:4], MODE_MONITOR)
 	}
 
-	if m.config.IsOnlyContainer("fileaccess") {
+	if c.settings.IsOnlyContainer("fileaccess") {
 		binary.LittleEndian.PutUint32(key[4:8], TARGET_CONTAINER)
 	} else {
 		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
@@ -171,7 +160,7 @@ func (m *Manager) setModeAndTarget() error {
 	if err != nil {
 		return err
 	}
-	err = configMap.Pin("/sys/fs/bpf/file_config")
+	err = configMap.Pin("/sys/fs/bpf/file_security_config")
 	if err != nil {
 		return err
 	}
