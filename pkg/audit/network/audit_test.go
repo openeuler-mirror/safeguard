@@ -21,12 +21,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type TestAuditManager struct {
+// TestAuditController 测试网络审计控制器
+type TestAuditController struct {
 	manager Manager
-	cmd     *exec.Cmd
+	command *exec.Cmd
 }
 
-func composeUp() error {
+// LaunchDockerCompose 启动 Docker Compose 服务
+func LaunchDockerCompose() error {
 	_, err := exec.Command("docker-compose", "-f", "../../../testdata/docker-compose.yml", "up", "-d").Output()
 	if err != nil {
 		return err
@@ -35,23 +37,26 @@ func composeUp() error {
 	return nil
 }
 
-func composeDown() {
+// TerminateDockerCompose 停止 Docker Compose 服务
+func TerminateDockerCompose() {
 	exec.Command("docker-compose", "-f", "../../../testdata/docker-compose.yml", "down").Run()
 }
 
+// TestMain 测试主函数
 func TestMain(m *testing.M) {
-	err := composeUp()
+	err := LaunchDockerCompose()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	r := m.Run()
-	composeDown()
-	os.Exit(r)
+	result := m.Run()
+	TerminateDockerCompose()
+	os.Exit(result)
 }
 
-func TestActionResultForV4(t *testing.T) {
-	tests := []struct {
+// TestIPv4ActionResult 测试 IPv4 动作结果
+func TestIPv4ActionResult(t *testing.T) {
+	testCases := []struct {
 		name     string
 		input    detectEventIPv4
 		expected string
@@ -93,15 +98,16 @@ func TestActionResultForV4(t *testing.T) {
 			expected: ACTION_UNKNOWN_STRING,
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, test.input.ActionResult())
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert.Equal(t, testCase.expected, testCase.input.ActionResult())
 		})
 	}
 }
 
-func TestActionResultForV6(t *testing.T) {
-	tests := []struct {
+// TestIPv6ActionResult 测试 IPv6 动作结果
+func TestIPv6ActionResult(t *testing.T) {
+	testCases := []struct {
 		name     string
 		input    detectEventIPv6
 		expected string
@@ -143,295 +149,308 @@ func TestActionResultForV6(t *testing.T) {
 			expected: ACTION_UNKNOWN_STRING,
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, test.input.ActionResult())
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert.Equal(t, testCase.expected, testCase.input.ActionResult())
 		})
 	}
 }
 
-func TestAuditBlockModeV4(t *testing.T) {
-	fixture := "../../../testdata/block_v4.yml"
-	be_blocked_addr := "10.254.249.3"
-	be_allowed_addr := "10.254.249.4"
-	eventsChannel := make(chan []byte)
-	auditManager := runAuditWithOnce(fixture, []string{"curl", fmt.Sprintf("http://%s", be_blocked_addr)}, eventsChannel)
-	eventBytes := <-eventsChannel
-	header, rawBody, err := parseEvent(eventBytes)
+// TestIPv4BlockMode 测试 IPv4 阻止模式
+func TestIPv4BlockMode(t *testing.T) {
+	configPath := "../../../testdata/block_v4.yml"
+	blockedAddr := "10.254.249.3"
+	allowedAddr := "10.254.249.4"
+	eventChan := make(chan []byte)
+	auditController := executeAuditOnce(configPath, []string{"curl", fmt.Sprintf("http://%s", blockedAddr)}, eventChan)
+	eventData := <-eventChan
+	eventHeader, eventBody, err := parseEvent(eventData)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, BLOCKED_IPV4, eventHeader.EventType)
 
-	body := rawBody.(detectEventIPv4)
+	body := eventBody.(detectEventIPv4)
 
 	assert.Equal(t, ACTION_BLOCKED_STRING, body.ActionResult())
-	assert.Equal(t, auditManager.cmd.Process.Pid, int(header.PID))
-	assert.Equal(t, be_blocked_addr, byte2IPv4(body.DstIP))
+	assert.Equal(t, auditController.command.Process.Pid, int(eventHeader.PID))
+	assert.Equal(t, blockedAddr, byte2IPv4(body.DstIP))
 
-	err = exec.Command("curl", fmt.Sprintf("http://%s", be_allowed_addr)).Run()
+	err = exec.Command("curl", fmt.Sprintf("http://%s", allowedAddr)).Run()
 	assert.Nil(t, err)
 
-	err = exec.Command("curl", fmt.Sprintf("http://%s", be_blocked_addr)).Run()
+	err = exec.Command("curl", fmt.Sprintf("http://%s", blockedAddr)).Run()
 	assert.NotNil(t, err)
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-type SpyIntegrationDNSResolver struct{}
+// MockIntegrationDNSResolver 模拟集成测试的 DNS 解析器
+type MockIntegrationDNSResolver struct{}
 
-func (r *SpyIntegrationDNSResolver) Resolve(host string, recordType uint16) (*DNSAnswer, error) {
+// Resolve 模拟 DNS 解析
+func (r *MockIntegrationDNSResolver) Resolve(host string, recordType uint16) (*DNSAnswer, error) {
 	// See: testdata/docker-compose.yml
-	answer := DNSAnswer{Domain: host, TTL: 1234}
+	dnsAnswer := DNSAnswer{Domain: host, TTL: 1234}
 	switch host {
 	case "nginx-1":
-		answer.Addresses = []net.IP{net.IPv4(10, 254, 249, 3), net.ParseIP("2001:3984:3989::3")}
+		dnsAnswer.Addresses = []net.IP{net.IPv4(10, 254, 249, 3), net.ParseIP("2001:3984:3989::3")}
 	case "nginx-2":
-		answer.Addresses = []net.IP{net.IPv4(10, 254, 249, 4), net.ParseIP("2001:3984:3989::4")}
+		dnsAnswer.Addresses = []net.IP{net.IPv4(10, 254, 249, 4), net.ParseIP("2001:3984:3989::4")}
 	}
 
-	return &answer, nil
+	return &dnsAnswer, nil
 }
 
-func TestAuditBlockModeDomainV4(t *testing.T) {
-	fixture := "../../../testdata/block_domain_v4.yml"
-	eventsChannel := make(chan []byte)
+// TestIPv4DomainBlockMode 测试 IPv4 域名阻止模式
+func TestIPv4DomainBlockMode(t *testing.T) {
+	configPath := "../../../testdata/block_domain_v4.yml"
+	eventChan := make(chan []byte)
 
-	be_blocked_domain := "nginx-1"
-	be_blocked_ip := "10.254.249.3"
-	be_allowed_domain := "nginx-2"
-	be_allowed_ip := "10.254.249.4"
+	blockedDomain := "nginx-1"
+	blockedIP := "10.254.249.3"
+	allowedDomain := "nginx-2"
+	allowedIP := "10.254.249.4"
 
-	be_blocked_url := fmt.Sprintf("http://%s/", be_blocked_domain)
-	be_allowed_url := fmt.Sprintf("http://%s/", be_allowed_domain)
+	blockedURL := fmt.Sprintf("http://%s/", blockedDomain)
+	allowedURL := fmt.Sprintf("http://%s/", allowedDomain)
 
-	curl_resolve_option := fmt.Sprintf("%s:80:%s", be_blocked_domain, be_blocked_ip)
+	curlResolveOption := fmt.Sprintf("%s:80:%s", blockedDomain, blockedIP)
 
-	auditManager := runAuditWithOnce(fixture, []string{"curl", "--resolve", curl_resolve_option, be_blocked_url}, eventsChannel)
-	eventBytes := <-eventsChannel
+	auditController := executeAuditOnce(configPath, []string{"curl", "--resolve", curlResolveOption, blockedURL}, eventChan)
+	eventData := <-eventChan
 
-	header, rawBody, err := parseEvent(eventBytes)
+	eventHeader, eventBody, err := parseEvent(eventData)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
-	body := rawBody.(detectEventIPv4)
+	assert.Equal(t, BLOCKED_IPV4, eventHeader.EventType)
+	body := eventBody.(detectEventIPv4)
 
 	assert.Equal(t, ACTION_BLOCKED_STRING, body.ActionResult())
-	assert.Equal(t, auditManager.cmd.Process.Pid, int(header.PID))
-	assert.Equal(t, bytes.Equal(net.ParseIP(be_blocked_ip), net.ParseIP(byte2IPv4(body.DstIP))), true)
+	assert.Equal(t, auditController.command.Process.Pid, int(eventHeader.PID))
+	assert.Equal(t, bytes.Equal(net.ParseIP(blockedIP), net.ParseIP(byte2IPv4(body.DstIP))), true)
 
-	err = exec.Command("curl", "--resolve", curl_resolve_option, be_blocked_url).Run()
+	err = exec.Command("curl", "--resolve", curlResolveOption, blockedURL).Run()
 	assert.NotNil(t, err)
 
-	curl_resolve_option = fmt.Sprintf("%s:80:%s", be_allowed_domain, be_allowed_ip)
-	err = exec.Command("curl", "--resolve", "nginx-2:80:10.254.249.4", be_allowed_url).Run()
+	curlResolveOption = fmt.Sprintf("%s:80:%s", allowedDomain, allowedIP)
+	err = exec.Command("curl", "--resolve", "nginx-2:80:10.254.249.4", allowedURL).Run()
 	assert.Nil(t, err)
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-func TestAuditBlockModeDomainV6(t *testing.T) {
-	fixture := "../../../testdata/block_domain_v6.yml"
-	eventsChannel := make(chan []byte)
+// TestIPv6DomainBlockMode 测试 IPv6 域名阻止模式
+func TestIPv6DomainBlockMode(t *testing.T) {
+	configPath := "../../../testdata/block_domain_v6.yml"
+	eventChan := make(chan []byte)
 
-	be_blocked_domain := "nginx-1"
-	be_blocked_ip := "2001:3984:3989::3"
-	be_allowed_domain := "nginx-2"
-	be_allowed_ip := "2001:3984:3989::4"
+	blockedDomain := "nginx-1"
+	blockedIP := "2001:3984:3989::3"
+	allowedDomain := "nginx-2"
+	allowedIP := "2001:3984:3989::4"
 
-	be_blocked_url := fmt.Sprintf("http://%s/", be_blocked_domain)
-	be_allowed_url := fmt.Sprintf("http://%s/", be_allowed_domain)
-	curl_resolve_option := fmt.Sprintf("%s:80:%s", be_blocked_domain, be_blocked_ip)
+	blockedURL := fmt.Sprintf("http://%s/", blockedDomain)
+	allowedURL := fmt.Sprintf("http://%s/", allowedDomain)
+	curlResolveOption := fmt.Sprintf("%s:80:%s", blockedDomain, blockedIP)
 
-	auditManager := runAuditWithOnce(fixture, []string{"curl", "-6", "--resolve", curl_resolve_option, be_blocked_url}, eventsChannel)
-	eventBytes := <-eventsChannel
+	auditController := executeAuditOnce(configPath, []string{"curl", "-6", "--resolve", curlResolveOption, blockedURL}, eventChan)
+	eventData := <-eventChan
 
-	header, rawBody, err := parseEvent(eventBytes)
+	eventHeader, eventBody, err := parseEvent(eventData)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV6, header.EventType)
-	body := rawBody.(detectEventIPv6)
+	assert.Equal(t, BLOCKED_IPV6, eventHeader.EventType)
+	body := eventBody.(detectEventIPv6)
 
 	assert.Equal(t, ACTION_BLOCKED_STRING, body.ActionResult())
-	assert.Equal(t, auditManager.cmd.Process.Pid, int(header.PID))
-	assert.Equal(t, bytes.Equal(net.ParseIP(be_blocked_ip), net.ParseIP(byte2IPv6(body.DstIP))), true)
+	assert.Equal(t, auditController.command.Process.Pid, int(eventHeader.PID))
+	assert.Equal(t, bytes.Equal(net.ParseIP(blockedIP), net.ParseIP(byte2IPv6(body.DstIP))), true)
 
-	err = exec.Command("curl", "--resolve", curl_resolve_option, be_blocked_url).Run()
+	err = exec.Command("curl", "--resolve", curlResolveOption, blockedURL).Run()
 	assert.NotNil(t, err)
 
-	curl_resolve_option = fmt.Sprintf("%s:80:%s", be_allowed_domain, be_allowed_ip)
-	err = exec.Command("curl", "--resolve", curl_resolve_option, be_allowed_url).Run()
+	curlResolveOption = fmt.Sprintf("%s:80:%s", allowedDomain, allowedIP)
+	err = exec.Command("curl", "--resolve", curlResolveOption, allowedURL).Run()
 	assert.Nil(t, err)
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-func TestAuditMonitorModeDomainV4(t *testing.T) {
-	fixture := "../../../testdata/monitor_domain_v4.yml"
-	eventsChannel := make(chan []byte)
+// TestIPv4DomainMonitorMode 测试 IPv4 域名监控模式
+func TestIPv4DomainMonitorMode(t *testing.T) {
+	configPath := "../../../testdata/monitor_domain_v4.yml"
+	eventChan := make(chan []byte)
 
-	be_monitord_domain := "nginx-1"
-	be_monitord_ip := "10.254.249.3"
-	be_monitord_url := fmt.Sprintf("http://%s/", be_monitord_domain)
-	curl_resolve_option := fmt.Sprintf("%s:80:%s", be_monitord_domain, be_monitord_ip)
+	monitoredDomain := "nginx-1"
+	monitoredIP := "10.254.249.3"
+	monitoredURL := fmt.Sprintf("http://%s/", monitoredDomain)
+	curlResolveOption := fmt.Sprintf("%s:80:%s", monitoredDomain, monitoredIP)
 
-	auditManager := runAuditWithOnce(fixture, []string{"curl", "--resolve", curl_resolve_option, be_monitord_url}, eventsChannel)
-	eventBytes := <-eventsChannel
-	header, rawBody, err := parseEvent(eventBytes)
+	auditController := executeAuditOnce(configPath, []string{"curl", "--resolve", curlResolveOption, monitoredURL}, eventChan)
+	eventData := <-eventChan
+	eventHeader, eventBody, err := parseEvent(eventData)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, BLOCKED_IPV4, eventHeader.EventType)
 
-	body := rawBody.(detectEventIPv4)
+	body := eventBody.(detectEventIPv4)
 
 	assert.Equal(t, ACTION_MONITOR_STRING, body.ActionResult())
-	assert.Equal(t, auditManager.cmd.Process.Pid, int(header.PID))
-	assert.Equal(t, be_monitord_ip, byte2IPv4(body.DstIP))
+	assert.Equal(t, auditController.command.Process.Pid, int(eventHeader.PID))
+	assert.Equal(t, monitoredIP, byte2IPv4(body.DstIP))
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-func TestAuditMonitorModeDomainV6(t *testing.T) {
-	fixture := "../../../testdata/monitor_domain_v6.yml"
-	eventsChannel := make(chan []byte)
+// TestIPv6DomainMonitorMode 测试 IPv6 域名监控模式
+func TestIPv6DomainMonitorMode(t *testing.T) {
+	configPath := "../../../testdata/monitor_domain_v6.yml"
+	eventChan := make(chan []byte)
 
-	be_monitord_domain := "nginx-1"
-	be_monitord_ip := "2001:3984:3989:0000:0000:0000:0000:0003"
-	be_monitord_url := fmt.Sprintf("http://%s/", be_monitord_domain)
-	curl_resolve_option := fmt.Sprintf("%s:80:%s", be_monitord_domain, be_monitord_ip)
+	monitoredDomain := "nginx-1"
+	monitoredIP := "2001:3984:3989:0000:0000:0000:0000:0003"
+	monitoredURL := fmt.Sprintf("http://%s/", monitoredDomain)
+	curlResolveOption := fmt.Sprintf("%s:80:%s", monitoredDomain, monitoredIP)
 
-	auditManager := runAuditWithOnce(fixture, []string{"curl", "-6", "--resolve", curl_resolve_option, be_monitord_url}, eventsChannel)
-	eventBytes := <-eventsChannel
-	header, rawBody, err := parseEvent(eventBytes)
+	auditController := executeAuditOnce(configPath, []string{"curl", "-6", "--resolve", curlResolveOption, monitoredURL}, eventChan)
+	eventData := <-eventChan
+	eventHeader, eventBody, err := parseEvent(eventData)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV6, header.EventType)
+	assert.Equal(t, BLOCKED_IPV6, eventHeader.EventType)
 
-	body := rawBody.(detectEventIPv6)
+	body := eventBody.(detectEventIPv6)
 
 	assert.Equal(t, ACTION_MONITOR_STRING, body.ActionResult())
-	assert.Equal(t, auditManager.cmd.Process.Pid, int(header.PID))
-	assert.Equal(t, be_monitord_ip, byte2IPv6(body.DstIP))
+	assert.Equal(t, auditController.command.Process.Pid, int(eventHeader.PID))
+	assert.Equal(t, monitoredIP, byte2IPv6(body.DstIP))
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-func TestAuditBlockModeV6(t *testing.T) {
-	fixture := "../../../testdata/block_v6.yml"
-	eventsChannel := make(chan []byte)
-	be_blocked_addr := "2001:3984:3989::3"
-	be_allowed_addr := "2001:3984:3989::4"
-	auditManager := runAuditWithOnce(fixture, []string{"curl", "-6", fmt.Sprintf("http://[%s]", be_blocked_addr)}, eventsChannel)
-	eventBytes := <-eventsChannel
-	header, rawBody, err := parseEvent(eventBytes)
+// TestIPv6BlockMode 测试 IPv6 阻止模式
+func TestIPv6BlockMode(t *testing.T) {
+	configPath := "../../../testdata/block_v6.yml"
+	eventChan := make(chan []byte)
+	blockedAddr := "2001:3984:3989::3"
+	allowedAddr := "2001:3984:3989::4"
+	auditController := executeAuditOnce(configPath, []string{"curl", "-6", fmt.Sprintf("http://[%s]", blockedAddr)}, eventChan)
+	eventData := <-eventChan
+	eventHeader, eventBody, err := parseEvent(eventData)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV6, header.EventType)
+	assert.Equal(t, BLOCKED_IPV6, eventHeader.EventType)
 
-	body := rawBody.(detectEventIPv6)
+	body := eventBody.(detectEventIPv6)
 
 	assert.Equal(t, ACTION_BLOCKED_STRING, body.ActionResult())
-	assert.Equal(t, auditManager.cmd.Process.Pid, int(header.PID))
-	assert.Equal(t, bytes.Equal(net.ParseIP(be_blocked_addr), net.ParseIP(byte2IPv6(body.DstIP))), true)
+	assert.Equal(t, auditController.command.Process.Pid, int(eventHeader.PID))
+	assert.Equal(t, bytes.Equal(net.ParseIP(blockedAddr), net.ParseIP(byte2IPv6(body.DstIP))), true)
 
-	err = exec.Command("curl", "-6", fmt.Sprintf("http://[%s]", be_allowed_addr)).Run()
+	err = exec.Command("curl", "-6", fmt.Sprintf("http://[%s]", allowedAddr)).Run()
 	assert.Nil(t, err)
 
-	err = exec.Command("curl", "-6", fmt.Sprintf("http://[%s]", be_blocked_addr)).Run()
+	err = exec.Command("curl", "-6", fmt.Sprintf("http://[%s]", blockedAddr)).Run()
 	assert.NotNil(t, err)
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-func TestAuditMonitorModeV4(t *testing.T) {
-	fixture := "../../../testdata/monitor_v4.yml"
-	eventsChannel := make(chan []byte)
-	be_monitord_addr := "10.254.249.3"
-	auditManager := runAuditWithOnce(fixture, []string{"curl", fmt.Sprintf("http://%s", be_monitord_addr)}, eventsChannel)
-	eventBytes := <-eventsChannel
-	header, rawBody, err := parseEvent(eventBytes)
+// TestIPv4MonitorMode 测试 IPv4 监控模式
+func TestIPv4MonitorMode(t *testing.T) {
+	configPath := "../../../testdata/monitor_v4.yml"
+	eventChan := make(chan []byte)
+	monitoredAddr := "10.254.249.3"
+	auditController := executeAuditOnce(configPath, []string{"curl", fmt.Sprintf("http://%s", monitoredAddr)}, eventChan)
+	eventData := <-eventChan
+	eventHeader, eventBody, err := parseEvent(eventData)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, BLOCKED_IPV4, eventHeader.EventType)
 
-	body := rawBody.(detectEventIPv4)
+	body := eventBody.(detectEventIPv4)
 
 	assert.Equal(t, ACTION_MONITOR_STRING, body.ActionResult())
-	assert.Equal(t, auditManager.cmd.Process.Pid, int(header.PID))
-	assert.Equal(t, be_monitord_addr, byte2IPv4(body.DstIP))
+	assert.Equal(t, auditController.command.Process.Pid, int(eventHeader.PID))
+	assert.Equal(t, monitoredAddr, byte2IPv4(body.DstIP))
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-func TestAuditMonitorModeV6(t *testing.T) {
-	fixture := "../../../testdata/monitor_v6.yml"
-	eventsChannel := make(chan []byte)
-	auditManager := runAuditWithOnce(fixture, []string{"curl", "-6", "http://[2606:2800:220:1:248:1893:25c8:1946]"}, eventsChannel)
-	eventBytes := <-eventsChannel
-	header, rawBody, err := parseEvent(eventBytes)
+// TestIPv6MonitorMode 测试 IPv6 监控模式
+func TestIPv6MonitorMode(t *testing.T) {
+	configPath := "../../../testdata/monitor_v6.yml"
+	eventChan := make(chan []byte)
+	auditController := executeAuditOnce(configPath, []string{"curl", "-6", "http://[2606:2800:220:1:248:1893:25c8:1946]"}, eventChan)
+	eventData := <-eventChan
+	eventHeader, eventBody, err := parseEvent(eventData)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV6, header.EventType)
+	assert.Equal(t, BLOCKED_IPV6, eventHeader.EventType)
 
-	body := rawBody.(detectEventIPv6)
+	body := eventBody.(detectEventIPv6)
 
 	assert.Equal(t, ACTION_MONITOR_STRING, body.ActionResult())
-	assert.Equal(t, auditManager.cmd.Process.Pid, int(header.PID))
+	assert.Equal(t, auditController.command.Process.Pid, int(eventHeader.PID))
 	assert.Equal(t, "2606:2800:0220:0001:0248:1893:25c8:1946", byte2IPv6(body.DstIP))
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-func TestCanCommunicateWithRestrictedCommand(t *testing.T) {
-	fixture := "../../../testdata/command_allow.yml"
-	config := loadFixtureConfig(fixture)
-	be_blocked_addr := "10.254.249.3"
-	mgr := createManager(config, &DefaultResolver{})
+// TestCommunicationWithPermittedCommand 测试允许的命令通信
+func TestCommunicationWithPermittedCommand(t *testing.T) {
+	configPath := "../../../testdata/command_allow.yml"
+	configData := loadTestConfig(configPath)
+	blockedAddr := "10.254.249.3"
+	manager := createTestManager(configData, &DefaultResolver{})
 
-	mgr.Attach()
-	eventsChannel := make(chan []byte)
-	mgr.Start(eventsChannel)
+	manager.Attach()
+	eventChan := make(chan []byte)
+	manager.Start(eventChan)
 
-	err := exec.Command("curl", fmt.Sprintf("http://%s", be_blocked_addr)).Run()
+	err := exec.Command("curl", fmt.Sprintf("http://%s", blockedAddr)).Run()
 	assert.Nil(t, err)
 
-	mgr.mod.Close()
+	manager.mod.Close()
 }
 
+// TestRestrictedCommand 测试限制的命令
 func TestRestrictedCommand(t *testing.T) {
-	fixture := "../../../testdata/command_deny.yml"
-	config := loadFixtureConfig(fixture)
-	be_blocked_addr := "10.254.249.3"
-	mgr := createManager(config, &DefaultResolver{})
+	configPath := "../../../testdata/command_deny.yml"
+	configData := loadTestConfig(configPath)
+	blockedAddr := "10.254.249.3"
+	manager := createTestManager(configData, &DefaultResolver{})
 
-	mgr.Attach()
-	eventsChannel := make(chan []byte)
-	mgr.Start(eventsChannel)
+	manager.Attach()
+	eventChan := make(chan []byte)
+	manager.Start(eventChan)
 
-	err := exec.Command("curl", fmt.Sprintf("http://%s", be_blocked_addr)).Run()
+	err := exec.Command("curl", fmt.Sprintf("http://%s", blockedAddr)).Run()
 	assert.NotNil(t, err)
 
-	cmd := exec.Command("wget", "-t", "1", fmt.Sprintf("http://%s", be_blocked_addr), "-O", "/dev/null")
+	cmd := exec.Command("wget", "-t", "1", fmt.Sprintf("http://%s", blockedAddr), "-O", "/dev/null")
 	err = cmd.Run()
 
 	assert.Nil(t, err)
 
-	mgr.mod.Close()
+	manager.mod.Close()
 }
 
-func TestAuditContainerBlock(t *testing.T) {
-	fixture := "../../../testdata/container.yml"
-	eventsChannel := make(chan []byte)
-	be_blocked_addr := "10.254.249.3"
+// TestContainerBlockMode 测试容器阻止模式
+func TestContainerBlockMode(t *testing.T) {
+	configPath := "../../../testdata/container.yml"
+	eventChan := make(chan []byte)
+	blockedAddr := "10.254.249.3"
 	commands := []string{
 		"/bin/bash",
 		"-c",
 		fmt.Sprintf(
 			"/usr/bin/docker run --rm curlimages/curl@sha256:347bf0095334e390673f532456a60bea7070ef63f2ca02168fee46b867a51aa8 http://%s",
-			be_blocked_addr),
+			blockedAddr),
 	}
-	auditManager := runAuditWithOnce(fixture, commands, eventsChannel)
-	eventBytes := <-eventsChannel
-	header, rawBody, err := parseEvent(eventBytes)
+	auditController := executeAuditOnce(configPath, commands, eventChan)
+	eventData := <-eventChan
+	eventHeader, eventBody, err := parseEvent(eventData)
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -440,32 +459,33 @@ func TestAuditContainerBlock(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, BLOCKED_IPV4, eventHeader.EventType)
 
-	body := rawBody.(detectEventIPv4)
+	body := eventBody.(detectEventIPv4)
 
 	assert.Equal(t, ACTION_BLOCKED_STRING, body.ActionResult())
-	assert.Equal(t, byte2IPv4(body.DstIP), be_blocked_addr)
-	assert.Equal(t, len(helpers.NodenameToString(header.Nodename)), 12)
-	assert.NotEqual(t, helpers.NodenameToString(header.Nodename), hostname)
+	assert.Equal(t, byte2IPv4(body.DstIP), blockedAddr)
+	assert.Equal(t, len(helpers.NodenameToString(eventHeader.Nodename)), 12)
+	assert.NotEqual(t, helpers.NodenameToString(eventHeader.Nodename), hostname)
 
-	auditManager.manager.mod.Close()
+	auditController.manager.mod.Close()
 }
 
-func TestAuditContainerDoNotCaptureHostEvents(t *testing.T) {
-	fixture := "../../../testdata/container.yml"
-	be_blocked_addr := "10.254.249.3"
+// TestContainerHostEventIsolation 测试容器事件隔离
+func TestContainerHostEventIsolation(t *testing.T) {
+	configPath := "../../../testdata/container.yml"
+	blockedAddr := "10.254.249.3"
 	timeout := time.After(5 * time.Second)
-	done := make(chan bool)
+	doneChan := make(chan bool)
 
-	config := loadFixtureConfig(fixture)
-	mgr := createManager(config, &DefaultResolver{})
-	eventsChannel := make(chan []byte)
+	configData := loadTestConfig(configPath)
+	manager := createTestManager(configData, &DefaultResolver{})
+	eventChan := make(chan []byte)
 
-	mgr.Attach()
-	mgr.Start(eventsChannel)
+	manager.Attach()
+	manager.Start(eventChan)
 
-	cmd := exec.Command("curl", fmt.Sprintf("http://%s", be_blocked_addr))
+	cmd := exec.Command("curl", fmt.Sprintf("http://%s", blockedAddr))
 	err := cmd.Start()
 
 	if err != nil {
@@ -475,40 +495,42 @@ func TestAuditContainerDoNotCaptureHostEvents(t *testing.T) {
 	cmd.Wait()
 
 	go func() {
-		<-eventsChannel
-		done <- true
+		<-eventChan
+		doneChan <- true
 	}()
 
-	// If an event is triggered on the host side and no event can be captured within the specified time, it is assumed that only the container's events are being captured
-	// Unstable testing in an environment with other containers running.
-	// If there's a better way, I'll replace it.
+	// 如果主机侧触发了事件，且在指定时间内未捕获到事件，则假定仅捕获了容器的事件
+	// 在运行其他容器的环境中测试可能不稳定
+	// 如果有更好的方法，我会替换它
 	select {
 	case <-timeout:
 		t.Log("OK")
-	case <-done:
+	case <-doneChan:
 		t.Fatal("Got host events. Expect capture only container's event.")
 	}
 
-	mgr.mod.Close()
+	manager.mod.Close()
 }
 
-func TestRunAudit_Conf(t *testing.T) {
-	config := config.DefaultConfig()
-	config.RestrictedNetworkConfig.Enable = false
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
+// TestNetworkAuditConfig 测试网络审计配置
+func TestNetworkAuditConfig(t *testing.T) {
+	configData := config.DefaultConfig()
+	configData.RestrictedNetworkConfig.Enable = false
+	ctx, cancelFunc := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancelFunc()
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	assert.Nil(t, RunAudit(ctx, &wg, config))
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(1)
+	assert.Nil(t, RunAudit(ctx, &waitGroup, configData))
 }
 
-func runAuditWithOnce(configPath string, execCmd []string, eventsChannel chan []byte) TestAuditManager {
-	config := loadFixtureConfig(configPath)
-	mgr := createManager(config, &SpyIntegrationDNSResolver{})
-	mgr.Attach()
+// executeAuditOnce 执行一次审计测试
+func executeAuditOnce(configPath string, execCmd []string, eventChan chan []byte) TestAuditController {
+	configData := loadTestConfig(configPath)
+	manager := createTestManager(configData, &MockIntegrationDNSResolver{})
+	manager.Attach()
 
-	mgr.Start(eventsChannel)
+	manager.Start(eventChan)
 
 	cmd := exec.Command(execCmd[0], execCmd[1:]...)
 	err := cmd.Start()
@@ -519,8 +541,38 @@ func runAuditWithOnce(configPath string, execCmd []string, eventsChannel chan []
 
 	cmd.Wait()
 
-	return TestAuditManager{
-		manager: mgr,
-		cmd:     cmd,
+	return TestAuditController{
+		manager: manager,
+		command: cmd,
 	}
+}
+
+// loadTestConfig 加载测试配置文件
+func loadTestConfig(path string) *config.Config {
+	conf, err := config.NewConfig(path)
+	if err != nil {
+		panic(err)
+	}
+	return conf
+}
+
+// createTestManager 创建测试用的网络管理器
+func createTestManager(conf *config.Config, dnsResolver DNSResolver) Manager {
+	bpfModule, err := setupBPFProgram()
+	if err != nil {
+		panic(err)
+	}
+
+	manager := Manager{
+		mod:         bpfModule,
+		config:      conf,
+		dnsResolver: dnsResolver,
+	}
+
+	err = manager.SetConfigToMap()
+	if err != nil {
+		panic(err)
+	}
+
+	return manager
 }

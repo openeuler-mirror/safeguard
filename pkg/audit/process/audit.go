@@ -8,6 +8,7 @@ import (
 
 	"github.com/aquasecurity/libbpfgo"
 )
+
 import (
 	"bytes"
 	"context"
@@ -20,79 +21,79 @@ import (
 )
 
 const (
-	BPF_OBJECT_NAME        = "restricted-process"
-	BPF_PROGRAM_FORK       = "restricted_process_fork"
-	BPF_PROGRAM_EXEC       = "restricted_process_exec"
-	ALLOWED_FILES_MAP_NAME = "allowed_access_files"
-	DENIED_FILES_MAP_NAME  = "denied_access_files"
-	MODULE                 = "process"
+	BPF_OBJECT_IDENTIFIER = "secure-process-monitor"
+	BPF_FORK_IDENTIFIER   = "monitor_process_fork"
+	BPF_EXEC_IDENTIFIER   = "monitor_process_exec"
+	AUDIT_MODULE          = "process"
 
 	NEW_UTS_LEN      = 64
 	PATH_MAX         = 255
-	PROCESS_COMM_LEN = 16
+	PROCESS_NAME_LEN = 16
 )
 
-type auditLog struct {
-	//CGroupID uint64
-	PID           uint32
-	PPID          uint32
-	Nodename      [NEW_UTS_LEN + 1]byte
-	Command       [PROCESS_COMM_LEN]byte
-	ParentCommand [PROCESS_COMM_LEN]byte
+type processLog struct {
+	ProcessID   uint32
+	ParentID    uint32
+	Nodename    [NEW_UTS_LEN + 1]byte
+	ProcessName [PROCESS_NAME_LEN]byte
+	ParentName  [PROCESS_NAME_LEN]byte
 }
 
-func setupBPFProgram() (*libbpfgo.Module, error) {
+func initializeBPFModule() (*libbpfgo.Module, error) {
 	bytecode, err := bpf.EmbedFS.ReadFile("bytecode/restricted-process.bpf.o")
 	if err != nil {
 		return nil, err
 	}
-	mod, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_NAME)
+	module, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_IDENTIFIER)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = mod.BPFLoadObject(); err != nil {
+	if err = module.BPFLoadObject(); err != nil {
 		return nil, err
 	}
 
-	return mod, nil
+	return module, nil
 }
 
-func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
+func StartProcessAudit(ctx context.Context, wg *sync.WaitGroup, settings *config.Config) error {
 	defer wg.Done()
 
-	if !conf.RestrictedProcessConfig.Enable {
-		log.Info("process audit is disable. shutdown...")
+	if !settings.RestrictedProcessConfig.Enable {
+		log.Info("Process audit is disabled. Shutting down...")
 		return nil
 	}
 
-	mod, err := setupBPFProgram()
+	module, err := initializeBPFModule()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer mod.Close()
+	defer module.Close()
 
-	mgr := Manager{
-		mod:    mod,
-		config: conf,
+	controller := ProcessController{
+		bpfModule: module,
+		settings:  settings,
 	}
 
-	mgr.SetConfigToMap()
-	if err != nil {
+	if err := controller.SetConfigToMap(); err != nil {
 		log.Fatal(err)
 	}
 
-	mgr.Attach()
+	if err := controller.Attach(); err != nil {
+		log.Fatal(err)
+	}
 
-	log.Info("Start the process audit.")
+	log.Info("Starting process audit.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
-	mgr.Start(eventChannel, lostChannel)
+	if err := controller.Start(eventChannel, lostChannel); err != nil {
+		log.Fatal(err)
+	}
 
 	go func() {
 		for {
-			eventBytes := <-eventChannel
-			event, err := parseEvent(eventBytes)
+			eventData := <-eventChannel
+			event, err := decodeEvent(eventData)
 			if err != nil {
 				if err == io.EOF {
 					return
@@ -101,52 +102,42 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 				continue
 			}
 
-			auditLog := newAuditLog(event)
+			auditLog := createAuditLog(event)
 			auditLog.Info()
 		}
 	}()
 
 	<-ctx.Done()
-	mgr.Close()
-	log.Info("Terminated the process audit.")
+	controller.Close()
+	log.Info("Terminated process audit.")
 
 	return nil
 }
 
-func newAuditLog(event auditLog) log.RestrictedProcessLog {
+func createAuditLog(event processLog) log.RestrictedProcessLog {
 	auditEvent := log.AuditEventLog{
-		Module: MODULE,
-		//Action:     retToaction(event.Ret),
+		Module:     AUDIT_MODULE,
 		Hostname:   helpers.NodenameToString(event.Nodename),
-		PID:        event.PID,
-		Comm:       helpers.CommToString(event.Command),
-		ParentComm: helpers.CommToString(event.ParentCommand),
+		PID:        event.ProcessID,
+		Comm:       helpers.CommToString(event.ProcessName),
+		ParentComm: helpers.CommToString(event.ParentName),
 	}
 
 	processAccessLog := log.RestrictedProcessLog{
 		AuditEventLog: auditEvent,
-		PPID:          event.PPID,
+		PPID:          event.ParentID,
 	}
 
 	return processAccessLog
 }
 
-func parseEvent(eventBytes []byte) (auditLog, error) {
-	buf := bytes.NewBuffer(eventBytes)
-	var event auditLog
+func decodeEvent(eventData []byte) (processLog, error) {
+	buf := bytes.NewBuffer(eventData)
+	var event processLog
 	err := binary.Read(buf, binary.LittleEndian, &event)
-
 	if err != nil {
-		return auditLog{}, err
+		return processLog{}, err
 	}
 
 	return event, nil
 }
-
-// func retToaction(ret int32) string {
-// 	if ret == 0 {
-// 		return "ALLOWED"
-// 	} else {
-// 		return "BLOCKED"
-// 	}
-// }

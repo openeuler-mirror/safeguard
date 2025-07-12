@@ -11,6 +11,7 @@ import (
 	"github.com/miekg/dns"
 )
 
+// DNSAnswer DNS 解析结果
 type DNSAnswer struct {
 	Domain    string
 	Addresses []net.IP
@@ -19,15 +20,15 @@ type DNSAnswer struct {
 
 var dnsCache map[string]string
 
-func initDNSCache() {
+// InitializeDNSCache 初始化 DNS 缓存
+func InitializeDNSCache() {
 	if dnsCache == nil {
 		dnsCache = make(map[string]string)
 	}
 }
 
-// To FQDN format
-// e.g. example.com -> example.com.
-func toFqdn(domainName string) string {
+// ConvertToFQDN 将域名转换为 FQDN 格式
+func ConvertToFQDN(domainName string) string {
 	if domainName[len(domainName)-1:] == "." {
 		return domainName
 	}
@@ -35,152 +36,159 @@ func toFqdn(domainName string) string {
 	return domainName + "."
 }
 
-func (r *DefaultResolver) exchange(message *dns.Msg) (*dns.Msg, error) {
-	for _, server := range r.config.Servers {
-		res, _, err := r.client.Exchange(r.message, server+":53")
+// ExchangeDNSMessage 执行 DNS 消息交换
+func (resolver *DefaultResolver) ExchangeDNSMessage(message *dns.Msg) (*dns.Msg, error) {
+	for _, server := range resolver.dnsConfig.Servers {
+		resolvedMsg, _, err := resolver.dnsClient.Exchange(resolver.dnsMessage, server+":53")
 		if err != nil {
 			log.Error(err)
 			continue
 		}
-		return res, err
+		return resolvedMsg, nil
 	}
 
-	return nil, errors.New("resolve failed")
+	return nil, errors.New("DNS resolution failed")
 }
 
-func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, error) {
-	r.mux.Lock()
+// ResolveDNS 解析 DNS 记录
+func (resolver *DefaultResolver) ResolveDNS(host string, recordType uint16) (*DNSAnswer, error) {
+	resolver.syncMutex.Lock()
 
-	r.message.SetQuestion(toFqdn(host), recordType)
-	r.message.RecursionDesired = true
+	resolver.dnsMessage.SetQuestion(ConvertToFQDN(host), recordType)
+	resolver.dnsMessage.RecursionDesired = true
 
-	res, err := r.exchange(r.message)
-	r.mux.Unlock()
+	resolvedMsg, err := resolver.ExchangeDNSMessage(resolver.dnsMessage)
+	resolver.syncMutex.Unlock()
 
 	if err != nil {
 		return nil, err
 	}
 
-	if res.Rcode != dns.RcodeSuccess {
-		return nil, errors.New(fmt.Sprintf("Return code is %d\n", res.Rcode))
+	if resolvedMsg.Rcode != dns.RcodeSuccess {
+		return nil, fmt.Errorf("DNS resolution failed with return code %d", resolvedMsg.Rcode)
 	}
 
-	if len(res.Answer) == 0 {
-		return nil, errors.New(fmt.Sprintf("%s has not records(type %d)", host, recordType))
+	if len(resolvedMsg.Answer) == 0 {
+		return nil, fmt.Errorf("No records found for %s (type %d)", host, recordType)
 	}
 
-	answer := DNSAnswer{Domain: host}
-	for _, rr := range res.Answer {
+	dnsAnswer := DNSAnswer{Domain: host}
+	for _, record := range resolvedMsg.Answer {
 		switch recordType {
 		case dns.TypeA:
-			if record, ok := rr.(*dns.A); ok {
-				answer.Addresses = append(answer.Addresses, record.A)
-				answer.TTL = record.Hdr.Ttl
+			if aRecord, ok := record.(*dns.A); ok {
+				dnsAnswer.Addresses = append(dnsAnswer.Addresses, aRecord.A)
+				dnsAnswer.TTL = aRecord.Hdr.Ttl
 			}
 		case dns.TypeAAAA:
-			if record, ok := rr.(*dns.AAAA); ok {
-				answer.Addresses = append(answer.Addresses, record.AAAA)
-				answer.TTL = record.Hdr.Ttl
+			if aaaaRecord, ok := record.(*dns.AAAA); ok {
+				dnsAnswer.Addresses = append(dnsAnswer.Addresses, aaaaRecord.AAAA)
+				dnsAnswer.TTL = aaaaRecord.Hdr.Ttl
 			}
 		}
 	}
 
-	if answer.Addresses == nil {
-		return nil, errors.New(fmt.Sprintf("%s has not records(type %d)", host, recordType))
+	if dnsAnswer.Addresses == nil {
+		return nil, fmt.Errorf("No records found for %s (type %d)", host, recordType)
 	}
 
-	return &answer, nil
+	return &dnsAnswer, nil
 }
 
-func (mgr *Manager) ResolveAddressv4(domain string) (*DNSAnswer, error) {
-	answer, err := mgr.dnsResolver.Resolve(domain, dns.TypeA)
+// ResolveIPv4Address 解析 IPv4 地址
+func (nc *NetworkController) ResolveIPv4Address(domain string) (*DNSAnswer, error) {
+	dnsAnswer, err := nc.dnsResolver.ResolveDNS(domain, dns.TypeA)
 	if err != nil {
 		return nil, err
 	}
 
-	return answer, nil
+	return dnsAnswer, nil
 }
 
-func (mgr *Manager) ResolveAddressv6(domain string) (*DNSAnswer, error) {
-	answer, err := mgr.dnsResolver.Resolve(domain, dns.TypeAAAA)
+// ResolveIPv6Address 解析 IPv6 地址
+func (nc *NetworkController) ResolveIPv6Address(domain string) (*DNSAnswer, error) {
+	dnsAnswer, err := nc.dnsResolver.ResolveDNS(domain, dns.TypeAAAA)
 	if err != nil {
 		return nil, err
 	}
 
-	return answer, nil
+	return dnsAnswer, nil
 }
 
-func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordType uint16) (uint32, error) {
+// ResolveAndUpdatePermittedFQDNList 解析并更新允许的 FQDN 列表
+func (nc *NetworkController) ResolveAndUpdatePermittedFQDNList(domainName string, recordType uint16) (uint32, error) {
 	switch recordType {
 	case dns.TypeA:
-		answer, err := mgr.ResolveAddressv4(domainName)
+		dnsAnswer, err := nc.ResolveIPv4Address(domainName)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domainName, err))
+			log.Debug(fmt.Sprintf("Failed to resolve A record for %s: %s", domainName, err))
 			return 5, nil
 		}
-		err = mgr.updateAllowedFQDNist(answer)
+		err = nc.updatePermittedFQDNList(dnsAnswer)
 		if err != nil {
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		return answer.TTL, nil
+		log.Debug(fmt.Sprintf("Resolved A record for %s: %#v, TTL: %d", dnsAnswer.Domain, dnsAnswer.Addresses, dnsAnswer.TTL))
+		return dnsAnswer.TTL, nil
 	case dns.TypeAAAA:
-		answer, err := mgr.ResolveAddressv6(domainName)
+		dnsAnswer, err := nc.ResolveIPv6Address(domainName)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s\n", domainName, err))
+			log.Debug(fmt.Sprintf("Failed to resolve AAAA record for %s: %s", domainName, err))
 			return 5, nil
 		}
-		err = mgr.updateAllowedFQDNist(answer)
+		err = nc.updatePermittedFQDNList(dnsAnswer)
 		if err != nil {
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		return answer.TTL, nil
+		log.Debug(fmt.Sprintf("Resolved AAAA record for %s: %#v, TTL: %d", dnsAnswer.Domain, dnsAnswer.Addresses, dnsAnswer.TTL))
+		return dnsAnswer.TTL, nil
 	}
 
-	return 5, errors.New("invalid record type")
+	return 5, errors.New("invalid DNS record type")
 }
 
-func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType uint16) (uint32, error) {
+// ResolveAndUpdateRestrictedFQDNList 解析并更新禁止的 FQDN 列表
+func (nc *NetworkController) ResolveAndUpdateRestrictedFQDNList(domainName string, recordType uint16) (uint32, error) {
 	switch recordType {
 	case dns.TypeA:
-		answer, err := mgr.ResolveAddressv4(domainName)
+		dnsAnswer, err := nc.ResolveIPv4Address(domainName)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domainName, err))
+			log.Debug(fmt.Sprintf("Failed to resolve A record for %s: %s", domainName, err))
 			return 5, nil
 		}
-		err = mgr.updateDeniedFQDNList(answer)
+		err = nc.updateRestrictedFQDNList(dnsAnswer)
 		if err != nil {
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		return answer.TTL, nil
+		log.Debug(fmt.Sprintf("Resolved A record for %s: %#v, TTL: %d", dnsAnswer.Domain, dnsAnswer.Addresses, dnsAnswer.TTL))
+		return dnsAnswer.TTL, nil
 	case dns.TypeAAAA:
-		answer, err := mgr.ResolveAddressv6(domainName)
+		dnsAnswer, err := nc.ResolveIPv6Address(domainName)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s\n", domainName, err))
+			log.Debug(fmt.Sprintf("Failed to resolve AAAA record for %s: %s", domainName, err))
 			return 5, nil
 		}
-		err = mgr.updateDeniedFQDNList(answer)
+		err = nc.updateRestrictedFQDNList(dnsAnswer)
 		if err != nil {
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		return answer.TTL, nil
+		log.Debug(fmt.Sprintf("Resolved AAAA record for %s: %#v, TTL: %d", dnsAnswer.Domain, dnsAnswer.Addresses, dnsAnswer.TTL))
+		return dnsAnswer.TTL, nil
 	}
 
-	return 5, errors.New("invalid record type")
+	return 5, errors.New("invalid DNS record type")
 }
 
-func (mgr *Manager) AsyncResolve() {
-	for _, allowedDomain := range mgr.config.RestrictedNetworkConfig.Domain.Allow {
-		go func(domainName string) {
+// AsyncResolveDNS 异步解析 DNS
+func (nc *NetworkController) AsyncResolveDNS() {
+	for _, allowedDomain := range nc.settings.RestrictedNetworkConfig.Domain.Allow {
+		go func(domain string) {
 			for {
-				ttl, err := mgr.resolveAndUpdateAllowedFQDNList(domainName, dns.TypeA)
+				ttl, err := nc.ResolveAndUpdatePermittedFQDNList(domain, dns.TypeA)
 				if err != nil {
 					log.Error(err)
 				}
@@ -188,9 +196,9 @@ func (mgr *Manager) AsyncResolve() {
 			}
 		}(allowedDomain)
 
-		go func(domainName string) {
+		go func(domain string) {
 			for {
-				ttl, err := mgr.resolveAndUpdateAllowedFQDNList(domainName, dns.TypeAAAA)
+				ttl, err := nc.ResolveAndUpdatePermittedFQDNList(domain, dns.TypeAAAA)
 				if err != nil {
 					log.Error(err)
 				}
@@ -199,10 +207,10 @@ func (mgr *Manager) AsyncResolve() {
 		}(allowedDomain)
 	}
 
-	for _, deniedDomain := range mgr.config.RestrictedNetworkConfig.Domain.Deny {
-		go func(domainName string) {
+	for _, deniedDomain := range nc.settings.RestrictedNetworkConfig.Domain.Deny {
+		go func(domain string) {
 			for {
-				ttl, err := mgr.resolveAndUpdateDeniedFQDNList(domainName, dns.TypeA)
+				ttl, err := nc.ResolveAndUpdateRestrictedFQDNList(domain, dns.TypeA)
 				if err != nil {
 					log.Error(err)
 				}
@@ -210,9 +218,9 @@ func (mgr *Manager) AsyncResolve() {
 			}
 		}(deniedDomain)
 
-		go func(domainName string) {
+		go func(domain string) {
 			for {
-				ttl, err := mgr.resolveAndUpdateDeniedFQDNList(domainName, dns.TypeAAAA)
+				ttl, err := nc.ResolveAndUpdateRestrictedFQDNList(domain, dns.TypeAAAA)
 				if err != nil {
 					log.Error(err)
 				}

@@ -6,27 +6,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_toFqdn(t *testing.T) {
-	tests := []struct {
-		name   string
-		domain string
-		expect string
+// TestConvertToFQDN 测试将域名转换为 FQDN 格式
+func TestConvertToFQDN(t *testing.T) {
+	testCases := []struct {
+		testName string
+		domain   string
+		expected string
 	}{
 		{
-			name:   "example.com -> example.com.",
-			domain: "example.com",
-			expect: "example.com.",
+			testName: "example.com -> example.com.",
+			domain:   "example.com",
+			expected: "example.com.",
 		},
 		{
-			name:   "example.com. -> example.com.",
-			domain: "example.com.",
-			expect: "example.com.",
+			testName: "example.com. -> example.com.",
+			domain:   "example.com.",
+			expected: "example.com.",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expect, toFqdn(test.domain))
+	for _, testCase := range testCases {
+		t.Run(testCase.testName, func(t *testing.T) {
+			result := ConvertToFQDN(testCase.domain)
+			assert.Equal(t, testCase.expected, result)
 		})
 	}
 }

@@ -10,17 +10,19 @@ import (
 )
 
 const (
-	dockerDNSBindAddress = "172.17.0.1"
-	hostDNSBindAddress   = "127.0.0.1"
+	DockerDNSBindAddress = "172.17.0.1"
+	HostDNSBindAddress   = "127.0.0.1"
 )
 
-type DNSProxy struct {
-	client    *dns.Client
-	dnsConfig *dns.ClientConfig
-	manager   *Manager
+// DNSProxyServer DNS 代理服务器
+type DNSProxyServer struct {
+	dnsClient  *dns.Client
+	dnsConfig  *dns.ClientConfig
+	controller *NetworkController
 }
 
-func dnsResponseToDNSAnswer(response *dns.Msg) *DNSAnswer {
+// ConvertDNSResponseToAnswer 将 DNS 响应转换为 DNSAnswer 结构体
+func ConvertDNSResponseToAnswer(response *dns.Msg) *DNSAnswer {
 	dnsAnswer := DNSAnswer{}
 	for _, answer := range response.Answer {
 		switch answer.Header().Rrtype {
@@ -40,66 +42,70 @@ func dnsResponseToDNSAnswer(response *dns.Msg) *DNSAnswer {
 	return &dnsAnswer
 }
 
-func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer) {
-	for _, address := range dnsAnswer.Addresses {
-		dnsCache[address.String()] = fqdn
+// UpdateDNSCache 更新 DNS 缓存
+func UpdateDNSCache(fqdn string, dnsAnswer *DNSAnswer) {
+	for _, addr := range dnsAnswer.Addresses {
+		dnsCache[addr.String()] = fqdn
 	}
 }
 
-func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	msg := dns.Msg{}
-	msg.SetReply(r)
+// ServeDNS 处理 DNS 请求
+func (proxy *DNSProxyServer) ServeDNS(writer dns.ResponseWriter, request *dns.Msg) {
+	responseMsg := dns.Msg{}
+	responseMsg.SetReply(request)
 
-	msg.Authoritative = true
-	for i, q := range r.Question {
-		fqdn := msg.Question[i].Name
-		res, err := this.resolve(fqdn, q.Qtype)
+	responseMsg.Authoritative = true
+	for idx, question := range request.Question {
+		fqdn := responseMsg.Question[idx].Name
+		resolvedMsg, err := proxy.resolveDNS(fqdn, question.Qtype)
 		if err != nil {
 			log.Error(err)
 			continue
 		}
 
-		msg.Answer = append(msg.Answer, res.Answer...)
-		dnsAnswer := dnsResponseToDNSAnswer(res)
+		responseMsg.Answer = append(responseMsg.Answer, resolvedMsg.Answer...)
+		dnsAnswer := ConvertDNSResponseToAnswer(resolvedMsg)
 		dnsAnswer.Domain = fqdn
 
-		updateDNSCache(fqdn, dnsAnswer)
+		UpdateDNSCache(fqdn, dnsAnswer)
 
-		for _, allowedDomain := range this.manager.config.Domain.Allow {
-			if toFqdn(allowedDomain) == fqdn {
-				this.manager.updateAllowedFQDNist(dnsAnswer)
+		for _, allowedDomain := range proxy.controller.settings.Domain.Allow {
+			if ConvertToFQDN(allowedDomain) == fqdn {
+				proxy.controller.updatePermittedFQDNList(dnsAnswer)
 				break
 			}
 		}
 
-		for _, deniedDomain := range this.manager.config.Domain.Deny {
-			if toFqdn(deniedDomain) == fqdn {
-				this.manager.updateDeniedFQDNList(dnsAnswer)
+		for _, deniedDomain := range proxy.controller.settings.Domain.Deny {
+			if ConvertToFQDN(deniedDomain) == fqdn {
+				proxy.controller.updateRestrictedFQDNList(dnsAnswer)
 				break
 			}
 		}
 
-		log.Debug(fmt.Sprintf("Domain resolved: %s (%d)\n", fqdn, q.Qtype))
-		log.Debug(fmt.Sprintf("Current DNS Cache: %#v\n", dnsCache))
+		log.Debug(fmt.Sprintf("Resolved domain: %s (type %d)", fqdn, question.Qtype))
+		log.Debug(fmt.Sprintf("Current DNS cache: %#v", dnsCache))
 	}
 
-	w.WriteMsg(&msg)
+	writer.WriteMsg(&responseMsg)
 }
 
-func (this *DNSProxy) resolve(domainName string, queryType uint16) (*dns.Msg, error) {
-	m := new(dns.Msg)
-	m.SetQuestion(domainName, queryType)
-	m.RecursionDesired = true
+// resolveDNS 解析 DNS 请求
+func (proxy *DNSProxyServer) resolveDNS(domainName string, queryType uint16) (*dns.Msg, error) {
+	dnsMsg := new(dns.Msg)
+	dnsMsg.SetQuestion(domainName, queryType)
+	dnsMsg.RecursionDesired = true
 
-	res, _, err := this.client.Exchange(m, this.dnsConfig.Servers[0]+":"+"53")
+	resolvedMsg, _, err := proxy.dnsClient.Exchange(dnsMsg, proxy.dnsConfig.Servers[0]+":53")
 	if err != nil {
 		return nil, err
 	}
 
-	return res, err
+	return resolvedMsg, nil
 }
 
-func createDNSConfig(dnsProxyConfig config.DNSProxyConfig) (*dns.ClientConfig, error) {
+// CreateDNSConfig 创建 DNS 配置
+func CreateDNSConfig(dnsProxyConfig config.DNSProxyConfig) (*dns.ClientConfig, error) {
 	dnsConfig := &dns.ClientConfig{
 		Servers: dnsProxyConfig.Upstreams,
 	}
@@ -107,20 +113,21 @@ func createDNSConfig(dnsProxyConfig config.DNSProxyConfig) (*dns.ClientConfig, e
 	return dnsConfig, nil
 }
 
-func (mgr *Manager) StartDNSServer(bindAddress string) error {
-	dnsConfig, err := createDNSConfig(mgr.config.DNSProxyConfig)
+// LaunchDNSServer 启动 DNS 服务器
+func (nc *NetworkController) LaunchDNSServer(bindAddress string) error {
+	dnsConfig, err := CreateDNSConfig(nc.settings.DNSProxyConfig)
 	if err != nil {
 		return err
 	}
 
-	srv := &dns.Server{Addr: bindAddress + ":53", Net: "udp"}
-	srv.Handler = &DNSProxy{
-		client:    new(dns.Client),
-		dnsConfig: dnsConfig,
-		manager:   mgr,
+	dnsServer := &dns.Server{Addr: bindAddress + ":53", Net: "udp"}
+	dnsServer.Handler = &DNSProxyServer{
+		dnsClient:  new(dns.Client),
+		dnsConfig:  dnsConfig,
+		controller: nc,
 	}
 
-	if err := srv.ListenAndServe(); err != nil {
+	if err := dnsServer.ListenAndServe(); err != nil {
 		return err
 	}
 

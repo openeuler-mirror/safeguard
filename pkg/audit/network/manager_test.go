@@ -10,88 +10,95 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type SpyDNSResolver struct {
-	config  *dns.ClientConfig
-	client  *dns.Client
-	message *dns.Msg
+// MockDNSResolver 模拟 DNS 解析器
+type MockDNSResolver struct {
+	dnsConfig  *dns.ClientConfig
+	dnsClient  *dns.Client
+	dnsMessage *dns.Msg
 }
 
-func (r *SpyDNSResolver) Resolve(host string, recordType uint16) (DNSAnswer, error) {
-	answers := DNSAnswer{Domain: host}
-	answers.Addresses = []net.IP{
+// Resolve 模拟 DNS 解析
+func (r *MockDNSResolver) Resolve(host string, recordType uint16) (DNSAnswer, error) {
+	dnsAnswer := DNSAnswer{Domain: host}
+	dnsAnswer.Addresses = []net.IP{
 		net.IPv4(192, 168, 1, 1),
 		net.IPv4(10, 0, 1, 1),
 	}
-	answers.TTL = 1234
+	dnsAnswer.TTL = 1234
 
-	return answers, nil
+	return dnsAnswer, nil
 }
 
-func Test_cidrToBPFMapKey(t *testing.T) {
-	tests := []struct {
-		name     string
+// TestConvertCIDRToBPFKey 测试将 CIDR 转换为 BPF 键
+func TestConvertCIDRToBPFKey(t *testing.T) {
+	testCases := []struct {
+		testName string
 		cidr     string
 		expected IPAddress
 	}{
 		{
-			name: "Parsing the CIDR and returning IPAddress{}",
-			cidr: "192.168.1.1/24",
+			testName: "Parsing the CIDR and returning IPAddress{}",
+			cidr:     "192.168.1.1/24",
 			expected: IPAddress{
-				address:  net.IP{0xc0, 0xa8, 0x1, 0x0},
+				ipAddr:   net.IP{0xc0, 0xa8, 0x1, 0x0},
 				cidrMask: net.IPMask{0xff, 0xff, 0xff, 0x0},
-				key:      []byte{0x18, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+				bpfKey:   []byte{0x18, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 			},
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			ipaddr, _ := cidrToBPFMapKey(test.cidr)
-			assert.Equal(t, test.expected, ipaddr)
+	for _, testCase := range testCases {
+		t.Run(testCase.testName, func(t *testing.T) {
+			ipAddr, err := convertCIDRToBPFKey(testCase.cidr)
+			assert.NoError(t, err)
+			assert.Equal(t, testCase.expected, ipAddr)
 		})
 	}
 }
 
-func Test_ipAddressToBPFMapKey(t *testing.T) {
-	tests := []struct {
-		name      string
+// TestGenerateBPFKey 测试生成 BPF 键
+func TestGenerateBPFKey(t *testing.T) {
+	testCases := []struct {
+		testName  string
 		ipAddress IPAddress
 		expected  []byte
 	}{
 		{
-			name: "IPv4",
+			testName: "IPv4",
 			ipAddress: IPAddress{
-				address:  net.IP{0xc0, 0xa8, 0x1, 0x1},       // 192.168.1.1
+				ipAddr:   net.IP{0xc0, 0xa8, 0x1, 0x1},       // 192.168.1.1
 				cidrMask: net.IPMask{0xff, 0xff, 0xff, 0xff}, // /32
 			},
 			expected: []byte{0x20, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 		},
 		{
-			name: "IPv6",
+			testName: "IPv6",
 			ipAddress: IPAddress{
-				address:  net.IP{0x20, 0x1, 0x39, 0x84, 0x39, 0x89, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3},                // 2001:3984:3989::3
+				ipAddr:   net.IP{0x20, 0x1, 0x39, 0x84, 0x39, 0x89, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3},                // 2001:3984:3989::3
 				cidrMask: net.IPMask{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, // /128
 			},
 			expected: []byte{0x80, 0x0, 0x0, 0x0, 0x20, 0x1, 0x39, 0x84, 0x39, 0x89, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x3},
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, test.ipAddress.ipAddressToBPFMapKey())
+	for _, testCase := range testCases {
+		t.Run(testCase.testName, func(t *testing.T) {
+			bpfKey := testCase.ipAddress.GenerateBPFKey()
+			assert.Equal(t, testCase.expected, bpfKey)
 		})
 	}
 }
 
-func Test_domainNameToBPFMapKey(t *testing.T) {
-	tests := []struct {
-		name       string
+// TestConvertDomainToBPFKey 测试将域名解析结果转换为 BPF 键
+func TestConvertDomainToBPFKey(t *testing.T) {
+	testCases := []struct {
+		testName   string
 		domainName string
 		addresses  []net.IP
 		expected   []IPAddress
 	}{
 		{
-			name:       "example.com",
+			testName:   "example.com",
 			domainName: "example.com",
 			addresses: []net.IP{
 				{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0xc0, 0xa8, 0x1, 0x1},
@@ -99,64 +106,68 @@ func Test_domainNameToBPFMapKey(t *testing.T) {
 			},
 			expected: []IPAddress{
 				{
-					address:  []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0xc0, 0xa8, 0x1, 0x1},
+					ipAddr:   []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0xc0, 0xa8, 0x1, 0x1},
 					cidrMask: net.IPMask{0xff, 0xff, 0xff, 0xff},
-					key:      []byte{0x20, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+					bpfKey:   []byte{0x20, 0x0, 0x0, 0x0, 0xc0, 0xa8, 0x1, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 				},
 				{
-					address:  []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0xa, 0x0, 0x1, 0x1},
+					ipAddr:   []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xff, 0xff, 0xa, 0x0, 0x1, 0x1},
 					cidrMask: net.IPMask{0xff, 0xff, 0xff, 0xff},
-					key:      []byte{0x20, 0x0, 0x0, 0x0, 0xa, 0x0, 0x1, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+					bpfKey:   []byte{0x20, 0x0, 0x0, 0x0, 0xa, 0x0, 0x1, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
 				},
 			},
 		},
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			addrs, err := domainNameToBPFMapKey(test.domainName, test.addresses)
-			if err != nil {
-				t.Errorf("domanNameToBPFMapKey return error: %#v", err)
-			}
-			assert.Equal(t, test.expected, addrs)
+	for _, testCase := range testCases {
+		t.Run(testCase.testName, func(t *testing.T) {
+			addrList, err := convertDomainToBPFKey(testCase.domainName, testCase.addresses)
+			assert.NoError(t, err)
+			assert.Equal(t, testCase.expected, addrList)
 		})
 	}
 }
 
-func newSpyDNSResolver() SpyDNSResolver {
-	dnsConfig, _ := dns.ClientConfigFromFile("/etc/resolv.conf")
-	resolver := SpyDNSResolver{
-		config:  dnsConfig,
-		client:  new(dns.Client),
-		message: new(dns.Msg),
+// createMockDNSResolver 创建模拟 DNS 解析器
+func createMockDNSResolver() MockDNSResolver {
+	dnsConfig, err := dns.ClientConfigFromFile("/etc/resolv.conf")
+	if err != nil {
+		panic(err)
+	}
+	resolver := MockDNSResolver{
+		dnsConfig:  dnsConfig,
+		dnsClient:  new(dns.Client),
+		dnsMessage: new(dns.Msg),
 	}
 
 	return resolver
 }
 
-func loadFixtureConfig(path string) *config.Config {
-	conf, err := config.NewConfig(path)
+// loadTestConfig 加载测试配置文件
+func loadTestConfig(configPath string) *config.Config {
+	configData, err := config.NewConfig(configPath)
 	if err != nil {
 		panic(err)
 	}
-	return conf
+	return configData
 }
 
-func createManager(conf *config.Config, dnsResolver DNSResolver) Manager {
-	mod, err := setupBPFProgram()
+// createTestManager 创建测试用的网络管理器
+func createTestManager(configData *config.Config, dnsResolver DNSResolver) NetworkController {
+	bpfModule, err := initializeBPFModule()
 	if err != nil {
 		panic(err)
 	}
 
-	mgr := Manager{
-		mod:         mod,
-		config:      conf,
+	testController := NetworkController{
+		bpfModule:   bpfModule,
+		settings:    configData,
 		dnsResolver: dnsResolver,
 	}
 
-	err = mgr.SetConfigToMap()
+	err = testController.ConfigureBPFMap()
 	if err != nil {
 		panic(err)
 	}
 
-	return mgr
+	return testController
 }

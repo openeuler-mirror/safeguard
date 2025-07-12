@@ -60,10 +60,10 @@ func NewApp(version string) *cli.App {
 		var wg sync.WaitGroup
 		wg.Add(4)
 
-		go fileaccess.RunAudit(ctx, &wg, conf)
-		go network.RunAudit(ctx, &wg, conf)
-		go process.RunAudit(ctx, &wg, conf)
-		go mount.RunAudit(ctx, &wg, conf)
+		go fileaccess.StartFileAccessAudit(ctx, &wg, conf)
+		go network.StartNetworkAudit(ctx, &wg, conf)
+		go process.StartProcessAudit(ctx, &wg, conf)
+		go mount.StartMountAudit(ctx, &wg, conf)
 
 		wg.Wait()
 		log.Info("Terminate all audit.")

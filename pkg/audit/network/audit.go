@@ -41,23 +41,28 @@ const (
 
 	LSM_HOOK_POINT_CONNECT uint8 = 0
 	LSM_HOOK_POINT_SENDMSG uint8 = 1
+
+	BPF_OBJECT_IDENTIFIER = "restricted-network"
 )
 
-type eventHeader struct {
+// EventHeader 网络事件头部信息
+type EventHeader struct {
 	CGroupID      uint64
 	PID           uint32
 	EventType     int32
 	Nodename      [NEW_UTS_LEN + 1]byte
 	Command       [TASK_COMM_LEN]byte
 	ParentCommand [TASK_COMM_LEN]byte
-	_             [PADDING_LEN]byte
+	Padding       [PADDING_LEN]byte
 }
 
-type detectEvent interface {
+// DetectEvent 网络事件接口
+type DetectEvent interface {
 	ActionResult() string
 }
 
-type detectEventIPv4 struct {
+// DetectEventIPv4 IPv4 网络事件
+type DetectEventIPv4 struct {
 	SrcIP        [SRCIP_V4_LEN]byte
 	DstIP        [DSTIP_V4_LEN]byte
 	DstPort      uint16
@@ -66,7 +71,8 @@ type detectEventIPv4 struct {
 	SockType     uint8
 }
 
-type detectEventIPv6 struct {
+// DetectEventIPv6 IPv6 网络事件
+type DetectEventIPv6 struct {
 	SrcIP        [SRCIP_V6_LEN]byte
 	DstIP        [DSTIP_V6_LEN]byte
 	DstPort      uint16
@@ -75,7 +81,8 @@ type detectEventIPv6 struct {
 	SockType     uint8
 }
 
-func (e detectEventIPv4) ActionResult() string {
+// ActionResult 获取 IPv4 事件的动作结果
+func (e DetectEventIPv4) ActionResult() string {
 	switch e.Action {
 	case ACTION_MONITOR:
 		return ACTION_MONITOR_STRING
@@ -86,7 +93,8 @@ func (e detectEventIPv4) ActionResult() string {
 	}
 }
 
-func (e detectEventIPv6) ActionResult() string {
+// ActionResult 获取 IPv6 事件的动作结果
+func (e DetectEventIPv6) ActionResult() string {
 	switch e.Action {
 	case ACTION_MONITOR:
 		return ACTION_MONITOR_STRING
@@ -97,87 +105,85 @@ func (e detectEventIPv6) ActionResult() string {
 	}
 }
 
-const (
-	BPF_OBJECT_NAME = "restricted-network"
-)
-
-func setupBPFProgram() (*libbpfgo.Module, error) {
+// initializeBPFModule 初始化 BPF 模块
+func initializeBPFModule() (*libbpfgo.Module, error) {
 	bytecode, err := bpf.EmbedFS.ReadFile("bytecode/restricted-network.bpf.o")
 	if err != nil {
 		return nil, err
 	}
-	mod, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_NAME)
+	bpfModule, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_IDENTIFIER)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = mod.BPFLoadObject(); err != nil {
+	if err = bpfModule.BPFLoadObject(); err != nil {
 		return nil, err
 	}
 
-	return mod, nil
+	return bpfModule, nil
 }
 
-func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
+// StartNetworkAudit 启动网络审计
+func StartNetworkAudit(ctx context.Context, wg *sync.WaitGroup, settings *config.Config) error {
 	defer wg.Done()
 
-	if !conf.RestrictedNetworkConfig.Enable {
-		log.Info("network audit is disable. shutdown...")
+	if !settings.RestrictedNetworkConfig.Enable {
+		log.Info("Network audit is disabled. Shutting down...")
 		return nil
 	}
 
-	mod, err := setupBPFProgram()
+	bpfModule, err := initializeBPFModule()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer mod.Close()
+	defer bpfModule.Close()
 
 	dnsConfig, err := dns.ClientConfigFromFile("/etc/resolv.conf")
 	if err != nil {
 		return err
 	}
 
-	mgr := Manager{
-		mod:    mod,
-		config: conf,
+	controller := NetworkController{
+		bpfModule: bpfModule,
+		settings:  settings,
 		dnsResolver: &DefaultResolver{
-			config:  dnsConfig,
-			client:  new(dns.Client),
-			message: new(dns.Msg),
+			dnsConfig:  dnsConfig,
+			dnsClient:  new(dns.Client),
+			dnsMessage: new(dns.Msg),
 		},
 	}
 
-	if err = mgr.SetConfigToMap(); err != nil {
+	if err = controller.ConfigureBPFMap(); err != nil {
 		log.Fatal(err)
 	}
 
-	if mgr.config.EnableDNSProxy() {
-		for _, bindAddress := range mgr.config.DNSProxyConfig.BindAddresses {
-			go func(bindAddress string) {
-				log.Info(fmt.Sprintf("Launching the DNS Proxy %s...", bindAddress))
-				err := mgr.StartDNSServer(bindAddress)
+	if controller.settings.EnableDNSProxy() {
+		for _, bindAddr := range controller.settings.DNSProxyConfig.BindAddresses {
+			go func(addr string) {
+				log.Info(fmt.Sprintf("Starting DNS proxy on %s...", addr))
+				err := controller.LaunchDNSServer(addr) // 更新为 LaunchDNSServer
 				if err != nil {
 					log.Fatal(err)
 				}
-			}(bindAddress)
+			}(bindAddr)
 		}
 	} else {
-		log.Info("Start async DNS Resolver...")
-		mgr.AsyncResolve()
+		log.Info("Starting asynchronous DNS resolver...")
+		controller.AsyncResolveDNS() // 更新为 AsyncResolveDNS
 	}
 
-	if err = mgr.Attach(); err != nil {
+	if err = controller.AttachBPFPrograms(); err != nil {
 		log.Fatal(err)
 	}
 
-	log.Info("Start the network audit.")
-	eventsChannel := make(chan []byte)
-	mgr.Start(eventsChannel)
+	log.Info("Starting network audit.")
+	eventChan := make(chan []byte)
+	controller.Start(eventChan)
 
 	go func() {
 		for {
-			eventBytes := <-eventsChannel
-			header, body, err := parseEvent(eventBytes)
+			eventData := <-eventChan
+			header, body, err := decodeEvent(eventData)
 			if err != nil {
 				if err == io.EOF {
 					return
@@ -187,35 +193,36 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 				continue
 			}
 
-			auditLog := newAuditLog(header, body)
+			auditLog := createAuditLog(header, body)
 			auditLog.Info()
 		}
 	}()
 
 	<-ctx.Done()
-	mgr.Close()
-	log.Info("Terminated the network audit.")
+	controller.Close()
+	log.Info("Terminated network audit.")
 
 	return nil
 }
 
-func newAuditLog(header eventHeader, body detectEvent) log.RestrictedNetworkLog {
+// createAuditLog 创建审计日志
+func createAuditLog(header EventHeader, body DetectEvent) log.RestrictedNetworkLog {
 	var (
-		addr     string
+		ipAddr   string
 		port     uint16
-		socktype uint8
+		sockType uint8
 	)
 
 	if header.EventType == BLOCKED_IPV6 {
-		body := body.(detectEventIPv6)
-		port = body.DstPort
-		addr = net.ParseIP(byte2IPv6(body.DstIP)).String()
-		socktype = body.SockType
+		eventBody := body.(DetectEventIPv6)
+		port = eventBody.DstPort
+		ipAddr = net.ParseIP(convertBytesToIPv6(eventBody.DstIP)).String()
+		sockType = eventBody.SockType
 	} else {
-		body := body.(detectEventIPv4)
-		port = body.DstPort
-		addr = byte2IPv4(body.DstIP)
-		socktype = body.SockType
+		eventBody := body.(DetectEventIPv4)
+		port = eventBody.DstPort
+		ipAddr = convertBytesToIPv4(eventBody.DstIP)
+		sockType = eventBody.SockType
 	}
 
 	auditEvent := log.AuditEventLog{
@@ -229,63 +236,62 @@ func newAuditLog(header eventHeader, body detectEvent) log.RestrictedNetworkLog 
 
 	networkLog := log.RestrictedNetworkLog{
 		AuditEventLog: auditEvent,
-		Addr:          addr,
-		Domain:        dnsCache[addr],
+		Addr:          ipAddr,
+		Domain:        dnsCache[ipAddr],
 		Port:          port,
-		Protocol:      sockTypeToProtocolName(socktype),
+		Protocol:      sockTypeToProtocolName(sockType),
 	}
 
 	return networkLog
 }
 
-func parseEvent(eventBytes []byte) (eventHeader, detectEvent, error) {
-	buf := bytes.NewBuffer(eventBytes)
-	header, err := parseEventHeader(buf)
+// decodeEvent 解码网络事件
+func decodeEvent(eventData []byte) (EventHeader, DetectEvent, error) {
+	dataBuffer := bytes.NewBuffer(eventData)
+	header, err := decodeEventHeader(dataBuffer)
 	if err != nil {
-		return eventHeader{}, detectEventIPv4{}, err
+		return EventHeader{}, nil, err
 	}
 	if header.EventType == BLOCKED_IPV4 {
-		body, err := parseEventBlockedIPv4(buf)
+		body, err := decodeIPv4Event(dataBuffer)
 		if err != nil {
-			return eventHeader{}, detectEventIPv4{}, err
+			return EventHeader{}, nil, err
 		}
-
 		return header, body, nil
 	} else if header.EventType == BLOCKED_IPV6 {
-		body, err := parseEventBlockedIPv6(buf)
+		body, err := decodeIPv6Event(dataBuffer)
 		if err != nil {
-			return eventHeader{}, detectEventIPv6{}, err
+			return EventHeader{}, nil, err
 		}
-
 		return header, body, nil
-	} else {
-		return eventHeader{}, detectEventIPv4{}, err
 	}
+	return EventHeader{}, nil, fmt.Errorf("unknown event type: %d", header.EventType)
 }
 
-func parseEventHeader(buf *bytes.Buffer) (eventHeader, error) {
-	var header eventHeader
-	err := binary.Read(buf, binary.LittleEndian, &header)
+// decodeEventHeader 解码事件头部
+func decodeEventHeader(dataBuffer *bytes.Buffer) (EventHeader, error) {
+	var header EventHeader
+	err := binary.Read(dataBuffer, binary.LittleEndian, &header)
 	if err != nil {
-		return eventHeader{}, err
+		return EventHeader{}, err
 	}
 	return header, nil
 }
 
-func parseEventBlockedIPv4(buf *bytes.Buffer) (detectEventIPv4, error) {
-	var body detectEventIPv4
-	if err := binary.Read(buf, binary.LittleEndian, &body); err != nil {
-		return detectEventIPv4{}, err
+// decodeIPv4Event 解码 IPv4 事件
+func decodeIPv4Event(dataBuffer *bytes.Buffer) (DetectEventIPv4, error) {
+	var eventBody DetectEventIPv4
+	if err := binary.Read(dataBuffer, binary.LittleEndian, &eventBody); err != nil {
+		return DetectEventIPv4{}, err
 	}
-
-	return body, nil
+	return eventBody, nil
 }
 
-func parseEventBlockedIPv6(buf *bytes.Buffer) (detectEventIPv6, error) {
-	var body detectEventIPv6
-	if err := binary.Read(buf, binary.LittleEndian, &body); err != nil {
-		return detectEventIPv6{}, err
+// decodeIPv6Event 解码 IPv6 事件
+func decodeIPv6Event(dataBuffer *bytes.Buffer) (DetectEventIPv6, error) {
+	var eventBody DetectEventIPv6
+	if err := binary.Read(dataBuffer, binary.LittleEndian, &eventBody); err != nil {
+		return DetectEventIPv6{}, err
 	}
-
-	return body, nil
+	return eventBody, nil
 }

@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	//PROCESSACCESS_CONFIG = "process_config_map"
 	MODE_MONITOR = uint32(0)
 	MODE_BLOCK   = uint32(1)
 
@@ -18,34 +17,34 @@ const (
 	TARGET_CONTAINER = uint32(1)
 )
 
-type Manager struct {
-	mod    *libbpfgo.Module
-	config *config.Config
-	pb     *libbpfgo.PerfBuffer
+type ProcessController struct {
+	bpfModule  *libbpfgo.Module
+	settings   *config.Config
+	eventQueue *libbpfgo.PerfBuffer
 }
 
-func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
-	pb, err := m.mod.InitPerfBuf("process_events", eventChannel, lostChannel, 1024)
+func (c *ProcessController) Start(eventChannel chan []byte, lostChannel chan uint64) error {
+	queue, err := c.bpfModule.InitPerfBuf("process_activity_logs", eventChannel, lostChannel, 1024)
 	if err != nil {
 		return err
 	}
 
-	pb.Start()
-	m.pb = pb
+	queue.Start()
+	c.eventQueue = queue
 
 	return nil
 }
 
-func (m *Manager) Stop() {
-	m.pb.Stop()
+func (c *ProcessController) Stop() {
+	c.eventQueue.Stop()
 }
 
-func (m *Manager) Close() {
-	m.pb.Close()
+func (c *ProcessController) Close() {
+	c.eventQueue.Close()
 }
 
-func (m *Manager) Attach() error {
-	prog, err := m.mod.GetProgram(BPF_PROGRAM_FORK)
+func (c *ProcessController) Attach() error {
+	prog, err := c.bpfModule.GetProgram(BPF_FORK_IDENTIFIER)
 	if err != nil {
 		return err
 	}
@@ -55,7 +54,7 @@ func (m *Manager) Attach() error {
 		return err
 	}
 
-	prog, err = m.mod.GetProgram(BPF_PROGRAM_EXEC)
+	prog, err = c.bpfModule.GetProgram(BPF_EXEC_IDENTIFIER)
 	if err != nil {
 		return err
 	}
@@ -65,99 +64,10 @@ func (m *Manager) Attach() error {
 		return err
 	}
 
-	log.Debug(fmt.Sprintf("%s, %s attached.", BPF_PROGRAM_FORK, BPF_PROGRAM_EXEC))
+	log.Debug(fmt.Sprintf("%s, %s attached successfully.", BPF_FORK_IDENTIFIER, BPF_EXEC_IDENTIFIER))
 	return nil
 }
 
-func (m *Manager) SetConfigToMap() error {
-	// err := m.setModeAndTarget()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = m.setAllowedProcessAccessMap()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = m.setDeniedProcessAccessMap()
-	// if err != nil {
-	// 	return err
-	// }
-
+func (c *ProcessController) SetConfigToMap() error {
 	return nil
 }
-
-/*
-func (m *Manager) setAllowedProcessAccessMap() error {
-	map_allowed_files, err := m.mod.GetMap(ALLOWED_FILES_MAP_NAME)
-	if err != nil {
-		return err
-	}
-
-	allowed_paths := m.config.RestrictedFileAccessConfig.Allow
-
-	for i, path := range allowed_paths {
-		key := uint8(i)
-		value := []byte(path)
-		err = map_allowed_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *Manager) setDeniedProcessAccessMap() error {
-	map_denied_files, err := m.mod.GetMap(DENIED_FILES_MAP_NAME)
-	if err != nil {
-		return err
-	}
-	denied_paths := m.config.RestrictedFileAccessConfig.Deny
-
-	for i, path := range denied_paths {
-		key := uint8(i)
-		value := []byte(path)
-
-		keyPtr := unsafe.Pointer(&key)
-		valuePtr := unsafe.Pointer(&value[0])
-		err = map_denied_files.Update(keyPtr, valuePtr)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-*/
-
-/*
-func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, 8)
-	configMap, err := m.mod.GetMap(PROCESSACCESS_CONFIG)
-	if err != nil {
-		return err
-	}
-
-	if m.config.IsRestrictedMode("process") {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_BLOCK)
-	} else {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_MONITOR)
-	}
-
-	if m.config.IsOnlyContainer("process") {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_CONTAINER)
-	} else {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
-	}
-
-	k := uint8(0)
-	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-*/

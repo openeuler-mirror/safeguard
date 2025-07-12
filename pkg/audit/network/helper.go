@@ -13,29 +13,31 @@ const (
 	PROTOCOL_UNKNOWN_STRING = "UNKNOWN"
 )
 
-func byte2IPv4(addrBytes [4]byte) string {
-	var s []string
-	for _, b := range addrBytes {
-		s = append(s, fmt.Sprintf("%d", b))
+// ConvertBytesToIPv4 将字节数组转换为 IPv4 地址字符串
+func convertBytesToIPv4(addrBytes [4]byte) string {
+	var addrParts []string
+	for _, byteVal := range addrBytes {
+		addrParts = append(addrParts, fmt.Sprintf("%d", byteVal))
 	}
-	return strings.Join(s, ".")
+	return strings.Join(addrParts, ".")
 }
 
-func byte2IPv6(addrBytes [16]byte) string {
-	var s []string
-	var t string
-	for i, b := range addrBytes {
-		t = t + fmt.Sprintf("%02x", b)
-		if i%2 == 1 {
-			s = append(s, t)
-			t = ""
+// ConvertBytesToIPv6 将字节数组转换为 IPv6 地址字符串
+func convertBytesToIPv6(addrBytes [16]byte) string {
+	var addrParts []string
+	var tempPart string
+	for idx, byteVal := range addrBytes {
+		tempPart += fmt.Sprintf("%02x", byteVal)
+		if idx%2 == 1 {
+			addrParts = append(addrParts, tempPart)
+			tempPart = ""
 		}
 	}
-	return strings.Join(s, ":")
+	return strings.Join(addrParts, ":")
 }
 
+// SockTypeToProtocolName 将 socket 类型转换为协议名称
 func sockTypeToProtocolName(sockType uint8) string {
-	// https://elixir.bootlin.com/linux/latest/source/include/linux/net.h#L61
 	switch sockType {
 	case TCP:
 		return TCP_STRING

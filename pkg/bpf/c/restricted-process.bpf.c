@@ -5,80 +5,80 @@
 #include <bpf/bpf_tracing.h>
 #include <linux/errno.h>
 
-#define BPFCON_MAX_PROCESSES 10240
+#define MAX_TRACKED_PROCESSES 10240
 
-
-struct process_info {
-    __u32 pid;
-    __u32 ppid;
-    char nodename[NEW_UTS_LEN + 1];
-    char comm[TASK_COMM_LEN];
-    char parent_comm[TASK_COMM_LEN];
+// 定义进程信息结构
+struct process_details {
+    __u32 process_id;
+    __u32 parent_id;
+    char node_name[NEW_UTS_LEN + 1];
+    char process_name[TASK_COMM_LEN];
+    char parent_name[TASK_COMM_LEN];
 };
 
+// 定义性能事件数组和哈希表
 struct {
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
-} process_events SEC(".maps");
+    __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+    __uint(key_size, sizeof(u32));
+    __uint(value_size, sizeof(u32));
+} process_activity_logs SEC(".maps");
 
-BPF_HASH(processes, u32, struct process_info, BPFCON_MAX_PROCESSES);
+BPF_HASH(active_processes, u32, struct process_details, MAX_TRACKED_PROCESSES);
 
-static inline void get_process_info(struct process_info *info) {
-    struct task_struct *current_task;
-    struct uts_namespace *uts_ns;
-    struct nsproxy *nsproxy;
+// 收集进程信息
+static inline void gather_process_details(struct process_details *details) {
+    struct task_struct *current;
+    struct uts_namespace *uts_space;
+    struct nsproxy *proxy_space;
 
-    current_task = (struct task_struct *)bpf_get_current_task();
-    info->pid = (u32)(bpf_get_current_pid_tgid() >> 32);
-    info->ppid = (u32)(BPF_CORE_READ(current_task, real_parent, tgid));
-    BPF_CORE_READ_INTO(&info->nodename, current_task, nsproxy, uts_ns, name.nodename);
-    
-    bpf_get_current_comm(&info->comm, sizeof(info->comm));
-    struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
-    bpf_probe_read_kernel_str(&info->parent_comm, sizeof(info->parent_comm), &parent_task->comm);
+    current = (struct task_struct *)bpf_get_current_task();
+    details->process_id = (u32)(bpf_get_current_pid_tgid() >> 32);
+    details->parent_id = (u32)(BPF_CORE_READ(current, real_parent, tgid));
+    BPF_CORE_READ_INTO(&details->node_name, current, nsproxy, uts_ns, name.nodename);
+
+    bpf_get_current_comm(&details->process_name, sizeof(details->process_name));
+    struct task_struct *parent = BPF_CORE_READ(current, real_parent);
+    bpf_probe_read_kernel_str(&details->parent_name, sizeof(details->parent_name), &parent->comm);
 }
- 
-static __always_inline struct process_info *
-add_process_to_map(struct process_info *info)
-{
-    bpf_map_update_elem(&processes, &info->pid, info, BPF_NOEXIST);
-    struct process_info *process = bpf_map_lookup_elem(&processes, &info->pid);
-    if (!process)
+
+// 将进程信息添加到哈希表
+static __always_inline struct process_details *
+insert_process_entry(struct process_details *details) {
+    bpf_map_update_elem(&active_processes, &details->process_id, details, BPF_NOEXIST);
+    struct process_details *entry = bpf_map_lookup_elem(&active_processes, &details->process_id);
+    if (!entry) {
         return NULL;
-    return process;
+    }
+    return entry;
 }
 
+// 跟踪进程分叉事件
 SEC("tracepoint/sched/sched_process_fork")
-int BPF_PROG(restricted_process_fork, struct bpf_raw_tracepoint_args *args) {
-    struct process_info info = {};
-    get_process_info(&info);
-    add_process_to_map(&info);
-    bpf_perf_event_output(ctx, &process_events, BPF_F_CURRENT_CPU, &info, sizeof(info));
+int BPF_PROG(monitor_process_fork, struct bpf_raw_tracepoint_args *args) {
+    struct process_details details = {0};
+    gather_process_details(&details);
+    insert_process_entry(&details);
+    bpf_perf_event_output(ctx, &process_activity_logs, BPF_F_CURRENT_CPU, &details, sizeof(details));
     return 0;
 }
 
+// 跟踪进程执行事件
 SEC("tracepoint/sched/sched_process_exec")
-int BPF_PROG(restricted_process_exec, struct bpf_raw_tracepoint_args *args) {
-    struct process_info info = {};
-    get_process_info(&info);
-    add_process_to_map(&info);
-    bpf_perf_event_output(ctx, &process_events, BPF_F_CURRENT_CPU, &info, sizeof(info));
+int BPF_PROG(monitor_process_exec, struct bpf_raw_tracepoint_args *args) {
+    struct process_details details = {0};
+    gather_process_details(&details);
+    insert_process_entry(&details);
+    bpf_perf_event_output(ctx, &process_activity_logs, BPF_F_CURRENT_CPU, &details, sizeof(details));
     return 0;
 }
 
+// 跟踪进程退出事件
 SEC("tracepoint/sched/sched_process_exit")
-int BPF_PROG(restricted_process_exit, struct bpf_raw_tracepoint_args *args) {
-
+int BPF_PROG(monitor_process_exit, struct bpf_raw_tracepoint_args *args) {
     u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
-    bpf_map_delete_elem(&processes, &pid);
+    bpf_map_delete_elem(&active_processes, &pid);
     return 0;
 }
 
-// SEC("lsm/task_alloc")
-// int BPF_PROG(restricted_task_alloc, struct task_struct *task, unsigned long clone_flags) {
-    
-//     return -EPERM;
-// }
-
-char _license[] SEC("license") = "GPL";
+// 定义许可证信息
+char license_info[] SEC("license") = "GPL";

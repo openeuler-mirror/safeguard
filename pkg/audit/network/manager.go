@@ -19,20 +19,20 @@ const (
 	MODE_BLOCK   uint32 = 1
 
 	TARGET_HOST      uint32 = 0
-	TAREGT_CONTAINER uint32 = 1
+	TARGET_CONTAINER uint32 = 1
 
-	// BPF Map Names
-	RESTRICT_NETWORK_CONFIG_MAP_NAME = "network_safeguard_config_map"
-	ALLOWED_V4_CIDR_LIST_MAP_NAME    = "allowed_v4_cidr_list"
-	ALLOWED_V6_CIDR_LIST_MAP_NAME    = "allowed_v6_cidr_list"
-	DENIED_V4_CIDR_LIST_MAP_NAME     = "denied_v4_cidr_list"
-	DENIED_V6_CIDR_LIST_MAP_NAME     = "denied_v6_cidr_list"
-	ALLOWED_UID_LIST_MAP_NAME        = "allowed_uid_list"
-	DENIED_UID_LIST_MAP_NAME         = "denied_uid_list"
-	ALLOWED_GID_LIST_MAP_NAME        = "allowed_gid_list"
-	DENIED_GID_LIST_MAP_NAME         = "denied_gid_list"
-	ALLOWED_COMMAND_LIST_MAP_NAME    = "allowed_command_list"
-	DENIED_COMMAND_LIST_MAP_NAME     = "denied_command_list"
+	// BPF Map Names (同步 restricted-network.bpf.c 中的变量名)
+	NET_SECURITY_POLICY_MAP_NAME  = "net_security_policy_map"
+	PERMITTED_IPV4_CIDR_MAP_NAME  = "permitted_ipv4_cidr"
+	PERMITTED_IPV6_CIDR_MAP_NAME  = "permitted_ipv6_cidr"
+	RESTRICTED_IPV4_CIDR_MAP_NAME = "restricted_ipv4_cidr"
+	RESTRICTED_IPV6_CIDR_MAP_NAME = "restricted_ipv6_cidr"
+	PERMITTED_USER_MAP_NAME       = "permitted_user_map"
+	BLOCKED_USER_MAP_NAME         = "blocked_user_map"
+	PERMITTED_GROUP_MAP_NAME      = "permitted_group_map"
+	BLOCKED_GROUP_MAP_NAME        = "blocked_group_map"
+	PERMITTED_CMD_MAP_NAME        = "permitted_cmd_map"
+	BLOCKED_CMD_MAP_NAME          = "blocked_cmd_map"
 
 	/*
 	   +---------------+---------------+-------------------+-------------------+-------------------+
@@ -52,114 +52,123 @@ const (
 	MAP_ALLOW_GID_INDEX     = 16
 )
 
-type Manager struct {
-	mod         *libbpfgo.Module
-	config      *config.Config
-	rb          *libbpfgo.RingBuffer
+// NetworkController 管理网络审计的控制器
+type NetworkController struct {
+	bpfModule   *libbpfgo.Module
+	settings    *config.Config
+	ringBuffer  *libbpfgo.RingBuffer
 	dnsResolver DNSResolver
 	dnsCache    map[string]string
 }
 
+// IPAddress 表示一个 IP 地址及其 CIDR 掩码
 type IPAddress struct {
-	address  net.IP
+	ipAddr   net.IP
 	cidrMask net.IPMask
-	key      []byte
+	bpfKey   []byte
 }
 
-func (i *IPAddress) isV6address() bool {
-	return i.address.To4() == nil
+// IsIPv6 判断是否为 IPv6 地址
+func (ip *IPAddress) IsIPv6() bool {
+	return ip.ipAddr.To4() == nil
 }
 
-func (i *IPAddress) ipAddressToBPFMapKey() []byte {
-	ip := net.IPNet{IP: i.address.Mask(i.cidrMask), Mask: i.cidrMask}
+// GenerateBPFKey 将 IP 地址转换为 BPF 映射的键
+func (ip *IPAddress) GenerateBPFKey() []byte {
+	ipNet := net.IPNet{IP: ip.ipAddr.Mask(ip.cidrMask), Mask: ip.cidrMask}
 
-	if i.isV6address() {
-		i.key = ipv6ToKey(ip)
+	if ip.IsIPv6() {
+		ip.bpfKey = convertIPv6ToBPFKey(ipNet)
 	} else {
-		i.key = ipv4ToKey(ip)
+		ip.bpfKey = convertIPv4ToBPFKey(ipNet)
 	}
 
-	return i.key
+	return ip.bpfKey
 }
 
+// DNSResolver 定义 DNS 解析接口
 type DNSResolver interface {
-	Resolve(host string, recordType uint16) (*DNSAnswer, error)
+	ResolveDNS(host string, recordType uint16) (*DNSAnswer, error)
 }
 
+// DefaultResolver 默认的 DNS 解析器实现
 type DefaultResolver struct {
-	config        *dns.ClientConfig
-	client        *dns.Client
-	message       *dns.Msg
-	mux           sync.Mutex
-	oldResolvConf []byte
+	dnsConfig     *dns.ClientConfig
+	dnsClient     *dns.Client
+	dnsMessage    *dns.Msg
+	syncMutex     sync.Mutex
+	resolvConfBak []byte
 }
 
-func (m *Manager) SetConfigToMap() error {
-	initDNSCache()
+// ConfigureBPFMap 配置 BPF 映射
+func (nc *NetworkController) ConfigureBPFMap() error {
+	nc.initializeDNSCache()
 
-	if err := m.setConfigMap(); err != nil {
+	if err := nc.configurePolicyMap(); err != nil {
 		return err
 	}
-	if err := m.setAllowedCIDRList(); err != nil {
+	if err := nc.configurePermittedCIDRList(); err != nil {
 		return err
 	}
-	if err := m.setDeniedCIDRList(); err != nil {
+	if err := nc.configureRestrictedCIDRList(); err != nil {
 		return err
 	}
 
-	if !m.config.DNSProxyConfig.Enable {
-		if err := m.initDomainList(); err != nil {
+	if !nc.settings.DNSProxyConfig.Enable {
+		if err := nc.initializeDomainList(); err != nil {
 			return err
 		}
 	}
 
-	if err := m.setAllowedCommandList(); err != nil {
+	if err := nc.configurePermittedCommandList(); err != nil {
 		return err
 	}
-	if err := m.setDeniedCommandList(); err != nil {
+	if err := nc.configureBlockedCommandList(); err != nil {
 		return err
 	}
-	if err := m.setAllowedUIDList(); err != nil {
+	if err := nc.configurePermittedUserList(); err != nil {
 		return err
 	}
-	if err := m.setDeniedUIDList(); err != nil {
+	if err := nc.configureBlockedUserList(); err != nil {
 		return err
 	}
-	if err := m.setAllowedGIDList(); err != nil {
+	if err := nc.configurePermittedGroupList(); err != nil {
 		return err
 	}
-	if err := m.setDeniedGIDList(); err != nil {
+	if err := nc.configureBlockedGroupList(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *Manager) Start(eventsChannel chan []byte) error {
-	rb, err := m.mod.InitRingBuf("audit_events", eventsChannel)
-
+// Start 启动网络审计
+func (nc *NetworkController) Start(eventChan chan []byte) error {
+	rb, err := nc.bpfModule.InitRingBuf("network_audit_logs", eventChan)
 	if err != nil {
 		return err
 	}
 
 	rb.Start()
-	m.rb = rb
+	nc.ringBuffer = rb
 
 	return nil
 }
 
-func (m *Manager) Stop() {
-	m.rb.Stop()
+// Stop 停止网络审计
+func (nc *NetworkController) Stop() {
+	nc.ringBuffer.Stop()
 }
 
-func (m *Manager) Close() {
-	m.rb.Close()
+// Close 关闭网络审计
+func (nc *NetworkController) Close() {
+	nc.ringBuffer.Close()
 }
 
-func (m *Manager) Attach() error {
-	programs := []string{"socket_connect", "socket_bind"}
-	for _, progName := range programs {
-		prog, err := m.mod.GetProgram(progName)
-
+// AttachBPFPrograms 附加 BPF 程序
+func (nc *NetworkController) AttachBPFPrograms() error {
+	programNames := []string{"handle_socket_connect", "handle_socket_bind"}
+	for _, progName := range programNames {
+		prog, err := nc.bpfModule.GetProgram(progName)
 		if err != nil {
 			return err
 		}
@@ -169,50 +178,52 @@ func (m *Manager) Attach() error {
 			return err
 		}
 
-		log.Debug(fmt.Sprintf("%s attached.", progName))
+		log.Debug(fmt.Sprintf("BPF program %s attached successfully.", progName))
 	}
 
 	return nil
 }
 
-func (m *Manager) setMode(table *libbpfgo.BPFMap, key []byte) []byte {
-	if m.config.IsRestrictedMode("network") {
-		binary.LittleEndian.PutUint32(key[MAP_MODE_START:MAP_MODE_END], MODE_BLOCK)
+// configureMode 配置模式（监控或阻止）
+func (nc *NetworkController) configureMode(bpfMap *libbpfgo.BPFMap, keyData []byte) []byte {
+	if nc.settings.IsRestrictedMode("network") {
+		binary.LittleEndian.PutUint32(keyData[MAP_MODE_START:MAP_MODE_END], MODE_BLOCK)
 	} else {
-		binary.LittleEndian.PutUint32(key[MAP_MODE_START:MAP_MODE_END], MODE_MONITOR)
+		binary.LittleEndian.PutUint32(keyData[MAP_MODE_START:MAP_MODE_END], MODE_MONITOR)
 	}
 
-	return key
+	return keyData
 }
 
-func (m *Manager) setTarget(table *libbpfgo.BPFMap, key []byte) []byte {
-	if m.config.IsOnlyContainer("network") {
-		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TAREGT_CONTAINER)
+// configureTarget 配置目标（主机或容器）
+func (nc *NetworkController) configureTarget(bpfMap *libbpfgo.BPFMap, keyData []byte) []byte {
+	if nc.settings.IsOnlyContainer("network") {
+		binary.LittleEndian.PutUint32(keyData[MAP_TARGET_START:MAP_TARGET_END], TARGET_CONTAINER)
 	} else {
-		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TARGET_HOST)
+		binary.LittleEndian.PutUint32(keyData[MAP_TARGET_START:MAP_TARGET_END], TARGET_HOST)
 	}
 
-	return key
+	return keyData
 }
 
-func (m *Manager) setConfigMap() error {
-	configMap, err := m.mod.GetMap(RESTRICT_NETWORK_CONFIG_MAP_NAME)
+// configurePolicyMap 配置网络安全策略映射
+func (nc *NetworkController) configurePolicyMap() error {
+	policyMap, err := nc.bpfModule.GetMap(NET_SECURITY_POLICY_MAP_NAME)
 	if err != nil {
 		return err
 	}
 
-	key := make([]byte, MAP_SIZE)
+	keyData := make([]byte, MAP_SIZE)
 
-	key = m.setMode(configMap, key)
-	key = m.setTarget(configMap, key)
+	keyData = nc.configureMode(policyMap, keyData)
+	keyData = nc.configureTarget(policyMap, keyData)
 
-	binary.LittleEndian.PutUint32(key[MAP_ALLOW_COMMAND_INDEX:MAP_ALLOW_COMMAND_INDEX+4], uint32(len(m.config.RestrictedNetworkConfig.Command.Allow)))
-	binary.LittleEndian.PutUint32(key[MAP_ALLOW_UID_INDEX:MAP_ALLOW_UID_INDEX+4], uint32(len(m.config.RestrictedNetworkConfig.UID.Allow)))
-	binary.LittleEndian.PutUint32(key[MAP_ALLOW_GID_INDEX:MAP_ALLOW_GID_INDEX+4], uint32(len(m.config.RestrictedNetworkConfig.GID.Allow)))
+	binary.LittleEndian.PutUint32(keyData[MAP_ALLOW_COMMAND_INDEX:MAP_ALLOW_COMMAND_INDEX+4], uint32(len(nc.settings.RestrictedNetworkConfig.Command.Allow)))
+	binary.LittleEndian.PutUint32(keyData[MAP_ALLOW_UID_INDEX:MAP_ALLOW_UID_INDEX+4], uint32(len(nc.settings.RestrictedNetworkConfig.UID.Allow)))
+	binary.LittleEndian.PutUint32(keyData[MAP_ALLOW_GID_INDEX:MAP_ALLOW_GID_INDEX+4], uint32(len(nc.settings.RestrictedNetworkConfig.GID.Allow)))
 
-	k := uint8(0)
-	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
-
+	mapKey := uint8(0)
+	err = policyMap.Update(unsafe.Pointer(&mapKey), unsafe.Pointer(&keyData[0]))
 	if err != nil {
 		return err
 	}
@@ -220,16 +231,17 @@ func (m *Manager) setConfigMap() error {
 	return nil
 }
 
-func (m *Manager) setAllowedCommandList() error {
-	commands, err := m.mod.GetMap(ALLOWED_COMMAND_LIST_MAP_NAME)
+// configurePermittedCommandList 配置允许的命令列表
+func (nc *NetworkController) configurePermittedCommandList() error {
+	cmdMap, err := nc.bpfModule.GetMap(PERMITTED_CMD_MAP_NAME)
 	if err != nil {
 		return err
 	}
 
-	for _, c := range m.config.RestrictedNetworkConfig.Command.Allow {
-		key := byteToKey([]byte(c))
-		value := uint8(0)
-		err = commands.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+	for _, cmd := range nc.settings.RestrictedNetworkConfig.Command.Allow {
+		keyData := convertBytesToBPFKey([]byte(cmd))
+		valueData := uint8(0)
+		err = cmdMap.Update(unsafe.Pointer(&keyData[0]), unsafe.Pointer(&valueData))
 		if err != nil {
 			return err
 		}
@@ -238,16 +250,17 @@ func (m *Manager) setAllowedCommandList() error {
 	return nil
 }
 
-func (m *Manager) setDeniedCommandList() error {
-	commands, err := m.mod.GetMap(DENIED_COMMAND_LIST_MAP_NAME)
+// configureBlockedCommandList 配置禁止的命令列表
+func (nc *NetworkController) configureBlockedCommandList() error {
+	cmdMap, err := nc.bpfModule.GetMap(BLOCKED_CMD_MAP_NAME)
 	if err != nil {
 		return err
 	}
 
-	for _, c := range m.config.RestrictedNetworkConfig.Command.Deny {
-		key := byteToKey([]byte(c))
-		value := uint8(0)
-		err = commands.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+	for _, cmd := range nc.settings.RestrictedNetworkConfig.Command.Deny {
+		keyData := convertBytesToBPFKey([]byte(cmd))
+		valueData := uint8(0)
+		err = cmdMap.Update(unsafe.Pointer(&keyData[0]), unsafe.Pointer(&valueData))
 		if err != nil {
 			return err
 		}
@@ -256,15 +269,16 @@ func (m *Manager) setDeniedCommandList() error {
 	return nil
 }
 
-func (m *Manager) setAllowedUIDList() error {
-	uids, err := m.mod.GetMap(ALLOWED_UID_LIST_MAP_NAME)
+// configurePermittedUserList 配置允许的用户列表
+func (nc *NetworkController) configurePermittedUserList() error {
+	userMap, err := nc.bpfModule.GetMap(PERMITTED_USER_MAP_NAME)
 	if err != nil {
 		return err
 	}
-	for _, uid := range m.config.RestrictedNetworkConfig.UID.Allow {
-		key := uintToKey(uid)
-		value := uint8(0)
-		err = uids.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+	for _, uid := range nc.settings.RestrictedNetworkConfig.UID.Allow {
+		keyData := convertUintToBPFKey(uid)
+		valueData := uint8(0)
+		err = userMap.Update(unsafe.Pointer(&keyData[0]), unsafe.Pointer(&valueData))
 		if err != nil {
 			return err
 		}
@@ -273,15 +287,16 @@ func (m *Manager) setAllowedUIDList() error {
 	return nil
 }
 
-func (m *Manager) setDeniedUIDList() error {
-	uids, err := m.mod.GetMap(DENIED_UID_LIST_MAP_NAME)
+// configureBlockedUserList 配置禁止的用户列表
+func (nc *NetworkController) configureBlockedUserList() error {
+	userMap, err := nc.bpfModule.GetMap(BLOCKED_USER_MAP_NAME)
 	if err != nil {
 		return err
 	}
-	for _, uid := range m.config.RestrictedNetworkConfig.UID.Deny {
-		key := uintToKey(uid)
-		value := uint8(0)
-		err = uids.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+	for _, uid := range nc.settings.RestrictedNetworkConfig.UID.Deny {
+		keyData := convertUintToBPFKey(uid)
+		valueData := uint8(0)
+		err = userMap.Update(unsafe.Pointer(&keyData[0]), unsafe.Pointer(&valueData))
 		if err != nil {
 			return err
 		}
@@ -290,15 +305,16 @@ func (m *Manager) setDeniedUIDList() error {
 	return nil
 }
 
-func (m *Manager) setAllowedGIDList() error {
-	gids, err := m.mod.GetMap(ALLOWED_GID_LIST_MAP_NAME)
+// configurePermittedGroupList 配置允许的组列表
+func (nc *NetworkController) configurePermittedGroupList() error {
+	groupMap, err := nc.bpfModule.GetMap(PERMITTED_GROUP_MAP_NAME)
 	if err != nil {
 		return err
 	}
-	for _, gid := range m.config.RestrictedNetworkConfig.GID.Allow {
-		key := uintToKey(gid)
-		value := uint8(0)
-		err = gids.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+	for _, gid := range nc.settings.RestrictedNetworkConfig.GID.Allow {
+		keyData := convertUintToBPFKey(gid)
+		valueData := uint8(0)
+		err = groupMap.Update(unsafe.Pointer(&keyData[0]), unsafe.Pointer(&valueData))
 		if err != nil {
 			return err
 		}
@@ -307,15 +323,16 @@ func (m *Manager) setAllowedGIDList() error {
 	return nil
 }
 
-func (m *Manager) setDeniedGIDList() error {
-	gids, err := m.mod.GetMap(DENIED_UID_LIST_MAP_NAME)
+// configureBlockedGroupList 配置禁止的组列表
+func (nc *NetworkController) configureBlockedGroupList() error {
+	groupMap, err := nc.bpfModule.GetMap(BLOCKED_GROUP_MAP_NAME)
 	if err != nil {
 		return err
 	}
-	for _, gid := range m.config.RestrictedNetworkConfig.GID.Deny {
-		key := uintToKey(gid)
-		value := uint8(0)
-		err = gids.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+	for _, gid := range nc.settings.RestrictedNetworkConfig.GID.Deny {
+		keyData := convertUintToBPFKey(gid)
+		valueData := uint8(0)
+		err = groupMap.Update(unsafe.Pointer(&keyData[0]), unsafe.Pointer(&valueData))
 		if err != nil {
 			return err
 		}
@@ -324,19 +341,20 @@ func (m *Manager) setDeniedGIDList() error {
 	return nil
 }
 
-func (m *Manager) setAllowedCIDRList() error {
-	for _, addr := range m.config.RestrictedNetworkConfig.CIDR.Allow {
-		allowedAddress, err := cidrToBPFMapKey(addr)
+// configurePermittedCIDRList 配置允许的 CIDR 列表
+func (nc *NetworkController) configurePermittedCIDRList() error {
+	for _, addr := range nc.settings.RestrictedNetworkConfig.CIDR.Allow {
+		allowedAddr, err := convertCIDRToBPFKey(addr)
 		if err != nil {
 			return err
 		}
-		if allowedAddress.isV6address() {
-			err = m.cidrListUpdate(allowedAddress, ALLOWED_V6_CIDR_LIST_MAP_NAME)
+		if allowedAddr.IsIPv6() {
+			err = nc.updateCIDRList(allowedAddr, PERMITTED_IPV6_CIDR_MAP_NAME)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = m.cidrListUpdate(allowedAddress, ALLOWED_V4_CIDR_LIST_MAP_NAME)
+			err = nc.updateCIDRList(allowedAddr, PERMITTED_IPV4_CIDR_MAP_NAME)
 			if err != nil {
 				return err
 			}
@@ -346,119 +364,20 @@ func (m *Manager) setAllowedCIDRList() error {
 	return nil
 }
 
-func (m *Manager) setDeniedCIDRList() error {
-	for _, addr := range m.config.RestrictedNetworkConfig.CIDR.Deny {
-		deniedAddress, err := cidrToBPFMapKey(addr)
+// configureRestrictedCIDRList 配置禁止的 CIDR 列表
+func (nc *NetworkController) configureRestrictedCIDRList() error {
+	for _, addr := range nc.settings.RestrictedNetworkConfig.CIDR.Deny {
+		restrictedAddr, err := convertCIDRToBPFKey(addr)
 		if err != nil {
 			return err
 		}
-		if deniedAddress.isV6address() {
-			err = m.cidrListUpdate(deniedAddress, DENIED_V6_CIDR_LIST_MAP_NAME)
-			if err != nil {
-				return err
-			}
-		} else {
-			err = m.cidrListUpdate(deniedAddress, DENIED_V4_CIDR_LIST_MAP_NAME)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (m *Manager) initDomainList() error {
-	for _, domain := range m.config.RestrictedNetworkConfig.Domain.Deny {
-		answer, err := m.ResolveAddressv4(domain)
-		if err != nil {
-			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domain, err))
-			continue
-		}
-
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateDeniedFQDNList(answer)
-		if err != nil {
-			return err
-		}
-
-		answer, err = m.ResolveAddressv6(domain)
-		if err != nil {
-			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s\n", domain, err))
-			continue
-		}
-
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateDeniedFQDNList(answer)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, domain := range m.config.RestrictedNetworkConfig.Domain.Allow {
-		answer, err := m.ResolveAddressv4(domain)
-		if err != nil {
-			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domain, err))
-			continue
-		}
-
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateAllowedFQDNist(answer)
-		if err != nil {
-			return err
-		}
-
-		answer, err = m.ResolveAddressv6(domain)
-		if err != nil {
-			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s\n", domain, err))
-			continue
-		}
-
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateAllowedFQDNist(answer)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *Manager) updateAllowedFQDNist(answer *DNSAnswer) error {
-	allowedAddresses, err := domainNameToBPFMapKey(answer.Domain, answer.Addresses)
-	if err != nil {
-		return err
-	}
-
-	for _, addr := range allowedAddresses {
-		if addr.isV6address() {
-			if err = m.cidrListUpdate(addr, ALLOWED_V6_CIDR_LIST_MAP_NAME); err != nil {
-				return err
-			}
-		} else {
-			if err = m.cidrListUpdate(addr, ALLOWED_V4_CIDR_LIST_MAP_NAME); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func (m *Manager) updateDeniedFQDNList(answer *DNSAnswer) error {
-	deniedAddresses, err := domainNameToBPFMapKey(answer.Domain, answer.Addresses)
-	if err != nil {
-		return err
-	}
-
-	for _, addr := range deniedAddresses {
-		if addr.isV6address() {
-			err = m.cidrListUpdate(addr, DENIED_V6_CIDR_LIST_MAP_NAME)
+		if restrictedAddr.IsIPv6() {
+			err = nc.updateCIDRList(restrictedAddr, RESTRICTED_IPV6_CIDR_MAP_NAME)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = m.cidrListUpdate(addr, DENIED_V4_CIDR_LIST_MAP_NAME)
+			err = nc.updateCIDRList(restrictedAddr, RESTRICTED_IPV4_CIDR_MAP_NAME)
 			if err != nil {
 				return err
 			}
@@ -468,88 +387,203 @@ func (m *Manager) updateDeniedFQDNList(answer *DNSAnswer) error {
 	return nil
 }
 
-func (m *Manager) cidrListDeleteKey(mapName string, key []byte) error {
-	cidr_list, err := m.mod.GetMap(mapName)
+// initializeDomainList 初始化域名列表
+func (nc *NetworkController) initializeDomainList() error {
+	for _, domain := range nc.settings.RestrictedNetworkConfig.Domain.Deny {
+		answer, err := nc.ResolveIPv4Address(domain)
+		if err != nil {
+			log.Debug(fmt.Sprintf("Failed to resolve A record for %s: %s", domain, err))
+			continue
+		}
+
+		log.Debug(fmt.Sprintf("Resolved A record for %s: %#v, TTL: %d", answer.Domain, answer.Addresses, answer.TTL))
+		err = nc.updateRestrictedFQDNList(answer)
+		if err != nil {
+			return err
+		}
+
+		answer, err = nc.ResolveIPv6Address(domain)
+		if err != nil {
+			log.Debug(fmt.Sprintf("Failed to resolve AAAA record for %s: %s", domain, err))
+			continue
+		}
+
+		log.Debug(fmt.Sprintf("Resolved AAAA record for %s: %#v, TTL: %d", answer.Domain, answer.Addresses, answer.TTL))
+		err = nc.updateRestrictedFQDNList(answer)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, domain := range nc.settings.RestrictedNetworkConfig.Domain.Allow {
+		answer, err := nc.ResolveIPv4Address(domain)
+		if err != nil {
+			log.Debug(fmt.Sprintf("Failed to resolve A record for %s: %s", domain, err))
+			continue
+		}
+
+		log.Debug(fmt.Sprintf("Resolved A record for %s: %#v, TTL: %d", answer.Domain, answer.Addresses, answer.TTL))
+		err = nc.updatePermittedFQDNList(answer)
+		if err != nil {
+			return err
+		}
+
+		answer, err = nc.ResolveIPv6Address(domain)
+		if err != nil {
+			log.Debug(fmt.Sprintf("Failed to resolve AAAA record for %s: %s", domain, err))
+			continue
+		}
+
+		log.Debug(fmt.Sprintf("Resolved AAAA record for %s: %#v, TTL: %d", answer.Domain, answer.Addresses, answer.TTL))
+		err = nc.updatePermittedFQDNList(answer)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// updatePermittedFQDNList 更新允许的 FQDN 列表
+func (nc *NetworkController) updatePermittedFQDNList(answer *DNSAnswer) error {
+	allowedAddrs, err := convertDomainToBPFKey(answer.Domain, answer.Addresses)
 	if err != nil {
 		return err
 	}
 
-	if err := cidr_list.DeleteKey(unsafe.Pointer(&key[0])); err != nil {
+	for _, addr := range allowedAddrs {
+		if addr.IsIPv6() {
+			if err = nc.updateCIDRList(addr, PERMITTED_IPV6_CIDR_MAP_NAME); err != nil {
+				return err
+			}
+		} else {
+			if err = nc.updateCIDRList(addr, PERMITTED_IPV4_CIDR_MAP_NAME); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// updateRestrictedFQDNList 更新禁止的 FQDN 列表
+func (nc *NetworkController) updateRestrictedFQDNList(answer *DNSAnswer) error {
+	restrictedAddrs, err := convertDomainToBPFKey(answer.Domain, answer.Addresses)
+	if err != nil {
+		return err
+	}
+
+	for _, addr := range restrictedAddrs {
+		if addr.IsIPv6() {
+			err = nc.updateCIDRList(addr, RESTRICTED_IPV6_CIDR_MAP_NAME)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = nc.updateCIDRList(addr, RESTRICTED_IPV4_CIDR_MAP_NAME)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// deleteCIDRListKey 从 CIDR 列表中删除键
+func (nc *NetworkController) deleteCIDRListKey(mapName string, keyData []byte) error {
+	cidrMap, err := nc.bpfModule.GetMap(mapName)
+	if err != nil {
+		return err
+	}
+
+	if err := cidrMap.DeleteKey(unsafe.Pointer(&keyData[0])); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *Manager) cidrListUpdate(addr IPAddress, mapName string) error {
-	cidr_list, err := m.mod.GetMap(mapName)
+// updateCIDRList 更新 CIDR 列表
+func (nc *NetworkController) updateCIDRList(addr IPAddress, mapName string) error {
+	cidrMap, err := nc.bpfModule.GetMap(mapName)
 	if err != nil {
 		return err
 	}
-	value := uint8(0)
-	// NOTE: Slices and arrays are supported but references should be passed to the first element in the slice or array.
-	err = cidr_list.Update(unsafe.Pointer(&addr.key[0]), unsafe.Pointer(&value))
+	valueData := uint8(0)
+	err = cidrMap.Update(unsafe.Pointer(&addr.bpfKey[0]), unsafe.Pointer(&valueData))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func cidrToBPFMapKey(cidr string) (IPAddress, error) {
-	ipaddr := IPAddress{}
-	_, n, err := net.ParseCIDR(cidr)
+// convertCIDRToBPFKey 将 CIDR 转换为 BPF 键
+func convertCIDRToBPFKey(cidr string) (IPAddress, error) {
+	ipAddr := IPAddress{}
+	_, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
-		return ipaddr, err
+		return ipAddr, err
 	}
-	ipaddr.address = n.IP
-	ipaddr.cidrMask = n.Mask
-	ipaddr.ipAddressToBPFMapKey()
-	return ipaddr, nil
+	ipAddr.ipAddr = ipNet.IP
+	ipAddr.cidrMask = ipNet.Mask
+	ipAddr.GenerateBPFKey()
+	return ipAddr, nil
 }
 
-func domainNameToBPFMapKey(host string, addresses []net.IP) ([]IPAddress, error) {
-	var addrs = []IPAddress{}
+// convertDomainToBPFKey 将域名解析结果转换为 BPF 键
+func convertDomainToBPFKey(host string, addresses []net.IP) ([]IPAddress, error) {
+	var addrList []IPAddress
 	for _, addr := range addresses {
-		ipaddr := IPAddress{address: addr}
-		if ipaddr.isV6address() {
-			ipaddr.cidrMask = net.CIDRMask(128, 128)
+		ipAddr := IPAddress{ipAddr: addr}
+		if ipAddr.IsIPv6() {
+			ipAddr.cidrMask = net.CIDRMask(128, 128)
 		} else {
-			ipaddr.cidrMask = net.CIDRMask(32, 32)
+			ipAddr.cidrMask = net.CIDRMask(32, 32)
 		}
-		ipaddr.ipAddressToBPFMapKey()
-		addrs = append(addrs, ipaddr)
+		ipAddr.GenerateBPFKey()
+		addrList = append(addrList, ipAddr)
 	}
 
-	return addrs, nil
+	return addrList, nil
 }
 
-func ipv4ToKey(n net.IPNet) []byte {
-	key := make([]byte, 16)
-	prefixLen, _ := n.Mask.Size()
+// convertIPv4ToBPFKey 将 IPv4 网络转换为 BPF 键
+func convertIPv4ToBPFKey(ipNet net.IPNet) []byte {
+	keyData := make([]byte, 16)
+	prefixLen, _ := ipNet.Mask.Size()
 
-	binary.LittleEndian.PutUint32(key[0:4], uint32(prefixLen))
-	copy(key[4:], n.IP)
+	binary.LittleEndian.PutUint32(keyData[0:4], uint32(prefixLen))
+	copy(keyData[4:], ipNet.IP)
 
-	return key
+	return keyData
 }
 
-func ipv6ToKey(n net.IPNet) []byte {
-	key := make([]byte, 20)
-	prefixLen, _ := n.Mask.Size()
+// convertIPv6ToBPFKey 将 IPv6 网络转换为 BPF 键
+func convertIPv6ToBPFKey(ipNet net.IPNet) []byte {
+	keyData := make([]byte, 20)
+	prefixLen, _ := ipNet.Mask.Size()
 
-	binary.LittleEndian.PutUint32(key[0:4], uint32(prefixLen))
-	copy(key[4:], n.IP)
+	binary.LittleEndian.PutUint32(keyData[0:4], uint32(prefixLen))
+	copy(keyData[4:], ipNet.IP)
 
-	return key
+	return keyData
 }
 
-func byteToKey(b []byte) []byte {
-	key := make([]byte, 16)
-	copy(key[0:], b)
-	return key
+// convertBytesToBPFKey 将字节数组转换为 BPF 键
+func convertBytesToBPFKey(data []byte) []byte {
+	keyData := make([]byte, 16)
+	copy(keyData[0:], data)
+	return keyData
 }
 
-func uintToKey(i uint) []byte {
-	key := make([]byte, 4)
-	binary.LittleEndian.PutUint32(key[0:4], uint32(i))
-	return key
+// convertUintToBPFKey 将无符号整数转换为 BPF 键
+func convertUintToBPFKey(value uint) []byte {
+	keyData := make([]byte, 4)
+	binary.LittleEndian.PutUint32(keyData[0:4], uint32(value))
+	return keyData
+}
+
+// initializeDNSCache 初始化 DNS 缓存
+func (nc *NetworkController) initializeDNSCache() {
+	InitializeDNSCache()
 }
