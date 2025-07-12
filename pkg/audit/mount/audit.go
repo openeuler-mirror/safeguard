@@ -2,13 +2,6 @@ package mount
 
 import (
 	"C"
-
-	"safeguard/pkg/bpf"
-	log "safeguard/pkg/log"
-
-	"github.com/aquasecurity/libbpfgo"
-)
-import (
 	"bytes"
 	"context"
 	"encoding/binary"
@@ -16,83 +9,86 @@ import (
 	"sync"
 
 	"safeguard/pkg/audit/helpers"
+	"safeguard/pkg/bpf"
 	"safeguard/pkg/config"
+	log "safeguard/pkg/log"
+
+	"github.com/aquasecurity/libbpfgo"
 )
 
 const (
-	BPF_OBJECT_NAME = "restricted-mount"
-	MODULE          = "mount"
-
-	NEW_UTS_LEN   = 64
-	TASK_COMM_LEN = 16
-	PATH_MAX      = 255
+	BPF_OBJ_NAME     = "restricted-mount"
+	AUDIT_MODULE     = "mount"
+	UTS_NAME_LEN     = 64
+	COMMAND_NAME_LEN = 16
+	MAX_PATH_LENGTH  = 255
 )
 
-var BPF_PROGRAM_NAME []string = []string{"restricted_mount", "restricted_move_mount"}
+var BPF_HOOK_NAMES = []string{"control_mount", "control_move_mount"}
 
-type auditLog struct {
-	CGroupID        uint64
-	PID             uint32
-	UID             uint32
-	Ret             int32
-	Nodename        [NEW_UTS_LEN + 1]byte
-	Command         [TASK_COMM_LEN]byte
-	ParentCommand   [TASK_COMM_LEN]byte
-	MountSourcePath [PATH_MAX]byte
+type MountAuditRecord struct {
+	CGroupID      uint64
+	ProcessID     uint32
+	UserID        uint32
+	ResultCode    int32
+	HostName      [UTS_NAME_LEN + 1]byte
+	TaskCommand   [COMMAND_NAME_LEN]byte
+	ParentTaskCmd [COMMAND_NAME_LEN]byte
+	MountSource   [MAX_PATH_LENGTH]byte
 }
 
-func setupBPFProgram() (*libbpfgo.Module, error) {
-	bytecode, err := bpf.EmbedFS.ReadFile("bytecode/restricted-mount.bpf.o")
+func initializeBPFModule() (*libbpfgo.Module, error) {
+	bpfBytecode, err := bpf.EmbedFS.ReadFile("bytecode/restricted-mount.bpf.o")
 	if err != nil {
 		return nil, err
 	}
-	mod, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_NAME)
+	bpfModule, err := libbpfgo.NewModuleFromBuffer(bpfBytecode, BPF_OBJ_NAME)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = mod.BPFLoadObject(); err != nil {
+	if err = bpfModule.BPFLoadObject(); err != nil {
 		return nil, err
 	}
 
-	return mod, nil
+	return bpfModule, nil
 }
 
-func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
-	defer wg.Done()
+func StartMountAudit(ctx context.Context, waitGroup *sync.WaitGroup, appConfig *config.Config) error {
+	defer waitGroup.Done()
 
-	if !conf.RestrictedMountConfig.Enable {
-		log.Info("mount audit is disable. shutdown...")
+	if !appConfig.RestrictedMountConfig.Enable {
+		log.Info("Mount audit feature is disabled. Shutting down...")
 		return nil
 	}
 
-	mod, err := setupBPFProgram()
+	bpfModule, err := initializeBPFModule()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer mod.Close()
+	defer bpfModule.Close()
 
-	mgr := Manager{
-		mod:    mod,
-		config: conf,
+	auditMgr := Manager{
+		bpfModule: bpfModule,
+		appConfig: appConfig,
 	}
 
-	mgr.SetConfigToMap()
+	auditMgr.ApplyConfigToBPFMap()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	mgr.Attach()
+	auditMgr.HookPrograms()
 
-	log.Info("Start the mount audit.")
-	eventChannel := make(chan []byte)
-	lostChannel := make(chan uint64)
-	mgr.Start(eventChannel, lostChannel)
+	log.Info("Mount audit process started.")
+	eventChan := make(chan []byte)
+	lostChan := make(chan uint64)
+	auditMgr.Launch(eventChan, lostChan)
 
 	go func() {
 		for {
-			eventBytes := <-eventChannel
-			event, err := parseEvent(eventBytes)
+			eventData := <-eventChan
+			auditEvent, err := decodeEventData(eventData)
 			if err != nil {
 				if err == io.EOF {
 					return
@@ -101,63 +97,62 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 				continue
 			}
 
-			auditLog := newAuditLog(event)
-			auditLog.Info()
+			mountLog := createMountLog(auditEvent)
+			mountLog.Info()
 		}
 	}()
 
 	<-ctx.Done()
-	mgr.Close()
-	log.Info("Terminated the mount audit.")
+	auditMgr.Shutdown()
+	log.Info("Mount audit process terminated.")
 
 	return nil
 }
 
-func newAuditLog(event auditLog) log.RestrictedMountLog {
-	auditEvent := log.AuditEventLog{
-		Module:     MODULE,
-		Action:     retToaction(event.Ret),
-		Hostname:   helpers.NodenameToString(event.Nodename),
-		PID:        event.PID,
-		Comm:       helpers.CommToString(event.Command),
-		ParentComm: helpers.CommToString(event.ParentCommand),
+func createMountLog(event MountAuditRecord) log.RestrictedMountLog {
+	baseEvent := log.AuditEventLog{
+		Module:     AUDIT_MODULE,
+		Action:     resultToAction(event.ResultCode),
+		Hostname:   helpers.NodenameToString(event.HostName),
+		PID:        event.ProcessID,
+		Comm:       helpers.CommToString(event.TaskCommand),
+		ParentComm: helpers.CommToString(event.ParentTaskCmd),
 	}
 
-	mountLog := log.RestrictedMountLog{
-		AuditEventLog: auditEvent,
-		SourcePath:    pathToString(event.MountSourcePath),
+	mountEvent := log.RestrictedMountLog{
+		AuditEventLog: baseEvent,
+		SourcePath:    convertPathToString(event.MountSource),
 	}
 
-	return mountLog
+	return mountEvent
 }
 
-func parseEvent(eventBytes []byte) (auditLog, error) {
-	buf := bytes.NewBuffer(eventBytes)
-	var event auditLog
-	err := binary.Read(buf, binary.LittleEndian, &event)
+func decodeEventData(eventData []byte) (MountAuditRecord, error) {
+	dataBuffer := bytes.NewBuffer(eventData)
+	var auditEvent MountAuditRecord
+	err := binary.Read(dataBuffer, binary.LittleEndian, &auditEvent)
 	if err != nil {
-		return auditLog{}, err
+		return MountAuditRecord{}, err
 	}
 
-	return event, nil
+	return auditEvent, nil
 }
 
-func retToaction(ret int32) string {
-	if ret == 0 {
+func resultToAction(result int32) string {
+	if result == 0 {
 		return "ALLOWED"
-	} else {
-		return "BLOCKED"
 	}
+	return "BLOCKED"
 }
 
-func pathToString(path [PATH_MAX]byte) string {
-	var s string
-	for _, b := range path {
-		if b != 0x00 {
-			s += string(b)
+func convertPathToString(path [MAX_PATH_LENGTH]byte) string {
+	var pathStr string
+	for _, char := range path {
+		if char != 0x00 {
+			pathStr += string(char)
 		} else {
 			break
 		}
 	}
-	return s
+	return pathStr
 }

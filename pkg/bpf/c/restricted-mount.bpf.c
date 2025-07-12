@@ -9,179 +9,187 @@
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 struct {
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
-} mount_events SEC(".maps");
+    __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+    __uint(key_size, sizeof(u32));
+    __uint(value_size, sizeof(u32));
+} mount_audit_events SEC(".maps");
 
-BPF_HASH(mount_safeguard_config_map, u32, struct mount_safeguard_config, 256);
-BPF_HASH(mount_denied_source_list, u32, struct file_path, 256);
+BPF_HASH(mount_protection_config, u32, struct mount_safeguard_config, 256);
+BPF_HASH(mount_blocked_paths, u32, struct file_path, 256);
 
 SEC("lsm/sb_mount")
-int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, const char *type, unsigned long flags, void *data)
+int BPF_PROG(control_mount, const char* device_name, const struct path *mnt_path, const char *fs_type, unsigned long mount_flags, void *mount_data)
 {
-    int ret = 0;
-    bool find = false;
-    int inum = 0, index = 0;
-    struct mount_audit_event event = {};
-	char cc[DEV_LEN];
-    struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
-    struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
-    struct mount_safeguard_config *config = (struct mount_safeguard_config *)bpf_map_lookup_elem(&mount_safeguard_config_map, &index);
-	if(dev_name == NULL) return ret;
+    int result = 0;
+    bool path_matched = false;
+    int namespace_id = 0, config_idx = 0;
+    struct mount_audit_event audit_record = {};
+    char device_buffer[DEV_LEN];
 
-	BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum);
-    event.cgroup = bpf_get_current_cgroup_id();
-    event.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
-	BPF_CORE_READ_INTO(&event.nodename, current_task, nsproxy, uts_ns, name.nodename);
-    bpf_get_current_comm(&event.task, sizeof(event.task));
-    bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
-    bpf_probe_read_kernel_str(&event.path, sizeof(event.path), dev_name);
+    struct task_struct *current_process = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *parent_process = BPF_CORE_READ(current_process, real_parent);
+
+    struct mount_safeguard_config *protection_config = (struct mount_safeguard_config *)bpf_map_lookup_elem(&mount_protection_config, &config_idx);
+    if (!device_name) return result;
+
+    BPF_CORE_READ_INTO(&namespace_id, current_process, nsproxy, mnt_ns, ns.inum);
+
+    audit_record.cgroup = bpf_get_current_cgroup_id();
+    audit_record.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+    BPF_CORE_READ_INTO(&audit_record.nodename, current_process, nsproxy, uts_ns, name.nodename);
+    bpf_get_current_comm(&audit_record.task, sizeof(audit_record.task));
+    bpf_probe_read_kernel_str(&audit_record.parent_task, sizeof(audit_record.parent_task), &parent_process->comm);
+    bpf_probe_read_kernel_str(&audit_record.path, sizeof(audit_record.path), device_name);
 
 #if 0 && LINUX_VERSION_CODE > VERSION_5_10
-    struct callback_ctx cb = { .path = event.path, .found = false };
-    bpf_for_each_map_elem(&mount_denied_source_list, cb_check_path, &cb, 0);
-    if (cb.found) {
-        bpf_printk("Mount Denied: %s", cb.path);
-        find = true;
-        ret = -EPERM;
-        goto out;
+    // 使用回调遍历拒绝路径列表（高版本内核支持）
+    struct callback_ctx path_check = { .path = audit_record.path, .found = false };
+    bpf_for_each_map_elem(&mount_blocked_paths, cb_check_path, &path_check, 0);
+    if (path_check.found) {
+        bpf_printk("Mount Operation Denied: %s", path_check.path);
+        path_matched = true;
+        result = -EPERM;
+        goto audit_exit;
     }
 #else
-	unsigned int key = 0;
-    struct file_path *paths= (struct file_path *)bpf_map_lookup_elem(&mount_denied_source_list, &key);
-    if (paths == NULL) {
+    unsigned int path_key = 0;
+    struct file_path *blocked_paths = (struct file_path *)bpf_map_lookup_elem(&mount_blocked_paths, &path_key);
+    if (!blocked_paths) {
         return 0;
     }
-    bpf_probe_read_kernel_str(&event.path, sizeof(event.path), dev_name);
-    bpf_probe_read_kernel_str(cc, DEV_LEN, dev_name);
+    bpf_probe_read_kernel_str(&audit_record.path, sizeof(audit_record.path), device_name);
+    bpf_probe_read_kernel_str(device_buffer, DEV_LEN, device_name);
 
-    int j = 0;
-	#pragma unroll
-    for (int i = 0; i < LOOP_NAME; i++) {
-		if (paths->path[i] == '\0'){
-			break;
-		}
-        if (paths->path[i] == cc[j]) {
-            j = j + 1;
+    int match_pos = 0;
+    #pragma unroll
+    for (int idx = 0; idx < LOOP_NAME; idx++) {
+        if (blocked_paths->path[idx] == '\0') {
+            break;
+        }
+        if (blocked_paths->path[idx] == device_buffer[match_pos]) {
+            match_pos++;
         } else {
-            j = 0;
+            match_pos = 0;
             continue;
         }
 
-        if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
-            if (cc[j] == '\0' || cc[j] == '/') {
-                ret = -EPERM;
-                find = true;
+        if (blocked_paths->path[idx + 1] == '\0' || blocked_paths->path[idx + 1] == '|') {
+            if (device_buffer[match_pos] == '\0' || device_buffer[match_pos] == '/') {
+                result = -EPERM;
+                path_matched = true;
                 break;
             } else {
-                j = 0;
+                match_pos = 0;
             }
         }
-
     }
 #endif
 
-out:
-
-    if (config && config->target == TARGET_CONTAINER && inum == 0xF0000000) {
+audit_exit:
+    if (protection_config && protection_config->target == TARGET_CONTAINER && namespace_id == 0xF0000000) {
         return 0;
     }
 
-    if (find && config && config->mode == MODE_MONITOR) {
-        ret = 1;
+    if (path_matched && protection_config && protection_config->mode == MODE_MONITOR) {
+        result = 1;
     }
-	event.ret = ret;
-	if(ret != 0)
-		bpf_perf_event_output((void *)ctx, &mount_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
-	if(ret >0) ret = 0;
 
-    return ret;
+    audit_record.ret = result;
+    if (result != 0) {
+        bpf_perf_event_output((void *)ctx, &mount_audit_events, BPF_F_CURRENT_CPU, &audit_record, sizeof(audit_record));
+    }
+    if (result > 0) result = 0;
+
+    return result;
 }
 
-static inline struct mount *real_mount(struct vfsmount *mnt)
+// 辅助函数：将vfsmount转换为mount结构
+static inline struct mount *get_real_mount(struct vfsmount *mnt)
 {
     return container_of(mnt, struct mount, mnt);
 }
 
+// 限制挂载移动操作
 SEC("lsm/move_mount")
-int BPF_PROG(restricted_move_mount, const struct path *from_path, const struct path *to_path)
+int BPF_PROG(control_move_mount, const struct path *source_path, const struct path *dest_path)
 {
-    const char * name;
-	bool find = false;
-    int index = 0, ret = 0;
-	int inum = 0;
-    struct mount_audit_event event = {};
-    struct mount_safeguard_config *config = (struct mount_safeguard_config *)bpf_map_lookup_elem(&mount_safeguard_config_map, &index);
+    const char *device_name;
+    bool path_matched = false;
+    int config_idx = 0, result = 0;
+    int namespace_id = 0;
+    struct mount_audit_event audit_record = {};
+    struct mount_safeguard_config *protection_config = (struct mount_safeguard_config *)bpf_map_lookup_elem(&mount_protection_config, &config_idx);
 
-	struct mount *old = real_mount(from_path->mnt);
-	struct mount *p = real_mount(to_path->mnt);
+    struct mount *source_mount = get_real_mount(source_path->mnt);
+    struct mount *dest_mount = get_real_mount(dest_path->mnt);
 
-    struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
-    struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
-    BPF_CORE_READ_INTO(&event.nodename, current_task, nsproxy, uts_ns, name.nodename);
-    BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum);
+    struct task_struct *current_process = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *parent_process = BPF_CORE_READ(current_process, real_parent);
+    BPF_CORE_READ_INTO(&audit_record.nodename, current_process, nsproxy, uts_ns, name.nodename);
+    BPF_CORE_READ_INTO(&namespace_id, current_process, nsproxy, mnt_ns, ns.inum);
 
-    event.cgroup = bpf_get_current_cgroup_id();
-    event.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
-    bpf_get_current_comm(&event.task, sizeof(event.task));
-    bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
+    audit_record.cgroup = bpf_get_current_cgroup_id();
+    audit_record.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+    bpf_get_current_comm(&audit_record.task, sizeof(audit_record.task));
+    bpf_probe_read_kernel_str(&audit_record.parent_task, sizeof(audit_record.parent_task), &parent_process->comm);
 
-    name = BPF_CORE_READ(old, mnt_devname);
-    bpf_probe_read_kernel_str(&event.path, sizeof(event.path), name);
+    device_name = BPF_CORE_READ(source_mount, mnt_devname);
+    bpf_probe_read_kernel_str(&audit_record.path, sizeof(audit_record.path), device_name);
 
-    #if LINUX_VERSION_CODE > VERSION_5_10
-    struct callback_ctx cb = { .path = event.path, .found = false };
-    bpf_for_each_map_elem(&mount_denied_source_list, cb_check_path, &cb, 0);
-    if (cb.found) {
-        bpf_printk("Mount Denied: %s", cb.path);
-        find = true;
-        ret = -EPERM;
-        goto out;
+#if LINUX_VERSION_CODE > VERSION_5_10
+    // 使用回调遍历拒绝路径列表（高版本内核支持）
+    struct callback_ctx path_check = { .path = audit_record.path, .found = false };
+    bpf_for_each_map_elem(&mount_blocked_paths, cb_check_path, &path_check, 0);
+    if (path_check.found) {
+        bpf_printk("Mount Move Operation Denied: %s", path_check.path);
+        path_matched = true;
+        result = -EPERM;
+        goto audit_exit;
     }
-    #else
-	char cc[DEV_LEN];
-	unsigned int key = 0;
-    struct file_path *paths= (struct file_path *)bpf_map_lookup_elem(&mount_denied_source_list, &key);
-    if (paths == NULL) {
+#else
+    char device_buffer[DEV_LEN];
+    unsigned int path_key = 0;
+    struct file_path *blocked_paths = (struct file_path *)bpf_map_lookup_elem(&mount_blocked_paths, &path_key);
+    if (!blocked_paths) {
         return 0;
     }
-    bpf_probe_read_kernel_str(cc, DEV_LEN, name);
-	//bpf_printk("from_path %s\n", cc);
+    bpf_probe_read_kernel_str(device_buffer, DEV_LEN, device_name);
 
-    int j = 0;
-	#pragma unroll
-    for (int i = 0; i < LOOP_NAME; i++) {
-		if (paths->path[i] == '\0'){
-			break;
-		}
-        if (paths->path[i] == cc[j]) {
-            j = j + 1;
+    int match_pos = 0;
+    #pragma unroll
+    for (int idx = 0; idx < LOOP_NAME; idx++) {
+        if (blocked_paths->path[idx] == '\0') {
+            break;
+        }
+        if (blocked_paths->path[idx] == device_buffer[match_pos]) {
+            match_pos++;
         } else {
-            j = 0;
+            match_pos = 0;
             continue;
         }
 
-        if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
-            if (cc[j] == '\0' || cc[j] == '/') {
-                ret = -EPERM;
-                find = true;
+        if (blocked_paths->path[idx + 1] == '\0' || blocked_paths->path[idx + 1] == '|') {
+            if (device_buffer[match_pos] == '\0' || device_buffer[match_pos] == '/') {
+                result = -EPERM;
+                path_matched = true;
                 break;
             } else {
-                j = 0;
+                match_pos = 0;
             }
         }
-	}
-    #endif
-
-out:
-    if (find && config && config->mode == MODE_MONITOR) {
-        ret = 1;
     }
-	event.ret = ret;
-    if(ret != 0)
-        bpf_perf_event_output((void *)ctx, &mount_events, BPF_F_CURRENT_CPU, &event, sizeof(event));
-    if(ret>0) ret = 0;
+#endif
 
-    return ret;
+audit_exit:
+    if (path_matched && protection_config && protection_config->mode == MODE_MONITOR) {
+        result = 1;
+    }
+
+    audit_record.ret = result;
+    if (result != 0) {
+        bpf_perf_event_output((void *)ctx, &mount_audit_events, BPF_F_CURRENT_CPU, &audit_record, sizeof(audit_record));
+    }
+    if (result > 0) result = 0;
+
+    return result;
 }

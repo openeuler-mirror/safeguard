@@ -80,7 +80,7 @@ type TestAuditManager struct {
 }
 
 func runAuditWithOnce(conf *config.Config, execCmd []string, eventsChannel chan []byte) TestAuditManager {
-	mgr := createManager(conf)
+	mgr := initializeTestManager(conf)
 	mgr.Attach()
 	lostChannel := make(chan uint64)
 	mgr.Start(eventsChannel, lostChannel)

@@ -5,102 +5,116 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/stretchr/testify/assert"
 	"safeguard/pkg/config"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func Test_SetConfigMap(t *testing.T) {
-	tests := []struct {
-		name              string
-		deniedSourcePaths []string
-		expected          []byte
+func Test_ApplyConfigToBPFMap(t *testing.T) {
+	testCases := []struct {
+		testName      string
+		blockedPaths  []string
+		expectedValue []byte
 	}{
 		{
-			name:              "test",
-			deniedSourcePaths: []string{"/var/run/docker.sock"},
-			expected:          []byte{0x2f, 0x76, 0x61, 0x72, 0x2f, 0x72, 0x75, 0x6e, 0x2f, 0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, 0x2e, 0x73, 0x6f, 0x63, 0x6b},
+			testName:      "basic_path_test",
+			blockedPaths:  []string{"/var/run/docker.sock"},
+			expectedValue: []byte{0x2f, 0x76, 0x61, 0x72, 0x2f, 0x72, 0x75, 0x6e, 0x2f, 0x64, 0x6f, 0x63, 0x6b, 0x65, 0x72, 0x2e, 0x73, 0x6f, 0x63, 0x6b},
 		},
 	}
 
-	config := config.DefaultConfig()
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			config.RestrictedMountConfig.DenySourcePath = test.deniedSourcePaths
-			mgr := createManager(config)
-			defer mgr.mod.Close()
+	appConfig := config.DefaultConfig()
+	for _, testCase := range testCases {
+		t.Run(testCase.testName, func(t *testing.T) {
+			// 设置测试配置
+			appConfig.RestrictedMountConfig.DenySourcePath = testCase.blockedPaths
+			auditMgr := initializeTestManager(appConfig)
+			defer auditMgr.bpfModule.Close()
 
-			deniedMap, err := mgr.mod.GetMap(MOUNT_DENIED_SOURCE_LIST)
+			// 获取BPF映射
+			deniedPathsMap, err := auditMgr.bpfModule.GetMap(MOUNT_DENY_PATHS_MAP)
 			if err != nil {
-				t.Fatalf("Failed open eBPF map for %s, err: %s", MOUNT_DENIED_SOURCE_LIST, err)
+				t.Fatalf("Failed to access eBPF map '%s', error: %v", MOUNT_DENY_PATHS_MAP, err)
 			}
 
-			key := uint8(0)
-			actual, err := deniedMap.GetValue(unsafe.Pointer(&key))
+			// 获取映射中的值
+			mapKey := uint8(0)
+			actualValue, err := deniedPathsMap.GetValue(unsafe.Pointer(&mapKey))
 			if err != nil {
-				t.Fatalf("Failed to get value from eBPF map %s, err: %s", MOUNT_DENIED_SOURCE_LIST, err)
+				t.Fatalf("Failed to retrieve value from eBPF map '%s', error: %v", MOUNT_DENY_PATHS_MAP, err)
 			}
 
-			padding := bytes.Repeat([]byte{0x00}, PATH_MAX-len(test.expected))
-			expected := append(test.expected, padding...)
-			assert.Equal(t, expected, actual)
+			// 构造期望值（补齐填充字节）
+			paddingBytes := bytes.Repeat([]byte{0x00}, MAX_PATH_LENGTH-len(testCase.expectedValue))
+			expectedValue := append(testCase.expectedValue, paddingBytes...)
+
+			// 验证结果
+			assert.Equal(t, expectedValue, actualValue)
 		})
 	}
 }
 
-func Test_setModeAndTarget(t *testing.T) {
-	tests := []struct {
-		name     string
-		mode     string
-		target   string
-		expected []byte
+func Test_ConfigureModeAndTarget(t *testing.T) {
+	testCases := []struct {
+		testName      string
+		auditMode     string
+		auditTarget   string
+		expectedValue []byte
 	}{
 		{
-			name:     "test",
-			mode:     "block",
-			target:   "container",
-			expected: []byte{0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00},
+			testName:      "block_container_test",
+			auditMode:     "block",
+			auditTarget:   "container",
+			expectedValue: []byte{0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00},
 		},
 	}
 
-	config := config.DefaultConfig()
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			config.RestrictedMountConfig.Target = test.target
-			config.RestrictedMountConfig.Mode = test.mode
-			mgr := createManager(config)
-			defer mgr.mod.Close()
+	appConfig := config.DefaultConfig()
+	for _, testCase := range testCases {
+		t.Run(testCase.testName, func(t *testing.T) {
+			// 设置测试配置
+			appConfig.RestrictedMountConfig.Target = testCase.auditTarget
+			appConfig.RestrictedMountConfig.Mode = testCase.auditMode
+			auditMgr := initializeTestManager(appConfig)
+			defer auditMgr.bpfModule.Close()
 
-			configMap, err := mgr.mod.GetMap(MOUNT_CONFIG)
+			// 获取BPF映射
+			configMap, err := auditMgr.bpfModule.GetMap(MOUNT_CONFIG_MAP)
 			if err != nil {
-				t.Fatalf("Failed open eBPF map for %s, err: %s", MOUNT_CONFIG, err)
+				t.Fatalf("Failed to access eBPF map '%s', error: %v", MOUNT_CONFIG_MAP, err)
 			}
 
-			key := uint8(0)
-			actual, err := configMap.GetValue(unsafe.Pointer(&key))
+			// 获取映射中的值
+			mapKey := uint8(0)
+			actualValue, err := configMap.GetValue(unsafe.Pointer(&mapKey))
 			if err != nil {
-				t.Fatalf("Failed to get value from eBPF map %s, err: %s", MOUNT_CONFIG, err)
+				t.Fatalf("Failed to retrieve value from eBPF map '%s', error: %v", MOUNT_CONFIG_MAP, err)
 			}
 
-			assert.Equal(t, test.expected, actual)
+			// 验证结果
+			assert.Equal(t, testCase.expectedValue, actualValue)
 		})
 	}
 }
 
-func createManager(conf *config.Config) Manager {
-	mod, err := setupBPFProgram()
+func initializeTestManager(conf *config.Config) Manager {
+	// 初始化BPF模块
+	bpfModule, err := initializeBPFModule()
 	if err != nil {
 		panic(err)
 	}
 
-	mgr := Manager{
-		mod:    mod,
-		config: conf,
+	// 创建并配置Manager实例
+	auditMgr := Manager{
+		bpfModule: bpfModule,
+		appConfig: conf,
 	}
 
-	err = mgr.SetConfigToMap()
+	// 应用配置到BPF映射
+	err = auditMgr.ApplyConfigToBPFMap()
 	if err != nil {
 		panic(err)
 	}
 
-	return mgr
+	return auditMgr
 }

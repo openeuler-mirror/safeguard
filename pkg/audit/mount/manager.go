@@ -12,102 +12,101 @@ import (
 )
 
 const (
-	MOUNT_CONFIG             = "mount_safeguard_config_map"
-	MOUNT_DENIED_SOURCE_LIST = "mount_denied_source_list"
-	MODE_MONITOR             = uint32(0)
-	MODE_BLOCK               = uint32(1)
-
-	TARGET_HOST      = uint32(0)
-	TARGET_CONTAINER = uint32(1)
+	MOUNT_CONFIG_MAP     = "mount_protection_config"
+	MOUNT_DENY_PATHS_MAP = "mount_blocked_paths"
+	MONITOR_MODE         = uint32(0)
+	BLOCK_MODE           = uint32(1)
+	HOST_TARGET          = uint32(0)
+	CONTAINER_TARGET     = uint32(1)
 )
 
 type Manager struct {
-	mod    *libbpfgo.Module
-	config *config.Config
-	pb     *libbpfgo.PerfBuffer
+	bpfModule *libbpfgo.Module
+	appConfig *config.Config
+	perfBuf   *libbpfgo.PerfBuffer
 }
 
-func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
-	pb, err := m.mod.InitPerfBuf("mount_events", eventChannel, lostChannel, 1024)
+func (mgr *Manager) Launch(eventChan chan []byte, lostChan chan uint64) error {
+	perfBuffer, err := mgr.bpfModule.InitPerfBuf("mount_audit_events", eventChan, lostChan, 1024)
 	if err != nil {
 		return err
 	}
 
-	pb.Start()
-	m.pb = pb
+	perfBuffer.Start()
+	mgr.perfBuf = perfBuffer
 
 	return nil
 }
 
-func (m *Manager) Stop() {
-	m.pb.Stop()
+func (mgr *Manager) Pause() {
+	mgr.perfBuf.Stop()
 }
 
-func (m *Manager) Close() {
-	m.pb.Close()
+func (mgr *Manager) Shutdown() {
+	mgr.perfBuf.Close()
 }
 
-func (m *Manager) Attach() error {
-	for _, p := range BPF_PROGRAM_NAME {
-		prog, err := m.mod.GetProgram(p)
+func (mgr *Manager) HookPrograms() error {
+	for _, hookName := range BPF_HOOK_NAMES {
+		bpfProg, err := mgr.bpfModule.GetProgram(hookName)
 		if err != nil {
 			return err
 		}
-		_, err = prog.AttachLSM()
-		if err != nil {
-			return err
-		}
-	}
-
-	log.Debug(fmt.Sprintf("%s attached.", BPF_PROGRAM_NAME))
-	return nil
-}
-
-func (m *Manager) SetConfigToMap() error {
-	err := m.setModeAndTarget()
-	if err != nil {
-		return err
-	}
-
-	map_denied_source_paths, err := m.mod.GetMap(MOUNT_DENIED_SOURCE_LIST)
-	if err != nil {
-		return err
-	}
-
-	denied_source_paths := m.config.RestrictedMountConfig.DenySourcePath
-	for i, path := range denied_source_paths {
-		key := uint8(i)
-		value := []byte(path)
-		err = map_denied_source_paths.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
+		_, err = bpfProg.AttachLSM()
 		if err != nil {
 			return err
 		}
 	}
 
+	log.Debug(fmt.Sprintf("BPF programs %v attached successfully.", BPF_HOOK_NAMES))
 	return nil
 }
 
-func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, 8)
-	configMap, err := m.mod.GetMap(MOUNT_CONFIG)
+func (mgr *Manager) ApplyConfigToBPFMap() error {
+	err := mgr.configureModeAndTarget()
 	if err != nil {
 		return err
 	}
 
-	if m.config.IsRestrictedMode("mount") {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_BLOCK)
+	deniedPathsMap, err := mgr.bpfModule.GetMap(MOUNT_DENY_PATHS_MAP)
+	if err != nil {
+		return err
+	}
+
+	deniedPaths := mgr.appConfig.RestrictedMountConfig.DenySourcePath
+	for idx, path := range deniedPaths {
+		key := uint8(idx)
+		pathBytes := []byte(path)
+		err = deniedPathsMap.Update(unsafe.Pointer(&key), unsafe.Pointer(&pathBytes[0]))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (mgr *Manager) configureModeAndTarget() error {
+	configKey := make([]byte, 8)
+	configMap, err := mgr.bpfModule.GetMap(MOUNT_CONFIG_MAP)
+	if err != nil {
+		return err
+	}
+
+	if mgr.appConfig.IsRestrictedMode("mount") {
+		binary.LittleEndian.PutUint32(configKey[0:4], BLOCK_MODE)
 	} else {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_MONITOR)
+		binary.LittleEndian.PutUint32(configKey[0:4], MONITOR_MODE)
 	}
 
-	if m.config.IsOnlyContainer("mount") {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_CONTAINER)
+	if mgr.appConfig.IsOnlyContainer("mount") {
+		binary.LittleEndian.PutUint32(configKey[4:8], CONTAINER_TARGET)
 	} else {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
+		binary.LittleEndian.PutUint32(configKey[4:8], HOST_TARGET)
 	}
 
-	k := uint8(0)
-	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
+	keyIdx := uint8(0)
+	err = configMap.Update(unsafe.Pointer(&keyIdx), unsafe.Pointer(&configKey[0]))
 	if err != nil {
 		return err
 	}
