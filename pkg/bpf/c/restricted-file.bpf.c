@@ -180,6 +180,12 @@ int BPF_PROG(restricted_file_open, struct file *file)
 	PROG_CODE
 }
 
+SEC("lsm/file_truncate")
+int BPF_PROG(restricted_file_truncate, struct file *file)
+{
+	PROG_CODE
+}
+
 SEC("lsm/path_unlink")
 int BPF_PROG(restricted_path_unlink, const struct path *dir, struct dentry *dentry)
 {
