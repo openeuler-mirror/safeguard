@@ -53,6 +53,7 @@ func (m *Manager) Close() {
 func (m *Manager) Attach() error {
 	for _, prog_name := range []string{"restricted_file_open",
 		"restricted_path_unlink",
+		"restricted_file_truncate",
 		"restricted_path_rmdir",
 		"restricted_path_rename",
 		"restricted_file_receive"} { //, "restricted_mmap_file", "restricted_file_ioctl"} {
