@@ -3,7 +3,6 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 
-#define ALLOW_ACCESS 0
 #define AUDIT_EVENTS_RING_SIZE (4 * 4096)
 #define TASK_COMM_LEN 16
 #define NEW_UTS_LEN 64
