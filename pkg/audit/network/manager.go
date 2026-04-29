@@ -21,6 +21,9 @@ const (
 	TARGET_HOST      uint32 = 0
 	TARGET_CONTAINER uint32 = 1
 
+	POLICY_BLACKLIST uint32 = 0
+	POLICY_WHITELIST uint32 = 1
+
 	// BPF Map Names
 	RESTRICT_NETWORK_CONFIG_MAP_NAME = "network_safeguard_config_map"
 	ALLOWED_V4_CIDR_LIST_MAP_NAME    = "allowed_v4_cidr_list"
