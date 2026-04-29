@@ -83,6 +83,7 @@ type LogConfig struct {
 }
 
 type Config struct {
+	Policy                      string `yaml:"policy"` // blacklist 或 whitelist
 	RestrictedNetworkConfig    `yaml:"network"`
 	RestrictedFileAccessConfig `yaml:"files"`
 	RestrictedMountConfig      `yaml:"mount"`
@@ -93,6 +94,7 @@ type Config struct {
 
 func DefaultConfig() *Config {
 	return &Config{
+		Policy: "blacklist", // 默认黑名单模式
 		RestrictedNetworkConfig: RestrictedNetworkConfig{
 			Enable:  true,
 			Mode:    "monitor",
