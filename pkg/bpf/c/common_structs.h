@@ -103,6 +103,13 @@ struct mount_safeguard_config {
     u32 target;
 };
 
+struct process_safeguard_config {
+    u32 mode;
+    u32 target;
+    u32 policy;
+    int has_allow_process;
+};
+
 struct network_safeguard_config
 {
   enum mode mode;
