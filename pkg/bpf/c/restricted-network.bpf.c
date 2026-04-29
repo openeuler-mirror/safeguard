@@ -128,10 +128,24 @@ static inline bool is_destination_port_zero_v6(struct sockaddr_in6 *inet_addr) {
 }
 
 static inline int get_net_perm(struct network_safeguard_config *c, struct sockaddr *address){
-  int allow_connect = -EPERM;
-  int allow_command = -EPERM;
-  int allow_uid = -EPERM;
-  int allow_gid = -EPERM;
+  int allow_connect = 0;  // 默认允许（黑名单模式）
+  int allow_command = 0;
+  int allow_uid = 0;
+  int allow_gid = 0;
+
+  // 获取 policy 值，默认为黑名单模式
+  enum policy policy = POLICY_BLACKLIST;
+  if (c) {
+    policy = c->policy;
+  }
+
+  // 白名单模式：默认阻断
+  if (policy == POLICY_WHITELIST) {
+    allow_connect = -EPERM;
+    allow_command = -EPERM;
+    allow_uid = -EPERM;
+    allow_gid = -EPERM;
+  }
 
   struct sockaddr a;
   bpf_probe_read_kernel(&a, sizeof(struct sockaddr), address);
