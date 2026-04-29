@@ -107,8 +107,10 @@ struct network_safeguard_config
 {
   enum mode mode;
   u32 target;
+  enum policy policy;
   int has_allow_command;
   int has_allow_uid;
+  int has_allow_gid;
 };
 
 struct buffer {
