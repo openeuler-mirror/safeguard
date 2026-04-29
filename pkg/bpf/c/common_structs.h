@@ -56,6 +56,12 @@ enum svrtarget
 	TARGET_CONTAINER
 };
 
+enum policy
+{
+  POLICY_BLACKLIST,  // 默认允许，拒绝列表生效
+  POLICY_WHITELIST   // 默认阻断，允许列表生效
+};
+
 struct file_path {
 	unsigned char path[NAME_MAX];
 };
