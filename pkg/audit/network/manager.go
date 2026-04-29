@@ -320,7 +320,7 @@ func (m *Manager) setAllowedGIDList() error {
 }
 
 func (m *Manager) setDeniedGIDList() error {
-	gids, err := m.mod.GetMap(DENIED_UID_LIST_MAP_NAME)
+	gids, err := m.mod.GetMap(DENIED_GID_LIST_MAP_NAME)
 	if err != nil {
 		return err
 	}
