@@ -35,10 +35,9 @@ type RestrictedMountConfig struct {
 
 type RestrictedProcessConfig struct {
 	Enable bool
-	Mode   string `yaml:"mode"`
-	Target string `yaml:"target"`
-	// Allow  []string `yaml:"allow"`
-	// Deny   []string `yaml:"deny"`
+	Mode   string   `yaml:"mode"`
+	Target string   `yaml:"target"`
+	Allow  []string `yaml:"allow"`
 }
 
 type DomainConfig struct {
@@ -120,8 +119,7 @@ func DefaultConfig() *Config {
 			Enable: true,
 			Mode:   "monitor",
 			Target: "host",
-			// Allow:  []string{"/"},
-			// Deny:   []string{},
+			Allow:  []string{},
 		},
 		DNSProxyConfig: DNSProxyConfig{
 			Enable:        false,
