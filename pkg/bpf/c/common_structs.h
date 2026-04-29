@@ -85,6 +85,7 @@ struct file_open_audit_event {
 struct fileopen_safeguard_config {
     u32 mode;
     u32 target;
+    u32 policy;
 };
 
 struct mount_audit_event {
