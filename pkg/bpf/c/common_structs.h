@@ -256,10 +256,23 @@ static long get_path_str_from_path(u_char **path_str, const struct path *path, s
 }
 
 static u64 cb_check_path(struct bpf_map *map, u32 *key, struct file_path *map_path, struct callback_ctx *ctx) {
-    size_t size = strlen(map_path->path, NAME_MAX);
-    if (strcmp(map_path->path, ctx->path, size) == 0) {
+  #pragma unroll
+  for (int i = 0; i < LOOP_NAME; i++) {
+    unsigned char policy_char = map_path->path[i];
+    unsigned char event_char = ctx->path[i];
+
+    if (policy_char == '\0') {
+      if (event_char == '\0' || event_char == '/') {
         ctx->found = true;
+        return 1;
+      }
+      return 0;
     }
 
-    return 0;
+    if (policy_char != event_char) {
+      return 0;
+    }
+  }
+
+  return 0;
 }
