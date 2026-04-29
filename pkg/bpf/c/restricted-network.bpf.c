@@ -203,6 +203,9 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   if (c && c->has_allow_uid) {
     has_allow_uid = c->has_allow_uid;
   }
+  if (c && c->has_allow_gid) {
+    has_allow_gid = c->has_allow_gid;
+  }
 
   if (c && c->target == TARGET_CONTAINER) {
     if (!is_container()) {
