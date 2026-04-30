@@ -152,7 +152,7 @@ func (m *Manager) setDeniedFileAccessMap() error {
 }
 
 func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, 8)
+	key := make([]byte, 12)
 	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
 	if err != nil {
 		return err
