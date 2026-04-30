@@ -146,20 +146,6 @@ func (m *Manager) setDeniedFileAccessMap() error {
 		}
 	}
 
-	/* kernel version lower than 5.10
-	result := ""
-	for _, path := range denied_paths {
-		result += path
-		result += "|"
-	}
-	key := uint8(0)
-	value := []byte(result)
-	err = map_denied_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
-	if err != nil {
-		return err
-	}
-	*/
-
 	return nil
 }
 
