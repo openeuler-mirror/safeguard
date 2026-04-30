@@ -15,6 +15,7 @@ import (
 
 const supportKernelVersion = "5.8.0"
 const btfFile = "/sys/kernel/btf/vmlinux"
+const securityLSMFile = "/sys/kernel/security/lsm"
 
 func isLinux() bool {
 	return runtime.GOOS == "linux"
@@ -127,32 +128,59 @@ func readCmdline() (string, error) {
 	return string(cmdline), err
 }
 
-func hasBPFLSM() error {
-	kernelConfig, err := readKernelConfig()
+func readSecurityLSM() (string, error) {
+	f, err := os.Open(securityLSMFile)
 	if err != nil {
-		return err
+		return "", err
+	}
+	defer f.Close()
+
+	lsm, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", err
 	}
 
-	// check Kernel config
-	re := regexp.MustCompile(`CONFIG_LSM="(.*)"`)
+	return string(lsm), nil
+}
+
+func lsmListContainsBPF(lsmList string) bool {
+	for _, lsm := range strings.Split(lsmList, ",") {
+		if strings.TrimSpace(lsm) == "bpf" {
+			return true
+		}
+	}
+	return false
+}
+
+func kernelConfigHasBPFLSM(kernelConfig string) bool {
+	re := regexp.MustCompile(`CONFIG_LSM="([^"]*)"`)
 	matches := re.FindStringSubmatch(kernelConfig)
-	if len(matches) > 0 && strings.Contains(matches[1], "bpf") {
+	return len(matches) > 0 && lsmListContainsBPF(matches[1])
+}
+
+func cmdlineHasBPFLSM(cmdline string) bool {
+	for _, field := range strings.Fields(cmdline) {
+		if strings.HasPrefix(field, "lsm=") {
+			return lsmListContainsBPF(strings.TrimPrefix(field, "lsm="))
+		}
+	}
+	return false
+}
+
+func hasBPFLSM() error {
+	if activeLSM, err := readSecurityLSM(); err == nil && lsmListContainsBPF(activeLSM) {
 		return nil
 	}
 
-	// check boot params
-	cmdline, err := readCmdline()
-	if err != nil {
-		return err
-	}
-
-	re = regexp.MustCompile(`lsm=(.*)`)
-	matches = re.FindStringSubmatch(cmdline)
-	if len(matches) > 0 && strings.Contains(matches[1], "bpf") {
+	if cmdline, err := readCmdline(); err == nil && cmdlineHasBPFLSM(cmdline) {
 		return nil
 	}
 
-	return fmt.Errorf("BPF LSM is not enabled. Build the kernel enabled in CONFIG_LSM or add it to the boot parameters")
+	if kernelConfig, err := readKernelConfig(); err == nil && kernelConfigHasBPFLSM(kernelConfig) {
+		return nil
+	}
+
+	return fmt.Errorf("BPF LSM is not enabled. Enable bpf in the active LSM list, CONFIG_LSM, or boot lsm= parameters")
 }
 
 func AmIRootUser() bool {
