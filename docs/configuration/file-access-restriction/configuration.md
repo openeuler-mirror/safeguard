@@ -7,6 +7,7 @@ Linux Kernel >= 5.13 is required to use this option.
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable restrictions or not. Default is `true`. |
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, events are only logged. If `block` is specified, network access is blocked. |
 | `target` | Enum with the following possible values: `host`, `container` | Selecting `host` applies the restriction to the host-wide. Selecting `container` will apply the restriction only to containers. |
+| `policy` | Enum with the following possible values: `blacklist`, `whitelist` | If `blacklist` is specified (default), allow all except denied. If `whitelist` is specified, deny all except allowed. |
 | `allow` | A list of allow file paths | |
 | `deny` | A list of allow file paths | |
 
