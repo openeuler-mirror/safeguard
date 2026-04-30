@@ -83,3 +83,26 @@ network:
 	require.NoError(t, err)
 	assert.Equal(t, "whitelist", cfg.Policy)
 }
+
+func TestDefaultConfig_IncludesEmptyProcessAllowList(t *testing.T) {
+	cfg := DefaultConfig()
+	assert.Equal(t, []string{}, cfg.RestrictedProcessConfig.Allow)
+}
+
+func TestNewConfig_LoadsProcessAllowList(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "process-allow.yaml")
+
+	content := []byte(`process:
+  mode: monitor
+  target: host
+  allow:
+    - bash
+    - sshd
+`)
+	require.NoError(t, os.WriteFile(path, content, 0o644))
+
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"bash", "sshd"}, cfg.RestrictedProcessConfig.Allow)
+}
