@@ -285,3 +285,7 @@ static u64 cb_check_path(struct bpf_map *map, u32 *key, struct file_path *map_pa
 
   return 0;
 }
+
+static inline bool is_path_allowed(struct callback_ctx *ctx) {
+  return ctx->found;
+}
