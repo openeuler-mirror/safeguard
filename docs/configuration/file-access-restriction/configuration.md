@@ -11,6 +11,37 @@ Linux Kernel >= 5.13 is required to use this option.
 | `allow` | A list of allow file paths | |
 | `deny` | A list of allow file paths | |
 
+## Policy Modes
+
+### Blacklist Mode (Default)
+
+In blacklist mode, all file access is allowed by default. Only files in the `deny` list will be blocked.
+
+```yaml
+file:
+  mode: block
+  target: host
+  policy: blacklist  # or omit for default
+  deny:
+    - /etc/passwd
+    - /etc/shadow
+```
+
+### Whitelist Mode
+
+In whitelist mode, all file access is denied by default. Only files in the `allow` list will be permitted.
+
+```yaml
+file:
+  mode: block
+  target: host
+  policy: whitelist
+  allow:
+    - /usr/bin
+    - /etc
+    - /var/log
+```
+
 !!! warning
 
     Currently file access restrictions cannot be based on process context (command name, UID, etc).  
