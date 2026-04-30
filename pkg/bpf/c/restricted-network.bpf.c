@@ -280,7 +280,7 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   return can_access;
 } 
 
-static inline void reoprt_net_events(struct network_safeguard_config *c, int can_access, unsigned long long *ctx, 
+static inline void report_net_events(struct network_safeguard_config *c, int can_access, unsigned long long *ctx, 
                                     struct socket *sock, struct sockaddr *address){
   unsigned short family = BPF_CORE_READ(address, sa_family);
   bool is_ipv6 = (family == AF_INET6);
@@ -327,7 +327,7 @@ int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
       (struct network_safeguard_config *)bpf_map_lookup_elem(&network_safeguard_config_map, &index);
 
   int can_access = get_net_perm(c, address);
-  reoprt_net_events(c, can_access, ctx, sock, address);
+  report_net_events(c, can_access, ctx, sock, address);
   return can_access;
 }
 
@@ -339,7 +339,7 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
       (struct network_safeguard_config *)bpf_map_lookup_elem(&network_safeguard_config_map, &index);
 
   int can_access = get_net_perm(c, address);
-  reoprt_net_events(c, can_access, ctx, sock, address);
+  report_net_events(c, can_access, ctx, sock, address);
   return can_access;
 }
 
