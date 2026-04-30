@@ -19,7 +19,7 @@ const (
 	MODE_BLOCK   uint32 = 1
 
 	TARGET_HOST      uint32 = 0
-	TAREGT_CONTAINER uint32 = 1
+	TARGET_CONTAINER uint32 = 1
 
 	// BPF Map Names
 	RESTRICT_NETWORK_CONFIG_MAP_NAME = "network_safeguard_config_map"
@@ -187,7 +187,7 @@ func (m *Manager) setMode(table *libbpfgo.BPFMap, key []byte) []byte {
 
 func (m *Manager) setTarget(table *libbpfgo.BPFMap, key []byte) []byte {
 	if m.config.IsOnlyContainer("network") {
-		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TAREGT_CONTAINER)
+		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TARGET_CONTAINER)
 	} else {
 		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TARGET_HOST)
 	}
