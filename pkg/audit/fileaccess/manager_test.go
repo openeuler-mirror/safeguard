@@ -31,3 +31,10 @@ func TestCloseWithNilPb(t *testing.T) {
 	// Close should not panic when pb is nil
 	m.Close()
 }
+
+func TestBpfPolicyValues(t *testing.T) {
+	// Test that policy values match BPF expectations
+	// These values must match the enum in common_structs.h
+	assert.Equal(t, uint32(0), POLICY_BLACKLIST, "POLICY_BLACKLIST should be 0")
+	assert.Equal(t, uint32(1), POLICY_WHITELIST, "POLICY_WHITELIST should be 1")
+}
