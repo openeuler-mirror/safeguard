@@ -1,9 +1,12 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsOnlyContainer(t *testing.T) {
@@ -59,4 +62,24 @@ func TestIsRestrictedMode(t *testing.T) {
 			assert.Equal(t, config.IsRestrictedMode("fileaccess"), false)
 		})
 	})
+}
+
+func TestDefaultConfig_PolicyIsBlacklist(t *testing.T) {
+	cfg := DefaultConfig()
+	assert.Equal(t, "blacklist", cfg.Policy)
+}
+
+func TestNewConfig_LoadsPolicy(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "policy.yaml")
+
+	content := []byte(`policy: whitelist
+network:
+  mode: monitor
+`)
+	require.NoError(t, os.WriteFile(path, content, 0o644))
+
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, "whitelist", cfg.Policy)
 }
