@@ -136,3 +136,9 @@ func TestMapLayoutConstants(t *testing.T) {
 	assert.Equal(t, 8, MAP_POLICY_START)
 	assert.Equal(t, 12, MAP_POLICY_END)
 }
+
+func TestProcessAllowConstants(t *testing.T) {
+	assert.Equal(t, "process_safeguard_config_map", PROCESSACCESS_CONFIG)
+	assert.Equal(t, "allowed_process_map", ALLOWED_PROCESS_MAP)
+	assert.Equal(t, "denied_process_map", DENIED_PROCESS_MAP)
+}
