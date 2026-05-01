@@ -202,3 +202,9 @@ func (m *Manager) setAllowedProcessAccessMap() error {
 
 	return nil
 }
+
+// BPF program names for LSM hooks
+const (
+	BPF_PROGRAM_FORK = "restricted_process_fork"
+	BPF_PROGRAM_EXEC = "restricted_process_exec"
+)
