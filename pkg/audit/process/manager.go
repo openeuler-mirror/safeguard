@@ -179,3 +179,26 @@ const (
 	MAP_POLICY_START = 8
 	MAP_POLICY_END   = 12
 )
+
+func (m *Manager) setAllowedProcessAccessMap() error {
+	map_allowed, err := m.mod.GetMap(ALLOWED_PROCESS_MAP)
+	if err != nil {
+		return err
+	}
+
+	allowed_processes := m.config.RestrictedProcessConfig.Allow
+
+	for i, proc := range allowed_processes {
+		if proc == "" {
+			continue
+		}
+		key := uint8(i)
+		value := []byte(proc)
+		err = map_allowed.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
