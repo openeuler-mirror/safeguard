@@ -164,3 +164,10 @@ func (m *Manager) setModeAndTarget() error {
 	return nil
 }
 */
+
+// Map names for process restriction
+const (
+	PROCESSACCESS_CONFIG = "process_safeguard_config_map"
+	ALLOWED_PROCESS_MAP  = "allowed_process_map"
+	DENIED_PROCESS_MAP   = "denied_process_map"
+)
