@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPolicyConstants(t *testing.T) {
+	assert.Equal(t, uint32(0), POLICY_BLACKLIST)
+	assert.Equal(t, uint32(1), POLICY_WHITELIST)
+}
+
 func Test_Attach(t *testing.T) {
 	t.Run("expect to be attach BPF Program", func(t *testing.T) {
 		config := config.DefaultConfig()
