@@ -142,3 +142,9 @@ func TestProcessAllowConstants(t *testing.T) {
 	assert.Equal(t, "allowed_process_map", ALLOWED_PROCESS_MAP)
 	assert.Equal(t, "denied_process_map", DENIED_PROCESS_MAP)
 }
+
+func TestProcessAttachConstants(t *testing.T) {
+	assert.Equal(t, "restricted_process_fork", BPF_PROGRAM_FORK)
+	assert.Equal(t, "restricted_process_exec", BPF_PROGRAM_EXEC)
+	assert.Equal(t, "sched", TRACEPOINT_SCHED)
+}
