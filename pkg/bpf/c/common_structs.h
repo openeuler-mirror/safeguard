@@ -7,6 +7,7 @@
 #define TASK_COMM_LEN 16
 #define NEW_UTS_LEN 64
 #define NAME_MAX 255
+#define BPFCON_MAX_PROCESSES 10240
 #define DEV_LEN 64
 #define LOOP_NAME 80
 #define MAX_PATH_SIZE 4096 // PATH_MAX from <linux/limits.h>
