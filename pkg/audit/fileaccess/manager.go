@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	FILEACCESS_CONFIG = "fileopen_safeguard_config_map"
-	MODE_MONITOR      = uint32(0)
-	MODE_BLOCK        = uint32(1)
+	FILEACCESS_CONFIG   = "fileopen_safeguard_config_map"
+	FILEACCESS_PIN_PATH = "/sys/fs/bpf/file_config"
+	MODE_MONITOR         = uint32(0)
+	MODE_BLOCK           = uint32(1)
 
 	TARGET_HOST      = uint32(0)
 	TARGET_CONTAINER = uint32(1)
