@@ -21,6 +21,9 @@ const (
 
 	POLICY_BLACKLIST = uint32(0)
 	POLICY_WHITELIST = uint32(1)
+
+	MAP_POLICY_START = 8
+	MAP_POLICY_END   = 12
 )
 
 type Manager struct {
