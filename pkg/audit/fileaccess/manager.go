@@ -173,6 +173,13 @@ func (m *Manager) setModeAndTarget() error {
 		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
 	}
 
+	// Set policy value
+	if m.config.Policy == "whitelist" {
+		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_WHITELIST)
+	} else {
+		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_BLACKLIST)
+	}
+
 	k := uint8(0)
 	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
 	if err != nil {
