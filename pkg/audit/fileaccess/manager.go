@@ -176,8 +176,10 @@ func (m *Manager) setModeAndTarget() error {
 	// Set policy value
 	if m.config.Policy == "whitelist" {
 		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_WHITELIST)
+		log.Debug("File policy set to whitelist mode")
 	} else {
 		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_BLACKLIST)
+		log.Debug("File policy set to blacklist mode")
 	}
 
 	k := uint8(0)
