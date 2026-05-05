@@ -84,3 +84,22 @@ file:
   root@e3b2ffe5b284:/# echo '|/path/to/evil' > /proc/sys/kernel/core_pattern
   bash: /proc/sys/kernel/core_pattern: Operation not permitted
   ```
+
+#### Whitelist mode - Allow only specific directories
+
+In whitelist mode, all file access is denied by default except those explicitly allowed.
+
+```yaml
+files:
+  mode: block
+  target: host
+  policy: whitelist
+  allow:
+    - /usr/bin
+    - /etc
+    - /var/log
+```
+
+!!! info
+
+    In whitelist mode, the `deny` list is typically not used as all files are blocked by default.
