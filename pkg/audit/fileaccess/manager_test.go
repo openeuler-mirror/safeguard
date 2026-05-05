@@ -15,3 +15,11 @@ func TestMapLayoutConstants(t *testing.T) {
 	assert.Equal(t, 8, MAP_POLICY_START)
 	assert.Equal(t, 12, MAP_POLICY_END)
 }
+
+func TestSetPolicy(t *testing.T) {
+	// Test policy constants are correct
+	assert.Equal(t, 8, MAP_POLICY_START)
+	assert.Equal(t, 12, MAP_POLICY_END)
+	assert.Equal(t, uint32(0), POLICY_BLACKLIST)
+	assert.Equal(t, uint32(1), POLICY_WHITELIST)
+}
