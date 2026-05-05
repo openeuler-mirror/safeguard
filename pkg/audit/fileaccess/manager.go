@@ -52,9 +52,11 @@ func (m *Manager) Stop() {
 func (m *Manager) Close() {
 	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
 	if err == nil {
-		configMap.Unpin("/sys/fs/bpf/file_config")
+		configMap.Unpin(FILEACCESS_PIN_PATH)
 	}
-	m.pb.Close()
+	if m.pb != nil {
+		m.pb.Close()
+	}
 }
 
 func (m *Manager) Attach() error {
