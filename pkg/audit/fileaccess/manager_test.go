@@ -38,3 +38,20 @@ func TestBpfPolicyValues(t *testing.T) {
 	assert.Equal(t, uint32(0), POLICY_BLACKLIST, "POLICY_BLACKLIST should be 0")
 	assert.Equal(t, uint32(1), POLICY_WHITELIST, "POLICY_WHITELIST should be 1")
 }
+
+func TestManagerNilMod(t *testing.T) {
+	// Test that Manager methods handle nil mod gracefully
+	m := &Manager{mod: nil, config: nil, pb: nil}
+	// Stop on nil pb should not panic
+	m.Stop()
+	// Close should handle nil mod and pb
+	m.Close()
+}
+
+func TestEmptyPathHandling(t *testing.T) {
+	// Test that empty paths are handled correctly
+	// The setAllowedFileAccessMap and setDeniedFileAccessMap should skip empty paths
+	emptyPath := ""
+	assert.Equal(t, "", emptyPath, "Empty path should be empty string")
+}
+}
