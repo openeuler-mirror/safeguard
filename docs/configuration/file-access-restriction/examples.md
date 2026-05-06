@@ -103,3 +103,35 @@ files:
 !!! info
 
     In whitelist mode, the `deny` list is typically not used as all files are blocked by default.
+
+#### Blacklist mode - Block specific sensitive files
+
+In blacklist mode (default), all file access is allowed except those explicitly denied.
+
+```yaml
+file:
+  mode: block
+  target: host
+  policy: blacklist
+  deny:
+    - /etc/shadow
+    - /etc/gshadow
+    - /root/.ssh/id_rsa
+```
+
+#### Mixed mode with audit logging
+
+Use monitor mode to audit file access without blocking.
+
+```yaml
+file:
+  mode: monitor
+  target: container
+  deny:
+    - /proc/sys
+    - /sys/kernel
+```
+
+!!! tip
+
+    Use `mode: monitor` first to understand what files your containers need access to, then switch to `mode: block` once you have identified the necessary paths.
