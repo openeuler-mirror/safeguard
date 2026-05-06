@@ -23,3 +23,11 @@ func TestSetPolicy(t *testing.T) {
 	assert.Equal(t, uint32(0), POLICY_BLACKLIST)
 	assert.Equal(t, uint32(1), POLICY_WHITELIST)
 }
+
+func TestCloseWithNilPb(t *testing.T) {
+	// Test that Close handles nil pb gracefully
+	// This tests the nil check added to Close method
+	m := &Manager{pb: nil}
+	// Close should not panic when pb is nil
+	m.Close()
+}
