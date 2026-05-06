@@ -47,3 +47,29 @@ file:
     Currently file access restrictions cannot be based on process context (command name, UID, etc).  
     This is because the eBPF Program size becomes too large, and it is failed pass by the eBPF Verifier's limitations.  
     If you can create a better eBPF program, please contribute!
+
+## Troubleshooting
+
+### File access still blocked after adding to allow list
+
+If you've added a path to the `allow` list but access is still blocked:
+
+1. **Check policy mode**: Ensure `policy: whitelist` is set if you want to use the allow list.
+2. **Check path format**: Paths should be absolute (starting with `/`).
+3. **Check mode**: If `mode: monitor`, access is only logged, not blocked.
+
+### Whitelist mode blocking too much
+
+In whitelist mode, all access is denied by default. Make sure to:
+
+1. Include all necessary directories (e.g., `/usr`, `/lib`, `/etc`).
+2. Test with `mode: monitor` first to identify required paths.
+3. Remember that subdirectories are automatically included.
+
+### BPF map errors
+
+If you see errors related to BPF maps:
+
+1. Ensure kernel version is >= 5.13.
+2. Check that the BPF filesystem is mounted at `/sys/fs/bpf`.
+3. Verify sufficient memory for BPF maps.
