@@ -64,6 +64,19 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 	return nil
 }
 
+// StartExecAudit starts process exec audit using ringbuffer
+func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint64) error {
+	rb, err := m.mod.InitRingBuf("process_exec_events", eventChannel)
+	if err != nil {
+		return err
+	}
+
+	rb.Start()
+	m.rb = rb
+
+	return nil
+}
+
 func (m *Manager) Stop() {
 	m.pb.Stop()
 }
