@@ -33,3 +33,10 @@ The process restriction uses BPF maps to store configuration:
 | 0-4 | 4 bytes | mode | Monitor(0) or Block(1) mode |
 | 4-8 | 4 bytes | target | Host(0) or Container(1) |
 | 8-12 | 4 bytes | policy | Blacklist(0) or Whitelist(1) |
+
+## LSM Hooks
+
+Process restriction uses the following LSM hooks:
+
+- `sched_process_fork`: Triggered when a new process is forked
+- `sched_process_exec`: Triggered when a process executes a new program
