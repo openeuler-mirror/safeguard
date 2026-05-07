@@ -112,6 +112,19 @@ func (m *Manager) Attach() error {
 		return err
 	}
 
+	// Attach LSM hook for process restriction
+	lsmProg, err := m.mod.GetProgram("restricted_process_bprm_check")
+	if err != nil {
+		log.Debug(fmt.Sprintf("LSM program restricted_process_bprm_check not found: %v", err))
+	} else {
+		_, err = lsmProg.AttachLSM()
+		if err != nil {
+			log.Debug(fmt.Sprintf("Failed to attach LSM program: %v", err))
+		} else {
+			log.Debug("restricted_process_bprm_check attached.")
+		}
+	}
+
 	log.Debug(fmt.Sprintf("%s, %s attached.", BPF_PROGRAM_FORK, BPF_PROGRAM_EXEC))
 	return nil
 }
