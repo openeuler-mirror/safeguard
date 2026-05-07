@@ -93,7 +93,7 @@ func (m *Manager) SetConfigToMap() error {
 	return nil
 }
 
-/*
+
 func (m *Manager) setAllowedProcessAccessMap() error {
 	map_allowed_files, err := m.mod.GetMap(ALLOWED_FILES_MAP_NAME)
 	if err != nil {
@@ -135,9 +135,9 @@ func (m *Manager) setDeniedProcessAccessMap() error {
 
 	return nil
 }
-*/
 
-/*
+
+
 func (m *Manager) setModeAndTarget() error {
 	key := make([]byte, 8)
 	configMap, err := m.mod.GetMap(PROCESSACCESS_CONFIG)
@@ -165,7 +165,7 @@ func (m *Manager) setModeAndTarget() error {
 
 	return nil
 }
-*/
+
 
 // Map names for process restriction
 const (
