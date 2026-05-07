@@ -20,16 +20,20 @@ import (
 )
 
 const (
-	BPF_OBJECT_NAME        = "restricted-process"
-	BPF_PROGRAM_FORK       = "restricted_process_fork"
-	BPF_PROGRAM_EXEC       = "restricted_process_exec"
-	ALLOWED_FILES_MAP_NAME = "allowed_access_files"
-	DENIED_FILES_MAP_NAME  = "denied_access_files"
-	MODULE                 = "process"
+	BPF_OBJECT_NAME     = "restricted-process"
+	BPF_PROGRAM_FORK    = "restricted_process_fork"
+	BPF_PROGRAM_EXEC    = "restricted_process_exec"
+	MODULE              = "process"
 
-	NEW_UTS_LEN      = 64
-	PATH_MAX         = 255
-	PROCESS_COMM_LEN = 16
+	NEW_UTS_LEN         = 64
+	PATH_MAX            = 255
+	PROCESS_COMM_LEN    = 16
+)
+
+// Action constants
+const (
+	ACTION_MONITOR = 0
+	ACTION_BLOCK   = 1
 )
 
 type auditLog struct {
@@ -39,6 +43,17 @@ type auditLog struct {
 	Nodename      [NEW_UTS_LEN + 1]byte
 	Command       [PROCESS_COMM_LEN]byte
 	ParentCommand [PROCESS_COMM_LEN]byte
+}
+
+// processExecEvent represents process execution audit event from LSM hook
+type processExecEvent struct {
+	PID        uint32
+	PPID       uint32
+	UID        uint32
+	Action     uint8
+	Nodename   [NEW_UTS_LEN + 1]byte
+	Comm       [PROCESS_COMM_LEN]byte
+	ParentComm [PROCESS_COMM_LEN]byte
 }
 
 func setupBPFProgram() (*libbpfgo.Module, error) {
@@ -138,6 +153,19 @@ func parseEvent(eventBytes []byte) (auditLog, error) {
 
 	if err != nil {
 		return auditLog{}, err
+	}
+
+	return event, nil
+}
+
+// parseExecEvent parses process execution audit event
+func parseExecEvent(eventBytes []byte) (processExecEvent, error) {
+	buf := bytes.NewBuffer(eventBytes)
+	var event processExecEvent
+	err := binary.Read(buf, binary.LittleEndian, &event)
+
+	if err != nil {
+		return processExecEvent{}, err
 	}
 
 	return event, nil
