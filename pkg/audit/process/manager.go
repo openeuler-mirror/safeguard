@@ -79,10 +79,16 @@ func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint
 
 func (m *Manager) Stop() {
 	m.pb.Stop()
+	if m.rb != nil {
+		m.rb.Stop()
+	}
 }
 
 func (m *Manager) Close() {
 	m.pb.Close()
+	if m.rb != nil {
+		m.rb.Close()
+	}
 }
 
 func (m *Manager) Attach() error {
