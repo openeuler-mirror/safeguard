@@ -131,3 +131,8 @@ func createManager(conf *config.Config) Manager {
 
 	return mgr
 }
+
+func TestMapLayoutConstants(t *testing.T) {
+	assert.Equal(t, 8, MAP_POLICY_START)
+	assert.Equal(t, 12, MAP_POLICY_END)
+}
