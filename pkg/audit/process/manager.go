@@ -194,23 +194,36 @@ func (m *Manager) setDeniedProcessAccessMap() error {
 
 
 func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, 8)
-	configMap, err := m.mod.GetMap(PROCESSACCESS_CONFIG)
+	configMap, err := m.mod.GetMap(PROCESS_SAFEGUARD_CONFIG_MAP_NAME)
 	if err != nil {
 		return err
 	}
 
+	key := make([]byte, MAP_SIZE)
+
+	// Set mode
 	if m.config.IsRestrictedMode("process") {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_BLOCK)
+		binary.LittleEndian.PutUint32(key[MAP_MODE_START:MAP_MODE_END], MODE_BLOCK)
 	} else {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_MONITOR)
+		binary.LittleEndian.PutUint32(key[MAP_MODE_START:MAP_MODE_END], MODE_MONITOR)
 	}
 
+	// Set target
 	if m.config.IsOnlyContainer("process") {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_CONTAINER)
+		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TARGET_CONTAINER)
 	} else {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
+		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TARGET_HOST)
 	}
+
+	// Set policy
+	if m.config.Policy == "whitelist" {
+		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_WHITELIST)
+	} else {
+		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_BLACKLIST)
+	}
+
+	// Set allow process size
+	binary.LittleEndian.PutUint32(key[MAP_ALLOW_PROCESS_INDEX:MAP_ALLOW_PROCESS_INDEX+4], uint32(len(m.config.RestrictedProcessConfig.Allow)))
 
 	k := uint8(0)
 	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
