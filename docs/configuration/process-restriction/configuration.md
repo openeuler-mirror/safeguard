@@ -23,3 +23,13 @@ In blacklist mode, all processes are allowed by default. Only processes in the `
 ### Whitelist Mode
 
 In whitelist mode, all processes are denied by default. Only processes in the `allow` list will be permitted.
+
+## Configuration Map Structure
+
+The process restriction uses BPF maps to store configuration:
+
+| Offset | Size | Field | Description |
+|--------|------|-------|-------------|
+| 0-4 | 4 bytes | mode | Monitor(0) or Block(1) mode |
+| 4-8 | 4 bytes | target | Host(0) or Container(1) |
+| 8-12 | 4 bytes | policy | Blacklist(0) or Whitelist(1) |
