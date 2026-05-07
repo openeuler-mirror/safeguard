@@ -16,6 +16,9 @@ const (
 
 	TARGET_HOST      = uint32(0)
 	TARGET_CONTAINER = uint32(1)
+
+	POLICY_BLACKLIST = uint32(0)
+	POLICY_WHITELIST = uint32(1)
 )
 
 type Manager struct {
