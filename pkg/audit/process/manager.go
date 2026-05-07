@@ -208,3 +208,8 @@ const (
 	BPF_PROGRAM_FORK = "restricted_process_fork"
 	BPF_PROGRAM_EXEC = "restricted_process_exec"
 )
+
+// Tracepoint categories
+const (
+	TRACEPOINT_SCHED = "sched"
+)
