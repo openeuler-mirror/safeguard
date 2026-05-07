@@ -171,3 +171,9 @@ const (
 	ALLOWED_PROCESS_MAP  = "allowed_process_map"
 	DENIED_PROCESS_MAP   = "denied_process_map"
 )
+
+// Map layout constants
+const (
+	MAP_POLICY_START = 8
+	MAP_POLICY_END   = 12
+)
