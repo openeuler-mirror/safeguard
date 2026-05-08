@@ -23,3 +23,22 @@ pkg/controller/
 ├── service.go                # 服务层（串联各层）
 └── command.go                # CLI 命令定义
 ```
+
+## 数据流架构
+
+```
+CLI 入口 (safeguard controller generate)
+    │
+    ▼
+command.go ──解析参数──▶ Service.Generate()
+    │
+    ▼
+service.go
+    ├─ Collector.Collect()  → HostSnapshot
+    ├─ BuildWhitelist()     → WhitelistModel
+    ├─ MarshalConfigYAML()  → YAML bytes
+    └─ WriteFile()          → 保存文件
+    │
+    ▼
+collector/ ◀───────────── model/ ◀───────────── render/
+```
