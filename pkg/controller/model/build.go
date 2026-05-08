@@ -36,3 +36,18 @@ func uniqueStrings(values []string) []string {
 	sort.Strings(result)
 	return result
 }
+
+// uniqueUints removes duplicates and sorts uint slices
+func uniqueUints(values []uint) []uint {
+	seen := map[uint]struct{}{}
+	result := make([]uint, 0, len(values))
+	for _, value := range values {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	return result
+}
