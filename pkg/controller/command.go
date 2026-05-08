@@ -6,5 +6,18 @@ func NewCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "controller",
 		Usage: "Generate whitelist configuration from host snapshot",
+		Subcommands: []*cli.Command{
+			{
+				Name:  "generate",
+				Usage: "Collect host data and generate whitelist configuration",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "output",
+						Value: "demo-whitelist.yaml",
+						Usage: "Output path for whitelist YAML config",
+					},
+				},
+			},
+		},
 	}
 }
