@@ -37,3 +37,30 @@ type RunningProcess struct {
 	UID        uint   `json:"uid"`
 	GID        uint   `json:"gid"`
 }
+
+// NetworkWhitelist holds network whitelist configuration
+type NetworkWhitelist struct {
+	CIDRAllow []string `json:"cidr_allow"`
+	UIDAllow  []uint   `json:"uid_allow"`
+	GIDAllow  []uint   `json:"gid_allow"`
+}
+
+// FileWhitelist holds file access whitelist configuration
+type FileWhitelist struct {
+	Allow []string `json:"allow"`
+}
+
+// ProcessWhitelist holds process whitelist configuration
+type ProcessWhitelist struct {
+	Allow []string `json:"allow"`
+}
+
+// WhitelistModel is the complete whitelist configuration model
+type WhitelistModel struct {
+	Metadata Metadata         `json:"metadata"`
+	Network  NetworkWhitelist `json:"network"`
+	Accounts []Account        `json:"accounts"`
+	Files    FileWhitelist    `json:"files"`
+	Process  ProcessWhitelist `json:"process"`
+	Warnings []string         `json:"warnings"`
+}
