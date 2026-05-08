@@ -1,6 +1,7 @@
 package model
 
 import (
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -14,7 +15,26 @@ var defaultFileAllow = []string{
 
 // BuildWhitelist creates a WhitelistModel from HostSnapshot
 func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel {
-	// TODO: implement
+	fileAllow := append([]string{}, defaultFileAllow...)
+	fileAllow = append(fileAllow, snapshot.ExecutablePaths...)
+
+	for _, account := range snapshot.Accounts {
+		if account.HomeDir != "" {
+			fileAllow = append(fileAllow, account.HomeDir)
+		}
+	}
+
+	processAllow := make([]string, 0, len(snapshot.RunningProcesses))
+	for _, process := range snapshot.RunningProcesses {
+		if process.Command != "" {
+			processAllow = append(processAllow, process.Command)
+		}
+		if process.Executable != "" {
+			processAllow = append(processAllow, filepath.Base(process.Executable))
+		}
+	}
+
+	// TODO: return WhitelistModel
 	return WhitelistModel{}
 }
 
