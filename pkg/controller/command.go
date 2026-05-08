@@ -16,6 +16,19 @@ func NewCommand() *cli.Command {
 						Value: "demo-whitelist.yaml",
 						Usage: "Output path for whitelist YAML config",
 					},
+					&cli.StringFlag{
+						Name:  "report",
+						Value: "demo-whitelist-report.json",
+						Usage: "Output path for whitelist JSON report",
+					},
+					&cli.StringFlag{
+						Name:  "mode",
+						Value: "monitor",
+						Usage: "Operation mode: monitor or block",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					return nil // TODO: implement
 				},
 			},
 		},
