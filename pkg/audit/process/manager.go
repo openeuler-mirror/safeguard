@@ -271,6 +271,30 @@ func (m *Manager) setAllowedProcessAccessMap() error {
 	return nil
 }
 
+func (m *Manager) setAllowedProcessList() error {
+	processMap, err := m.mod.GetMap(ALLOWED_PROCESS_LIST_MAP_NAME)
+	if err != nil {
+		return err
+	}
+
+	for _, proc := range m.config.RestrictedProcessConfig.Allow {
+		key := byteToProcessKey([]byte(proc))
+		value := uint8(0)
+		err = processMap.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func byteToProcessKey(b []byte) []byte {
+	key := make([]byte, TASK_COMM_LEN)
+	copy(key[0:], b)
+	return key
+}
+
 // BPF program names for LSM hooks
 const (
 	BPF_PROGRAM_FORK = "restricted_process_fork"
