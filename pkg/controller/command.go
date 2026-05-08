@@ -28,7 +28,12 @@ func NewCommand() *cli.Command {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					return nil // TODO: implement
+					service := NewService()
+					return service.Generate(GenerateOptions{
+						Mode:       c.String("mode"),
+						OutputPath: c.String("output"),
+						ReportPath: c.String("report"),
+					})
 				},
 			},
 		},
