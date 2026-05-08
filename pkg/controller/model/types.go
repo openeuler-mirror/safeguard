@@ -8,3 +8,12 @@ type Account struct {
 	HomeDir  string `json:"home_dir"`
 	Shell    string `json:"shell"`
 }
+
+// RunningProcess represents a running process from /proc
+type RunningProcess struct {
+	PID        int    `json:"pid"`
+	Command    string `json:"command"`
+	Executable string `json:"executable"`
+	UID        uint   `json:"uid"`
+	GID        uint   `json:"gid"`
+}
