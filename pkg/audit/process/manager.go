@@ -26,6 +26,23 @@ const (
 	ALLOWED_PROCESS_LIST_MAP_NAME     = "allowed_process_list"
 
 	TASK_COMM_LEN = 16
+
+	/*
+	   +---------------+---------------+---------------+-------------------+
+	   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |10 |11 |12 | 13 | 14 | 15 | 16 |
+	   +---------------+---------------+---------------+-------------------+
+	   |      MODE     |     TARGET    |    POLICY     | Allow Process Size|
+	   +---------------+---------------+---------------+-------------------+
+	*/
+
+	MAP_SIZE                = 16
+	MAP_MODE_START          = 0
+	MAP_MODE_END            = 4
+	MAP_TARGET_START        = 4
+	MAP_TARGET_END          = 8
+	MAP_POLICY_START        = 8
+	MAP_POLICY_END          = 12
+	MAP_ALLOW_PROCESS_INDEX = 12
 )
 
 type Manager struct {
