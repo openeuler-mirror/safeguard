@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"sort"
+	"strings"
+	"time"
+)
 
 // DefaultFileAllow contains default allowed file paths
 var defaultFileAllow = []string{
@@ -12,4 +16,23 @@ var defaultFileAllow = []string{
 func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel {
 	// TODO: implement
 	return WhitelistModel{}
+}
+
+// uniqueStrings removes duplicates and sorts string slices
+func uniqueStrings(values []string) []string {
+	seen := map[string]struct{}{}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	sort.Strings(result)
+	return result
 }
