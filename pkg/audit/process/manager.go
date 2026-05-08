@@ -49,6 +49,7 @@ type Manager struct {
 	mod    *libbpfgo.Module
 	config *config.Config
 	pb     *libbpfgo.PerfBuffer
+	rb     *libbpfgo.RingBuffer
 }
 
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
