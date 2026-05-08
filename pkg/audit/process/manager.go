@@ -21,6 +21,11 @@ const (
 
 	POLICY_BLACKLIST = uint32(0)
 	POLICY_WHITELIST = uint32(1)
+
+	PROCESS_SAFEGUARD_CONFIG_MAP_NAME = "process_safeguard_config_map"
+	ALLOWED_PROCESS_LIST_MAP_NAME     = "allowed_process_list"
+
+	TASK_COMM_LEN = 16
 )
 
 type Manager struct {
