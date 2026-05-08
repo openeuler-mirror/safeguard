@@ -35,7 +35,25 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	}
 
 	// TODO: return WhitelistModel
-	return WhitelistModel{}
+	return WhitelistModel{
+		Metadata: Metadata{
+			Hostname:    snapshot.Hostname,
+			GeneratedAt: generatedAt,
+		},
+		Network: NetworkWhitelist{
+			CIDRAllow: uniqueStrings(snapshot.CIDRs),
+			UIDAllow:  uniqueUints(snapshot.UIDs),
+			GIDAllow:  uniqueUints(snapshot.GIDs),
+		},
+		Accounts: snapshot.Accounts,
+		Files: FileWhitelist{
+			Allow: uniqueStrings(fileAllow),
+		},
+		Process: ProcessWhitelist{
+			Allow: uniqueStrings(processAllow),
+		},
+		Warnings: uniqueStrings(snapshot.Warnings),
+	}
 }
 
 // uniqueStrings removes duplicates and sorts string slices
