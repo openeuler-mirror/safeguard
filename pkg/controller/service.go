@@ -1,6 +1,17 @@
 package controller
 
-import "time"
+import (
+	"time"
+
+	"culinux/pkg/controller/collector"
+	"culinux/pkg/controller/model"
+	"culinux/pkg/controller/render"
+)
+
+// SnapshotCollector defines interface for collecting host snapshot
+type SnapshotCollector interface {
+	Collect() (model.HostSnapshot, error)
+}
 
 // GenerateOptions holds options for whitelist generation
 type GenerateOptions struct {
@@ -18,16 +29,37 @@ type Service struct {
 // NewService creates a new Service instance
 func NewService() Service {
 	return Service{
-		Now: time.Now,
+		Collector: collector.NewSnapshotCollector(),
+		Now:       time.Now,
 	}
 }
 
-// SnapshotCollector defines interface for collecting host snapshot
-type SnapshotCollector interface {
-	Collect() (HostSnapshot, error)
-}
+// Generate collects host data and generates whitelist configuration
+func (s Service) Generate(options GenerateOptions) error {
+	snapshot, err := s.Collector.Collect()
+	if err != nil {
+		return err
+	}
 
-// HostSnapshot represents collected host data
-type HostSnapshot struct {
-	Hostname string
+	whitelist := model.BuildWhitelist(snapshot, s.Now())
+
+	yamlBytes, err := render.MarshalConfigYAML(whitelist, options.Mode)
+	if err != nil {
+		return err
+	}
+	if err := render.WriteFile(options.OutputPath, yamlBytes); err != nil {
+		return err
+	}
+
+	if options.ReportPath != "" {
+		reportBytes, err := render.MarshalReportJSON(whitelist)
+		if err != nil {
+			return err
+		}
+		if err := render.WriteFile(options.ReportPath, reportBytes); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
