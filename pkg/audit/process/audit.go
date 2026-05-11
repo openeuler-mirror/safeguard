@@ -128,6 +128,21 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	return nil
 }
 
+// newExecAuditLog creates audit log for process execution events
+func newExecAuditLog(event processExecEvent) log.RestrictedProcessLog {
+	auditEvent := log.AuditEventLog{
+		Module:   MODULE,
+		Hostname: helpers.NodenameToString(event.Nodename),
+		PID:      event.PID,
+		Comm:     helpers.CommToString(event.Comm),
+	}
+
+	return log.RestrictedProcessLog{
+		AuditEventLog: auditEvent,
+		PPID:          event.PPID,
+	}
+}
+
 func newAuditLog(event auditLog) log.RestrictedProcessLog {
 	auditEvent := log.AuditEventLog{
 		Module: MODULE,
