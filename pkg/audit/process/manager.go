@@ -74,6 +74,13 @@ func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint
 	rb.Start()
 	m.rb = rb
 
+	// Handle lost events in background
+	go func() {
+		for lost := range lostChannel {
+			log.Warnf("lost %d exec events", lost)
+		}
+	}()
+
 	return nil
 }
 
