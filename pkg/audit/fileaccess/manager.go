@@ -189,3 +189,26 @@ func (m *Manager) setModeAndTarget() error {
 
 	return nil
 }
+
+// ValidatePath checks if a path is valid for BPF map
+func ValidatePath(path string) bool {
+	if path == "" {
+		return false
+	}
+	if len(path) > NAME_MAX {
+		return false
+	}
+	// Must be absolute path
+	return path[0] == '/'
+}
+
+// FilterValidPaths returns only valid paths from a list
+func FilterValidPaths(paths []string) []string {
+	var valid []string
+	for _, p := range paths {
+		if ValidatePath(p) {
+			valid = append(valid, p)
+		}
+	}
+	return valid
+}
