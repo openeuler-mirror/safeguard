@@ -137,10 +137,10 @@ func (m *Manager) Attach() error {
 }
 
 func (m *Manager) SetConfigToMap() error {
-	// err := m.setModeAndTarget()
-	// if err != nil {
-	// 	return err
-	// }
+	err := m.setModeAndTarget()
+	if err != nil {
+		return err
+	}
 
 	// err = m.setAllowedProcessAccessMap()
 	// if err != nil {
