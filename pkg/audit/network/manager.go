@@ -565,3 +565,20 @@ func uintToKey(i uint) []byte {
 	binary.LittleEndian.PutUint32(key[0:4], uint32(i))
 	return key
 }
+
+// isValidCIDR validates CIDR notation
+func isValidCIDR(cidr string) bool {
+	_, _, err := net.ParseCIDR(cidr)
+	return err == nil
+}
+
+// ValidateCIDRList checks all CIDRs in a list and returns invalid ones
+func ValidateCIDRList(cidrs []string) []string {
+	var invalid []string
+	for _, cidr := range cidrs {
+		if !isValidCIDR(cidr) {
+			invalid = append(invalid, cidr)
+		}
+	}
+	return invalid
+}
