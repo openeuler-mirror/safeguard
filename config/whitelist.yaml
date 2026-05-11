@@ -1,0 +1,59 @@
+# Whitelist Policy Example Configuration
+# This config uses whitelist mode: only explicitly allowed items are permitted
+
+policy: whitelist  # blacklist (default) or whitelist
+
+network:
+  mode: block
+  target: host
+  cidr:
+    allow:
+      - 127.0.0.1/8
+      - 10.0.0.0/8
+    deny: []
+  domain:
+    allow:
+      - internal.company.com
+    deny: []
+  command:
+    allow:
+      - curl
+      - wget
+    deny: []
+  uid:
+    allow: [0, 1000]
+    deny: []
+  gid:
+    allow: [0, 1000]
+    deny: []
+
+files:
+  mode: block
+  target: host
+  allow:
+    - /
+    - /home
+    - /var/log
+  deny: []
+
+mount:
+  mode: block
+  target: host
+  deny:
+    - /var/run/docker.sock
+
+process:
+  mode: block
+  target: host
+  allow:
+    - bash
+    - sh
+    - python3
+  deny: []
+
+dns_proxy:
+  enable: false
+
+log:
+  format: json
+  level: INFO
