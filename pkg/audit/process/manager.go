@@ -302,6 +302,32 @@ func byteToProcessKey(b []byte) []byte {
 	return key
 }
 
+// DENIED_PROCESS_LIST_MAP_NAME is the BPF map name for denied processes
+const DENIED_PROCESS_LIST_MAP_NAME = "denied_process_list"
+
+// setDeniedProcessList populates the denied process list map
+func (m *Manager) setDeniedProcessList() error {
+	processMap, err := m.mod.GetMap(DENIED_PROCESS_LIST_MAP_NAME)
+	if err != nil {
+		log.Debugf("denied_process_list map not found, skipping: %v", err)
+		return nil
+	}
+
+	for _, proc := range m.config.RestrictedProcessConfig.Deny {
+		if proc == "" {
+			continue
+		}
+		key := byteToProcessKey([]byte(proc))
+		value := uint8(1) // 1 indicates denied
+		err = processMap.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // BPF program names for LSM hooks
 const (
 	BPF_PROGRAM_FORK = "restricted_process_fork"

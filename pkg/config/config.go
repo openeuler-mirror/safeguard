@@ -38,6 +38,7 @@ type RestrictedProcessConfig struct {
 	Mode   string   `yaml:"mode"`
 	Target string   `yaml:"target"`
 	Allow  []string `yaml:"allow"`
+	Deny   []string `yaml:"deny"`
 }
 
 type DomainConfig struct {
