@@ -147,10 +147,10 @@ func (m *Manager) SetConfigToMap() error {
 		return err
 	}
 
-	// err = m.setDeniedProcessAccessMap()
-	// if err != nil {
-	// 	return err
-	// }
+	err = m.setDeniedProcessList()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
