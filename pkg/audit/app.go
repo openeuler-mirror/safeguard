@@ -12,6 +12,7 @@ import (
 	"culinux/pkg/audit/network"
 	"culinux/pkg/audit/process"
 	"culinux/pkg/config"
+	"culinux/pkg/controller"
 	log "culinux/pkg/log"
 	"culinux/pkg/utils"
 
@@ -36,6 +37,11 @@ func NewApp(version string) *cli.App {
 	flags := []cli.Flag{&configFlag}
 
 	app.Flags = flags
+
+	// Add controller subcommand
+	app.Commands = []*cli.Command{
+		controller.NewCommand(),
+	}
 
 	app.Action = func(c *cli.Context) error {
 		path := c.String("config")
