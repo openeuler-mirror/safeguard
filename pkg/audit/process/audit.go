@@ -186,6 +186,20 @@ func parseExecEvent(eventBytes []byte) (processExecEvent, error) {
 	return event, nil
 }
 
+// logExecEvents handles logging for process exec events
+func logExecEvents(eventChannel chan []byte) {
+	for eventBytes := range eventChannel {
+		event, err := parseExecEvent(eventBytes)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		execLog := newExecAuditLog(event)
+		execLog.Info()
+	}
+}
+
 // func retToaction(ret int32) string {
 // 	if ret == 0 {
 // 		return "ALLOWED"
