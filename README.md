@@ -34,6 +34,39 @@ $ yum install safeguard-2.0.1-2.ule3.x86_64.rpm
 $ sudo safeguard --config /etc/safeguard/safeguard.yml
 ```
 
+# Whitelist Policy
+
+使用controller模块自动生成白名单配置：
+
+```shell
+# 生成白名单配置
+$ sudo ./build/safeguard controller generate --output whitelist.yaml --report report.json
+
+# 应用白名单配置
+$ sudo ./build/safeguard --config whitelist.yaml
+```
+
+白名单模式配置示例：
+
+```yaml
+policy: whitelist  # blacklist(默认允许) 或 whitelist(默认阻断)
+
+network:
+  mode: block
+  cidr:
+    allow:
+      - 127.0.0.1/8
+      - 10.0.0.0/8
+    deny: []
+
+process:
+  mode: block
+  allow:
+    - bash
+    - python3
+  deny: []
+```
+
 # configurate map
 ```shell
 $ bpftool map update pinned /sys/fs/bpf/file_config key 00 00 00 00 value 01 00 00 00 00 00 00 00
