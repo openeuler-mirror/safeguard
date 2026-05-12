@@ -2,8 +2,8 @@ package process
 
 import (
 	"encoding/binary"
-	"unsafe"
 	"fmt"
+	"unsafe"
 
 	"culinux/pkg/config"
 	log "culinux/pkg/log"
@@ -12,18 +12,18 @@ import (
 )
 
 const (
-	//PROCESSACCESS_CONFIG = "process_config_map"
-	MODE_MONITOR = uint32(0)
-	MODE_BLOCK   = uint32(1)
+	MODE_MONITOR uint32 = 0
+	MODE_BLOCK   uint32 = 1
 
-	TARGET_HOST      = uint32(0)
-	TARGET_CONTAINER = uint32(1)
+	TARGET_HOST      uint32 = 0
+	TARGET_CONTAINER uint32 = 1
 
-	POLICY_BLACKLIST = uint32(0)
-	POLICY_WHITELIST = uint32(1)
+	POLICY_BLACKLIST uint32 = 0
+	POLICY_WHITELIST uint32 = 1
 
 	PROCESS_SAFEGUARD_CONFIG_MAP_NAME = "process_safeguard_config_map"
 	ALLOWED_PROCESS_LIST_MAP_NAME     = "allowed_process_list"
+	DENIED_PROCESS_LIST_MAP_NAME      = "denied_process_list"
 
 	TASK_COMM_LEN = 16
 
@@ -137,70 +137,22 @@ func (m *Manager) Attach() error {
 }
 
 func (m *Manager) SetConfigToMap() error {
-	err := m.setModeAndTarget()
-	if err != nil {
+	if err := m.setConfigMap(); err != nil {
 		return err
 	}
 
-	err = m.setAllowedProcessList()
-	if err != nil {
+	if err := m.setAllowedProcessList(); err != nil {
 		return err
 	}
 
-	err = m.setDeniedProcessList()
-	if err != nil {
+	if err := m.setDeniedProcessList(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-
-func (m *Manager) setAllowedProcessAccessMap() error {
-	map_allowed_files, err := m.mod.GetMap(ALLOWED_FILES_MAP_NAME)
-	if err != nil {
-		return err
-	}
-
-	allowed_paths := m.config.RestrictedFileAccessConfig.Allow
-
-	for i, path := range allowed_paths {
-		key := uint8(i)
-		value := []byte(path)
-		err = map_allowed_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *Manager) setDeniedProcessAccessMap() error {
-	map_denied_files, err := m.mod.GetMap(DENIED_FILES_MAP_NAME)
-	if err != nil {
-		return err
-	}
-	denied_paths := m.config.RestrictedFileAccessConfig.Deny
-
-	for i, path := range denied_paths {
-		key := uint8(i)
-		value := []byte(path)
-
-		keyPtr := unsafe.Pointer(&key)
-		valuePtr := unsafe.Pointer(&value[0])
-		err = map_denied_files.Update(keyPtr, valuePtr)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-
-
-func (m *Manager) setModeAndTarget() error {
+func (m *Manager) setConfigMap() error {
 	configMap, err := m.mod.GetMap(PROCESS_SAFEGUARD_CONFIG_MAP_NAME)
 	if err != nil {
 		return err
@@ -241,43 +193,6 @@ func (m *Manager) setModeAndTarget() error {
 	return nil
 }
 
-
-// Map names for process restriction
-const (
-	PROCESSACCESS_CONFIG = "process_safeguard_config_map"
-	ALLOWED_PROCESS_MAP  = "allowed_process_map"
-	DENIED_PROCESS_MAP   = "denied_process_map"
-)
-
-// Map layout constants
-const (
-	MAP_POLICY_START = 8
-	MAP_POLICY_END   = 12
-)
-
-func (m *Manager) setAllowedProcessAccessMap() error {
-	map_allowed, err := m.mod.GetMap(ALLOWED_PROCESS_MAP)
-	if err != nil {
-		return err
-	}
-
-	allowed_processes := m.config.RestrictedProcessConfig.Allow
-
-	for i, proc := range allowed_processes {
-		if proc == "" {
-			continue
-		}
-		key := uint8(i)
-		value := []byte(proc)
-		err = map_allowed.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (m *Manager) setAllowedProcessList() error {
 	processMap, err := m.mod.GetMap(ALLOWED_PROCESS_LIST_MAP_NAME)
 	if err != nil {
@@ -295,15 +210,6 @@ func (m *Manager) setAllowedProcessList() error {
 
 	return nil
 }
-
-func byteToProcessKey(b []byte) []byte {
-	key := make([]byte, TASK_COMM_LEN)
-	copy(key[0:], b)
-	return key
-}
-
-// DENIED_PROCESS_LIST_MAP_NAME is the BPF map name for denied processes
-const DENIED_PROCESS_LIST_MAP_NAME = "denied_process_list"
 
 // setDeniedProcessList populates the denied process list map
 func (m *Manager) setDeniedProcessList() error {
@@ -328,13 +234,16 @@ func (m *Manager) setDeniedProcessList() error {
 	return nil
 }
 
-// BPF program names for LSM hooks
-const (
-	BPF_PROGRAM_FORK = "restricted_process_fork"
-	BPF_PROGRAM_EXEC = "restricted_process_exec"
-)
+func byteToProcessKey(b []byte) []byte {
+	key := make([]byte, TASK_COMM_LEN)
+	copy(key[0:], b)
+	return key
+}
 
-// Tracepoint categories
-const (
-	TRACEPOINT_SCHED = "sched"
-)
+// ValidateMountPath validates a mount source path
+func ValidateMountPath(path string) bool {
+	if path == "" || len(path) > 255 {
+		return false
+	}
+	return path[0] == '/'
+}

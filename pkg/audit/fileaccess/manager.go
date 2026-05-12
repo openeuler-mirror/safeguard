@@ -14,8 +14,8 @@ import (
 const (
 	FILEACCESS_CONFIG   = "fileopen_safeguard_config_map"
 	FILEACCESS_PIN_PATH = "/sys/fs/bpf/file_config"
-	MODE_MONITOR         = uint32(0)
-	MODE_BLOCK           = uint32(1)
+	MODE_MONITOR        = uint32(0)
+	MODE_BLOCK          = uint32(1)
 
 	TARGET_HOST      = uint32(0)
 	TARGET_CONTAINER = uint32(1)
@@ -25,6 +25,7 @@ const (
 
 	MAP_POLICY_START = 8
 	MAP_POLICY_END   = 12
+	NAME_MAX         = 255
 )
 
 type Manager struct {
