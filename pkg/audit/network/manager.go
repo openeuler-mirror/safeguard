@@ -286,7 +286,7 @@ func (m *Manager) setAllowedUIDList() error {
 }
 
 func (m *Manager) setDeniedUIDList() error {
-	uids, err := m.mod.GetMap(DENIED_GID_LIST_MAP_NAME)
+	uids, err := m.mod.GetMap(DENIED_UID_LIST_MAP_NAME)
 	if err != nil {
 		return err
 	}
@@ -564,21 +564,4 @@ func uintToKey(i uint) []byte {
 	key := make([]byte, 4)
 	binary.LittleEndian.PutUint32(key[0:4], uint32(i))
 	return key
-}
-
-// isValidCIDR validates CIDR notation
-func isValidCIDR(cidr string) bool {
-	_, _, err := net.ParseCIDR(cidr)
-	return err == nil
-}
-
-// ValidateCIDRList checks all CIDRs in a list and returns invalid ones
-func ValidateCIDRList(cidrs []string) []string {
-	var invalid []string
-	for _, cidr := range cidrs {
-		if !isValidCIDR(cidr) {
-			invalid = append(invalid, cidr)
-		}
-	}
-	return invalid
 }

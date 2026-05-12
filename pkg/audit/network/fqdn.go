@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	log "culinux/pkg/log"
@@ -36,21 +37,31 @@ func toFqdn(domainName string) string {
 }
 
 func (r *DefaultResolver) exchange(message *dns.Msg) (*dns.Msg, error) {
-	for _, server := range r.config.Servers {
-		res, _, err := r.client.Exchange(r.message, server+":53")
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		return res, err
+	failures := []string{}
+	host := ""
+	if len(message.Question) > 0 {
+		host = message.Question[0].Name
 	}
 
-	return nil, errors.New("resolve failed")
+	for _, server := range r.config.Servers {
+		res, _, err := r.client.Exchange(message, net.JoinHostPort(server, "53"))
+		if err != nil {
+			log.Debug(fmt.Sprintf("%s query to %s failed. %s", host, server, err))
+			failures = append(failures, fmt.Sprintf("%s: %v", server, err))
+			continue
+		}
+		return res, nil
+	}
+
+	if len(failures) == 0 {
+		return nil, errors.New("resolve failed")
+	}
+
+	return nil, fmt.Errorf("all dns servers failed for %s: %s", host, strings.Join(failures, "; "))
 }
 
 func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, error) {
 	r.mux.Lock()
-
 	r.message.SetQuestion(toFqdn(host), recordType)
 	r.message.RecursionDesired = true
 
@@ -58,6 +69,7 @@ func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, e
 	r.mux.Unlock()
 
 	if err != nil {
+		log.Error(err)
 		return nil, err
 	}
 
@@ -115,7 +127,6 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 	case dns.TypeA:
 		answer, err := mgr.ResolveAddressv4(domainName)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domainName, err))
 			return 5, nil
 		}
 		err = mgr.updateAllowedFQDNist(answer)
@@ -128,7 +139,6 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 	case dns.TypeAAAA:
 		answer, err := mgr.ResolveAddressv6(domainName)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s\n", domainName, err))
 			return 5, nil
 		}
 		err = mgr.updateAllowedFQDNist(answer)
@@ -148,7 +158,6 @@ func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType
 	case dns.TypeA:
 		answer, err := mgr.ResolveAddressv4(domainName)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domainName, err))
 			return 5, nil
 		}
 		err = mgr.updateDeniedFQDNList(answer)
@@ -161,7 +170,6 @@ func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType
 	case dns.TypeAAAA:
 		answer, err := mgr.ResolveAddressv6(domainName)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s\n", domainName, err))
 			return 5, nil
 		}
 		err = mgr.updateDeniedFQDNList(answer)
