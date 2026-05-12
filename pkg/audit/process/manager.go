@@ -23,7 +23,6 @@ const (
 
 	PROCESS_SAFEGUARD_CONFIG_MAP_NAME = "process_safeguard_config_map"
 	ALLOWED_PROCESS_LIST_MAP_NAME     = "allowed_process_list"
-	DENIED_PROCESS_LIST_MAP_NAME      = "denied_process_list"
 
 	TASK_COMM_LEN = 16
 
@@ -64,7 +63,7 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 	return nil
 }
 
-// StartExecAudit starts process exec audit using ringbuffer
+// StartExecAudit 启动进程执行审计（ringbuf）
 func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint64) error {
 	rb, err := m.mod.InitRingBuf("process_exec_events", eventChannel)
 	if err != nil {
@@ -73,13 +72,6 @@ func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint
 
 	rb.Start()
 	m.rb = rb
-
-	// Handle lost events in background
-	go func() {
-		for lost := range lostChannel {
-			log.Warnf("lost %d exec events", lost)
-		}
-	}()
 
 	return nil
 }
@@ -119,7 +111,7 @@ func (m *Manager) Attach() error {
 		return err
 	}
 
-	// Attach LSM hook for process restriction
+	// 附加 LSM hook
 	lsmProg, err := m.mod.GetProgram("restricted_process_bprm_check")
 	if err != nil {
 		log.Debug(fmt.Sprintf("LSM program restricted_process_bprm_check not found: %v", err))
@@ -145,10 +137,6 @@ func (m *Manager) SetConfigToMap() error {
 		return err
 	}
 
-	if err := m.setDeniedProcessList(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -160,28 +148,28 @@ func (m *Manager) setConfigMap() error {
 
 	key := make([]byte, MAP_SIZE)
 
-	// Set mode
+	// 设置 mode
 	if m.config.IsRestrictedMode("process") {
 		binary.LittleEndian.PutUint32(key[MAP_MODE_START:MAP_MODE_END], MODE_BLOCK)
 	} else {
 		binary.LittleEndian.PutUint32(key[MAP_MODE_START:MAP_MODE_END], MODE_MONITOR)
 	}
 
-	// Set target
+	// 设置 target
 	if m.config.IsOnlyContainer("process") {
 		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TARGET_CONTAINER)
 	} else {
 		binary.LittleEndian.PutUint32(key[MAP_TARGET_START:MAP_TARGET_END], TARGET_HOST)
 	}
 
-	// Set policy
+	// 设置 policy
 	if m.config.Policy == "whitelist" {
 		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_WHITELIST)
 	} else {
 		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_BLACKLIST)
 	}
 
-	// Set allow process size
+	// 设置 allow process size
 	binary.LittleEndian.PutUint32(key[MAP_ALLOW_PROCESS_INDEX:MAP_ALLOW_PROCESS_INDEX+4], uint32(len(m.config.RestrictedProcessConfig.Allow)))
 
 	k := uint8(0)
@@ -211,39 +199,8 @@ func (m *Manager) setAllowedProcessList() error {
 	return nil
 }
 
-// setDeniedProcessList populates the denied process list map
-func (m *Manager) setDeniedProcessList() error {
-	processMap, err := m.mod.GetMap(DENIED_PROCESS_LIST_MAP_NAME)
-	if err != nil {
-		log.Debugf("denied_process_list map not found, skipping: %v", err)
-		return nil
-	}
-
-	for _, proc := range m.config.RestrictedProcessConfig.Deny {
-		if proc == "" {
-			continue
-		}
-		key := byteToProcessKey([]byte(proc))
-		value := uint8(1) // 1 indicates denied
-		err = processMap.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func byteToProcessKey(b []byte) []byte {
 	key := make([]byte, TASK_COMM_LEN)
 	copy(key[0:], b)
 	return key
-}
-
-// ValidateMountPath validates a mount source path
-func ValidateMountPath(path string) bool {
-	if path == "" || len(path) > 255 {
-		return false
-	}
-	return path[0] == '/'
 }
