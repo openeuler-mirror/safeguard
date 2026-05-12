@@ -32,16 +32,26 @@ func NewApp(version string) *cli.App {
 	app := cli.NewApp()
 	app.Name = "safeguard"
 	app.Version = "0.0.10"
-	app.Usage = "..."
+	app.Usage = "Linux host security audit and whitelist controller based on eBPF/LSM"
+	app.UsageText = `safeguard [global options] command [command options]
+
+EXAMPLES:
+   # Run with default config
+   sudo safeguard --config config/safeguard.yml
+
+   # Run in whitelist mode (block non-whitelisted behaviors)
+   sudo safeguard --config /etc/safeguard/safeguard.yaml
+
+   # Generate whitelist config from current host
+   safeguard controller generate --output /etc/safeguard/whitelist.yaml --report /var/log/safeguard/report.json --mode block
+
+   # Run in monitor mode (only log, no blocking)
+   safeguard controller generate --mode monitor --output whitelist.yaml`
+	app.Commands = []*cli.Command{controller.NewCommand()}
 
 	flags := []cli.Flag{&configFlag}
 
 	app.Flags = flags
-
-	// Add controller subcommand
-	app.Commands = []*cli.Command{
-		controller.NewCommand(),
-	}
 
 	app.Action = func(c *cli.Context) error {
 		path := c.String("config")
@@ -52,6 +62,11 @@ func NewApp(version string) *cli.App {
 		}
 		if !utils.AmIRootUser() {
 			return errors.New("Must be run as root user")
+		}
+		if os.Getenv("SKIP_COMPATIBLE_CHECK") == "" {
+			if err := utils.IsCompatible(); err != nil {
+				return err
+			}
 		}
 
 		log.SetFormatter(conf.Log.Format)
@@ -74,13 +89,6 @@ func NewApp(version string) *cli.App {
 		wg.Wait()
 		log.Info("Terminate all audit.")
 		return nil
-	}
-
-	if os.Getenv("SKIP_COMPATIBLE_CHECK") == "" {
-		err := utils.IsCompatible()
-		if err != nil {
-			log.Error(err)
-		}
 	}
 
 	return app
