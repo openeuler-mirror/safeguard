@@ -123,6 +123,7 @@ func DefaultConfig() *Config {
 			Mode:   "monitor",
 			Target: "host",
 			Allow:  []string{},
+			Deny:   []string{},
 		},
 		DNSProxyConfig: DNSProxyConfig{
 			Enable:        false,
@@ -163,6 +164,36 @@ func NewConfig(configPath string) (*Config, error) {
 func (c *Config) Validate() error {
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
 		return errors.New("One or more dns_proxy.upstrems must be specified.")
+	}
+
+	// Validate policy field
+	if c.Policy != "blacklist" && c.Policy != "whitelist" {
+		return errors.New("policy must be 'blacklist' or 'whitelist'")
+	}
+
+	// Validate mode fields
+	if err := c.validateModes(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateModes checks that all mode fields have valid values
+func (c *Config) validateModes() error {
+	validModes := map[string]bool{"monitor": true, "block": true}
+
+	if !validModes[c.RestrictedNetworkConfig.Mode] {
+		return errors.New("network.mode must be 'monitor' or 'block'")
+	}
+	if !validModes[c.RestrictedFileAccessConfig.Mode] {
+		return errors.New("files.mode must be 'monitor' or 'block'")
+	}
+	if !validModes[c.RestrictedMountConfig.Mode] {
+		return errors.New("mount.mode must be 'monitor' or 'block'")
+	}
+	if !validModes[c.RestrictedProcessConfig.Mode] {
+		return errors.New("process.mode must be 'monitor' or 'block'")
 	}
 
 	return nil
