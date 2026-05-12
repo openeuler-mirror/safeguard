@@ -6,6 +6,17 @@ func NewCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "controller",
 		Usage: "Generate whitelist configuration from host snapshot",
+		UsageText: `safeguard controller generate [options]
+
+EXAMPLES:
+   # Generate whitelist config with block mode
+   safeguard controller generate --output /etc/safeguard/whitelist.yaml --mode block
+
+   # Generate whitelist config with monitor mode (default, only log)
+   safeguard controller generate --output whitelist.yaml --report report.json
+
+   # Generate and run immediately
+   safeguard controller generate --output /etc/safeguard/whitelist.yaml && sudo safeguard --config /etc/safeguard/whitelist.yaml`,
 		Subcommands: []*cli.Command{
 			{
 				Name:  "generate",
@@ -24,7 +35,7 @@ func NewCommand() *cli.Command {
 					&cli.StringFlag{
 						Name:  "mode",
 						Value: "monitor",
-						Usage: "Operation mode: monitor or block",
+						Usage: "Operation mode: 'monitor' (log only) or 'block' (enforce whitelist)",
 					},
 				},
 				Action: func(c *cli.Context) error {
