@@ -145,6 +145,8 @@ func parseEvent(eventBytes []byte) (auditLog, error) {
 func retToaction(ret int32) string {
 	if ret == 0 {
 		return "ALLOWED"
+	} else if ret > 0 {
+		return "MONITOR"
 	} else {
 		return "BLOCKED"
 	}
