@@ -213,6 +213,7 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
     }
   }
 
+  // Allow 列表检查（白名单模式下放行）
   if ((is_ipv4 && bpf_map_lookup_elem(&allowed_v4_cidr_list, &key.v4)) ||
       (is_ipv6 && bpf_map_lookup_elem(&allowed_v6_cidr_list, &key.v6))) {
     allow_connect = 0;
@@ -233,6 +234,7 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
     allow_command = 0;
   }
 
+  // Deny 列表检查（优先级最高，始终生效）
   if (bpf_map_lookup_elem(&denied_command_list, &denied_command)) {
     allow_command = -EPERM;
   }
@@ -274,13 +276,11 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
     can_access = 0;
   }
 
-  if(c && c->mode == MODE_MONITOR){
-    return 0;
-  }
+  // Return actual permission result; caller handles monitor mode
   return can_access;
 } 
 
-static inline void report_net_events(struct network_safeguard_config *c, int can_access, unsigned long long *ctx, 
+static inline void reoprt_net_events(struct network_safeguard_config *c, int can_access, unsigned long long *ctx,
                                     struct socket *sock, struct sockaddr *address){
   unsigned short family = BPF_CORE_READ(address, sa_family);
   bool is_ipv6 = (family == AF_INET6);
@@ -297,23 +297,23 @@ static inline void report_net_events(struct network_safeguard_config *c, int can
     inet_addr4 = (struct sockaddr_in *)address;
   }
 
-  if (can_access != 0 && c && c->mode == MODE_BLOCK) {
-    if (is_ipv4) {
-      report_ipv4_event((void *)ctx, cg, ACTION_BLOCK, CONNECT, sock,
-                        inet_addr4);
-    } else {
-      report_ipv6_event((void *)ctx, cg, ACTION_BLOCK, CONNECT, sock,
-                        inet_addr6);
-    }
-  }
-
-  if (c && c->mode == MODE_MONITOR) {
-    if (is_ipv4) {
-      report_ipv4_event((void *)ctx, cg, ACTION_MONITOR, CONNECT, sock,
-                        inet_addr4);
-    } else {
-      report_ipv6_event((void *)ctx, cg, ACTION_MONITOR, CONNECT, sock,
-                        inet_addr6);
+  if (can_access != 0 && c) {
+    if (c->mode == MODE_BLOCK) {
+      if (is_ipv4) {
+        report_ipv4_event((void *)ctx, cg, ACTION_BLOCK, CONNECT, sock,
+                          inet_addr4);
+      } else {
+        report_ipv6_event((void *)ctx, cg, ACTION_BLOCK, CONNECT, sock,
+                          inet_addr6);
+      }
+    } else if (c->mode == MODE_MONITOR) {
+      if (is_ipv4) {
+        report_ipv4_event((void *)ctx, cg, ACTION_MONITOR, CONNECT, sock,
+                          inet_addr4);
+      } else {
+        report_ipv6_event((void *)ctx, cg, ACTION_MONITOR, CONNECT, sock,
+                          inet_addr6);
+      }
     }
   }
 }
@@ -321,13 +321,18 @@ static inline void report_net_events(struct network_safeguard_config *c, int can
 // TODO: lsm/send_msg
 SEC("lsm/socket_connect")
 int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
-             int addrlen) {   
+             int addrlen) {
   u32 index = 0;
   struct network_safeguard_config *c =
       (struct network_safeguard_config *)bpf_map_lookup_elem(&network_safeguard_config_map, &index);
 
   int can_access = get_net_perm(c, address);
-  report_net_events(c, can_access, ctx, sock, address);
+  reoprt_net_events(c, can_access, ctx, sock, address);
+
+  // In monitor mode, allow all access
+  if (c && c->mode == MODE_MONITOR) {
+    return 0;
+  }
   return can_access;
 }
 
@@ -339,7 +344,12 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
       (struct network_safeguard_config *)bpf_map_lookup_elem(&network_safeguard_config_map, &index);
 
   int can_access = get_net_perm(c, address);
-  report_net_events(c, can_access, ctx, sock, address);
+  reoprt_net_events(c, can_access, ctx, sock, address);
+
+  // In monitor mode, allow all access
+  if (c && c->mode == MODE_MONITOR) {
+    return 0;
+  }
   return can_access;
 }
 
