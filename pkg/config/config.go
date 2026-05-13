@@ -8,7 +8,7 @@ import (
 )
 
 type RestrictedNetworkConfig struct {
-	Enable  bool
+	Enable  bool          `yaml:"enable"`
 	Mode    string        `yaml:"mode"`
 	Target  string        `yaml:"target"`
 	Command CommandConfig `yaml:"command"`
@@ -19,7 +19,7 @@ type RestrictedNetworkConfig struct {
 }
 
 type RestrictedFileAccessConfig struct {
-	Enable bool
+	Enable bool     `yaml:"enable"`
 	Mode   string   `yaml:"mode"`
 	Target string   `yaml:"target"`
 	Allow  []string `yaml:"allow"`
@@ -27,18 +27,17 @@ type RestrictedFileAccessConfig struct {
 }
 
 type RestrictedMountConfig struct {
-	Enable         bool
+	Enable         bool     `yaml:"enable"`
 	Mode           string   `yaml:"mode"`
 	Target         string   `yaml:"target"`
 	DenySourcePath []string `yaml:"deny"`
 }
 
 type RestrictedProcessConfig struct {
-	Enable bool
+	Enable bool     `yaml:"enable"`
 	Mode   string   `yaml:"mode"`
 	Target string   `yaml:"target"`
 	Allow  []string `yaml:"allow"`
-	Deny   []string `yaml:"deny"`
 }
 
 type DomainConfig struct {
@@ -96,7 +95,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Policy: "blacklist", // 默认黑名单模式
 		RestrictedNetworkConfig: RestrictedNetworkConfig{
-			Enable:  true,
+			Enable:  false,
 			Mode:    "monitor",
 			Target:  "host",
 			Command: CommandConfig{Allow: []string{}, Deny: []string{}},
@@ -106,24 +105,23 @@ func DefaultConfig() *Config {
 			GID:     GIDConfig{Allow: []uint{}, Deny: []uint{}},
 		},
 		RestrictedFileAccessConfig: RestrictedFileAccessConfig{
-			Enable: true,
+			Enable: false,
 			Mode:   "monitor",
 			Target: "host",
 			Allow:  []string{"/"},
 			Deny:   []string{},
 		},
 		RestrictedMountConfig: RestrictedMountConfig{
-			Enable:         true,
+			Enable:         false,
 			Mode:           "monitor",
 			Target:         "host",
 			DenySourcePath: []string{},
 		},
 		RestrictedProcessConfig: RestrictedProcessConfig{
-			Enable: true,
+			Enable: false,
 			Mode:   "monitor",
 			Target: "host",
 			Allow:  []string{},
-			Deny:   []string{},
 		},
 		DNSProxyConfig: DNSProxyConfig{
 			Enable:        false,
@@ -166,36 +164,6 @@ func (c *Config) Validate() error {
 		return errors.New("One or more dns_proxy.upstrems must be specified.")
 	}
 
-	// Validate policy field
-	if c.Policy != "blacklist" && c.Policy != "whitelist" {
-		return errors.New("policy must be 'blacklist' or 'whitelist'")
-	}
-
-	// Validate mode fields
-	if err := c.validateModes(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// validateModes checks that all mode fields have valid values
-func (c *Config) validateModes() error {
-	validModes := map[string]bool{"monitor": true, "block": true}
-
-	if !validModes[c.RestrictedNetworkConfig.Mode] {
-		return errors.New("network.mode must be 'monitor' or 'block'")
-	}
-	if !validModes[c.RestrictedFileAccessConfig.Mode] {
-		return errors.New("files.mode must be 'monitor' or 'block'")
-	}
-	if !validModes[c.RestrictedMountConfig.Mode] {
-		return errors.New("mount.mode must be 'monitor' or 'block'")
-	}
-	if !validModes[c.RestrictedProcessConfig.Mode] {
-		return errors.New("process.mode must be 'monitor' or 'block'")
-	}
-
 	return nil
 }
 
@@ -224,7 +192,7 @@ func (c *Config) IsRestrictedMode(target string) bool {
 			return false
 		}
 	case "process":
-		if c.RestrictedMountConfig.Mode == "block" {
+		if c.RestrictedProcessConfig.Mode == "block" {
 			return true
 		} else {
 			return false
@@ -255,7 +223,7 @@ func (c *Config) IsOnlyContainer(target string) bool {
 			return false
 		}
 	case "process":
-		if c.RestrictedMountConfig.Target == "container" {
+		if c.RestrictedProcessConfig.Target == "container" {
 			return true
 		} else {
 			return false
