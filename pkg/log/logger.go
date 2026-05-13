@@ -204,28 +204,3 @@ func (l *RestrictedProcessLog) Info() {
 		"ParentComm": l.ParentComm,
 	}).Info("Process event is trapped in th filter.")
 }
-
-// Warn logs a warning message
-func Warn(message string) {
-	Logger.Warn(message)
-}
-
-// Warnf logs a formatted warning message
-func Warnf(format string, args ...interface{}) {
-	Logger.Warnf(format, args...)
-}
-
-// Debugf logs a formatted debug message
-func Debugf(format string, args ...interface{}) {
-	Logger.Debugf(format, args...)
-}
-
-// Infof logs a formatted info message
-func Infof(format string, args ...interface{}) {
-	Logger.Infof(format, args...)
-}
-
-// Errorf logs a formatted error message
-func Errorf(format string, args ...interface{}) {
-	Logger.Errorf(format, args...)
-}
