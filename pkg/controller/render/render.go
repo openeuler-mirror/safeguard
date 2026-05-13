@@ -13,7 +13,8 @@ import (
 
 func BuildConfig(whitelist model.WhitelistModel, mode string) config.Config {
 	cfg := config.DefaultConfig()
-	cfg.Policy = "whitelist"
+	cfg.Policy = "whitelist" // controller 生成为白名单模式
+	// 启用所有模块
 	cfg.RestrictedNetworkConfig.Enable = true
 	cfg.RestrictedNetworkConfig.Mode = mode
 	cfg.RestrictedNetworkConfig.Target = "host"

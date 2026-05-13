@@ -8,25 +8,21 @@ import (
 	"culinux/pkg/controller/render"
 )
 
-// SnapshotCollector defines interface for collecting host snapshot
 type SnapshotCollector interface {
 	Collect() (model.HostSnapshot, error)
 }
 
-// GenerateOptions holds options for whitelist generation
 type GenerateOptions struct {
 	Mode       string
 	OutputPath string
 	ReportPath string
 }
 
-// Service provides whitelist generation functionality
 type Service struct {
 	Collector SnapshotCollector
 	Now       func() time.Time
 }
 
-// NewService creates a new Service instance
 func NewService() Service {
 	return Service{
 		Collector: collector.NewSnapshotCollector(),
@@ -34,7 +30,6 @@ func NewService() Service {
 	}
 }
 
-// Generate collects host data and generates whitelist configuration
 func (s Service) Generate(options GenerateOptions) error {
 	snapshot, err := s.Collector.Collect()
 	if err != nil {
