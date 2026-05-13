@@ -7,16 +7,15 @@ import (
 	"time"
 )
 
-// DefaultFileAllow contains default allowed file paths
 var defaultFileAllow = []string{
 	"/", "/bin", "/usr/bin", "/usr/sbin", "/lib", "/lib64", "/etc",
 	"/tmp", "/var", "/run", "/usr/lib", "/home", "/root",
 }
 
-// BuildWhitelist creates a WhitelistModel from HostSnapshot
 func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel {
 	fileAllow := append([]string{}, defaultFileAllow...)
 	fileAllow = append(fileAllow, snapshot.ExecutablePaths...)
+	processAllow := make([]string, 0, len(snapshot.RunningProcesses))
 
 	for _, account := range snapshot.Accounts {
 		if account.HomeDir != "" {
@@ -24,7 +23,6 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 		}
 	}
 
-	processAllow := make([]string, 0, len(snapshot.RunningProcesses))
 	for _, process := range snapshot.RunningProcesses {
 		if process.Command != "" {
 			processAllow = append(processAllow, process.Command)
@@ -34,7 +32,6 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 		}
 	}
 
-	// TODO: return WhitelistModel
 	return WhitelistModel{
 		Metadata: Metadata{
 			Hostname:    snapshot.Hostname,
@@ -56,7 +53,6 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	}
 }
 
-// uniqueStrings removes duplicates and sorts string slices
 func uniqueStrings(values []string) []string {
 	seen := map[string]struct{}{}
 	result := make([]string, 0, len(values))
@@ -75,7 +71,6 @@ func uniqueStrings(values []string) []string {
 	return result
 }
 
-// uniqueUints removes duplicates and sorts uint slices
 func uniqueUints(values []uint) []uint {
 	seen := map[uint]struct{}{}
 	result := make([]uint, 0, len(values))

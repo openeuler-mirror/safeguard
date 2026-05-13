@@ -25,16 +25,24 @@ struct {
   __uint(max_entries, 1);
 } heaps_map SEC(".maps");
 
+struct {
+  __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+  __type(key, u32);
+  __type(value, struct file_open_audit_event);
+  __uint(max_entries, 1);
+} event_heap SEC(".maps");
+
 static struct buffer *get_buffer() {
   u32 zero = 0;
   return (struct buffer *)bpf_map_lookup_elem(&heaps_map, &zero);
 }
 
-static inline void get_file_info(struct file_open_audit_event *event){
-    struct uts_namespace *uts_ns;
-    struct mnt_namespace *mnt_ns;
-    struct nsproxy *nsproxy;
+static struct file_open_audit_event *get_event() {
+  u32 zero = 0;
+  return (struct file_open_audit_event *)bpf_map_lookup_elem(&event_heap, &zero);
+}
 
+static __always_inline void get_file_info(struct file_open_audit_event *event){
     struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
 
@@ -48,154 +56,121 @@ static inline void get_file_info(struct file_open_audit_event *event){
     event->uid = uid_gid & 0xFFFFFFFF;
 }
 
-static int get_perm(struct file_open_audit_event *event) {
+static __always_inline int get_perm(struct file_open_audit_event *event) {
     int ret = 0, findex = 0;
     bool find = false;
     struct fileopen_safeguard_config *config =
-			(struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
+				(struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
 
-	if (config == NULL) {
-		return 0;
+	u32 policy = POLICY_BLACKLIST;
+	if (config) {
+		policy = config->policy;
 	}
 
-	// Check if whitelist mode is enabled
-	bool is_whitelist = (config->policy == POLICY_WHITELIST);
-
 #if LINUX_VERSION_CODE > VERSION_5_10
-	struct callback_ctx cb = { .path = event->path, .found = false};
-	cb.found = false;
+	struct callback_ctx cb = { .path = event->path, .found = false };
 
-	if (is_whitelist) {
-		// Whitelist mode: deny by default, allow only if in allowed list
+	if (policy == POLICY_WHITELIST) {
 		bpf_for_each_map_elem(&allowed_access_files, cb_check_path, &cb, 0);
 		if (!cb.found) {
-			// Not in whitelist, deny access
-			bpf_printk("Access Denied (whitelist): %s\n", cb.path);
 			ret = -EPERM;
 			find = true;
 		}
-	} else {
-		// Blacklist mode: allow by default, deny if in denied list
-		bpf_for_each_map_elem(&denied_access_files, cb_check_path, &cb, 0);
-		if (cb.found) {
-			bpf_printk("Access Denied (blacklist): %s\n", cb.path);
-			ret = -EPERM;
-			find = true;
-		}
+	}
+
+	cb.found = false;
+	bpf_for_each_map_elem(&denied_access_files, cb_check_path, &cb, 0);
+	if (cb.found) {
+		ret = -EPERM;
+		find = true;
 	}
 #else
     unsigned int key = 0;
     struct file_path *paths;
+    paths = (struct file_path *)bpf_map_lookup_elem(&denied_access_files, &key);
+    if (paths == NULL) {
+		return 0;
+    }
 
-	if (is_whitelist) {
-		// Whitelist mode: check allowed files
-		paths = (struct file_path *)bpf_map_lookup_elem(&allowed_access_files, &key);
-		if (paths == NULL) {
-			// No allowed files configured, deny all
-			ret = -EPERM;
-			find = true;
+    unsigned int i = 0;
+    unsigned int j = 0;
+
+	#pragma unroll
+    for (i = 0; i < LOOP_NAME; i++) {
+		if (paths->path[i] == '\0') {
+			break;
 		}
-	} else {
-		// Blacklist mode: check denied files
-		paths = (struct file_path *)bpf_map_lookup_elem(&denied_access_files, &key);
-		if (paths == NULL) {
-			return 0;
+		if (paths->path[i] == '|') {
+			continue;
 		}
-
-		//bpf_printk("denied files: %s\n", paths->path);
-		//bpf_printk("event files: %s\n", event->path);
-		unsigned int i = 0;
-		unsigned int j = 0;
-
-		#pragma unroll
-		for (i = 0; i < LOOP_NAME; i++) {
-			if (paths->path[i] == '\0') {
+		if (paths->path[i] == event->path[j]) {
+			j = j + 1;
+		} else {
+			j = 0;
+			continue;
+		}
+		if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
+			if (event->path[j] == '\0' || event->path[j] == '/') {
+				ret = -EPERM;
+				find = true;
 				break;
-			}
-			if (paths->path[i] == '|') {
-				continue;
-			}
-			if (paths->path[i] == event->path[j]) {
-				j = j + 1;
 			} else {
 				j = 0;
-				continue;
-			}
-			if (paths->path[i+1] == '\0' || paths->path[i+1] == '|') {
-				if (event->path[j] == '\0' || event->path[j] == '/') {
-					ret = -EPERM;
-					find = true;
-					break;
-				} else {
-					j = 0;
-				}
 			}
 		}
 	}
 #endif
 
-out:
     if (find && config && config->mode == MODE_MONITOR) {
         ret = 1;
     }
     return ret;
 }
 
-static inline int get_file_perm(struct file_open_audit_event *event,struct file *file){
-// bpf_d_path is constrained by btf_allowlist_d_path
-#if 0 && LINUX_VERSION_CODE > VERSION_5_10
-	if (bpf_d_path(&file->f_path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
-		return 0;
-	}
-#else
+static __always_inline int get_file_perm(struct file_open_audit_event *event, struct file *file){
     struct path *path = __builtin_preserve_access_index(&file->f_path);
     struct buffer *string_buf = get_buffer();
     if (string_buf == NULL) { return 0; }
     u_char *file_path = NULL;
     get_path_str_from_path(&file_path, path, string_buf, NULL);
     bpf_probe_read(event->path, sizeof(event->path), file_path);
-#endif
 
 	return get_perm(event);
 }
 
-static inline int get_path_perm(struct file_open_audit_event *event, const struct path *path, struct dentry *dentry){
-#if 0 && LINUX_VERSION_CODE > VERSION_5_10
-	if (bpf_d_path(path, (char *)event->path, NAME_MAX) < 0) { /* get event->path from file->f_path */
-		return 0;
-	}
-#else
+static __always_inline int get_path_perm(struct file_open_audit_event *event, const struct path *path, struct dentry *dentry){
     struct buffer *string_buf = get_buffer();
     if (string_buf == NULL) { return 0; }
     u_char *file_path = NULL;
     get_path_str_from_path(&file_path, path, string_buf, dentry);
     bpf_probe_read(event->path, sizeof(event->path), file_path);
-#endif
 
 	return get_perm(event);
 }
 
 #define PROG_CODE \
-	int ret = 0; \
-    struct file_open_audit_event event = {}; \
-    get_file_info(&event); \
-    ret = get_file_perm(&event, file); \
-	event.ret = ret; \
-    if (ret != 0) \
-		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event)); \
-	if (ret > 0) ret = 0; \
-    return ret;
+		int ret = 0; \
+	    struct file_open_audit_event *event = get_event(); \
+	    if (event == NULL) { return 0; } \
+	    get_file_info(event); \
+	    ret = get_file_perm(event, file); \
+	    event->ret = ret; \
+	    if (ret != 0) \
+			bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, event, sizeof(*event)); \
+		if (ret > 0) ret = 0; \
+	    return ret;
 
 #define PROG_CODE_A \
-	int ret = 0; \
-    struct file_open_audit_event event = {};\
-    get_file_info(&event);\
-    ret = get_path_perm(&event, dir, dentry);\
-	event.ret = ret; \
-    if (ret != 0)\
-		bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, &event, sizeof(event));\
-	if (ret > 0) ret = 0;\
-    return ret;
+		int ret = 0; \
+	    struct file_open_audit_event *event = get_event(); \
+	    if (event == NULL) { return 0; } \
+	    get_file_info(event); \
+	    ret = get_path_perm(event, dir, dentry); \
+	    event->ret = ret; \
+	    if (ret != 0) \
+			bpf_perf_event_output((void *)ctx, &fileopen_events, BPF_F_CURRENT_CPU, event, sizeof(*event)); \
+		if (ret > 0) ret = 0; \
+	    return ret;
 
 SEC("lsm/file_open")
 int BPF_PROG(restricted_file_open, struct file *file)
