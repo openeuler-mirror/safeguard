@@ -1,10 +1,10 @@
 Name: safeguard
-Version: 2.0
-Release: 2%{?dist}
+Version: 3.0
+Release: 3%{?dist}
 Summary: A tool for restricting network, file, mount and process operations using eBPF
 License: MIT
-URL: https://gitee.com/openeuler/safeguard
-Source0: %{name}-%{version}.tar.gz
+URL: https://atomgit.com/openeuler/safeguard
+Source: %{name}-%{version}.tar.gz
 
 BuildRequires: gcc, clang, llvm, elfutils-libelf-devel, zlib-devel, golang, bpftool
 Requires: bpftool
@@ -38,6 +38,23 @@ cp -a config/safeguard.yml %{buildroot}/etc/safeguard/
 /etc/safeguard/safeguard.yml
 
 %changelog
+* Wed May 13 2026 Tongyx <tongyx12@chinaunicom.cn> - 3.0.3
+- Fix process whitelist map value size and IPv4 CIDR trie key encoding
+- Narrow generated network allow entries to host CIDRs and skip unspecified addresses
+- Normalize and cap generated whitelist entries to match eBPF map limits
+
+* Thu May 07 2026 Tongyx <tongyx12@chinaunicom.cn> - 3.0.2
+- Fix network monitor mode event reporting
+- Fix process config check and add enable field support
+- Add process exec audit event reporting via ringbuf
+- Add basename extraction for process whitelist matching
+
+* Thu Apr 24 2026 Tongyx <tongyx12@chinaunicom.cn> - 3.0.1
+- Add whitelist policy support
+- Add controller generate command
+- Add process whitelist blocking via LSM hook
+- Enhance CLI help with usage examples
+
 * Tue Nov 12 2024 yuelg <yuelg@chinaunicom.cn> - 2.0.2
 - adapt to kernel 6.x
 - support move_mount
