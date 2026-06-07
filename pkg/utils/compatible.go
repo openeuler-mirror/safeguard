@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -9,58 +8,13 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-
-	"github.com/coreos/go-semver/semver"
 )
 
-const supportKernelVersion = "5.8.0"
 const btfFile = "/sys/kernel/btf/vmlinux"
 const securityLSMFile = "/sys/kernel/security/lsm"
 
 func isLinux() bool {
 	return runtime.GOOS == "linux"
-}
-
-func currentKernelVersion() (*semver.Version, error) {
-	buf, err := rawKernelVersion()
-	if err != nil {
-		return nil, err
-	}
-
-	ver, err := parseKernelVersion(buf)
-	if err != nil {
-		return nil, err
-	}
-
-	return ver, nil
-}
-
-func parseKernelVersion(buf []byte) (*semver.Version, error) {
-	// Formats like 5.11.0-34-generic.
-	// Only keep the major, minor, and patch version.
-	parts := bytes.Split(buf, []byte("-"))
-	s := strings.TrimSpace(string(parts[0]))
-
-	ver, err := semver.NewVersion(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return ver, nil
-}
-
-func hasSupportKernelVersion() error {
-	supportVersion := semver.New(supportKernelVersion)
-	version, err := currentKernelVersion()
-	if err != nil {
-		return err
-	}
-
-	if version.LessThan(*supportVersion) {
-		return fmt.Errorf("current kernel version not supported. minimum supported kernel version is %v", supportKernelVersion)
-	}
-
-	return nil
 }
 
 func hasBTF() error {
@@ -76,28 +30,21 @@ func hasBTF() error {
 	return nil
 }
 
-func rawKernelVersion() ([]byte, error) {
-	f, err := os.Open("/proc/sys/kernel/osrelease")
+func getKernelVersion() (string, error) {
+	buf, err := os.ReadFile("/proc/sys/kernel/osrelease")
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	defer f.Close()
-
-	buf, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf, nil
+	return strings.TrimSpace(string(buf)), nil
 }
 
 func readKernelConfig() (string, error) {
-	buf, err := rawKernelVersion()
+	kernelVer, err := getKernelVersion()
 	if err != nil {
 		return "", err
 	}
 
-	configPath := fmt.Sprintf("/boot/config-%s", strings.Replace(string(buf), "\n", "", -1))
+	configPath := fmt.Sprintf("/boot/config-%s", kernelVer)
 	f, err := os.Open(configPath)
 	if err != nil {
 		return "", err
@@ -192,9 +139,8 @@ func IsCompatible() error {
 		return errors.New("required to run on Linux")
 	}
 
-	if err := hasSupportKernelVersion(); err != nil {
-		return err
-	}
+	// 内核版本检查已移除 - 自编译内核版本格式可能不标准
+	// eBPF程序加载时会自然失败并给出错误信息
 
 	if err := hasBTF(); err != nil {
 		return err
