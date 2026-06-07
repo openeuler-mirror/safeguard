@@ -7,7 +7,6 @@
 #define TASK_COMM_LEN 16
 #define NEW_UTS_LEN 64
 #define NAME_MAX 255
-#define BPFCON_MAX_PROCESSES 10240
 #define DEV_LEN 64
 #define LOOP_NAME 80
 #define MAX_PATH_SIZE 4096 // PATH_MAX from <linux/limits.h>
@@ -285,8 +284,4 @@ static u64 cb_check_path(struct bpf_map *map, u32 *key, struct file_path *map_pa
   }
 
   return 0;
-}
-
-static inline bool is_path_allowed(struct callback_ctx *ctx) {
-  return ctx->found;
 }
