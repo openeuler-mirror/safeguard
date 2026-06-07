@@ -36,6 +36,7 @@ func TestIsOnlyContainer(t *testing.T) {
 		})
 	})
 }
+
 func TestIsRestrictedMode(t *testing.T) {
 	config := DefaultConfig()
 
@@ -64,26 +65,6 @@ func TestIsRestrictedMode(t *testing.T) {
 	})
 }
 
-func TestDefaultConfig_PolicyIsBlacklist(t *testing.T) {
-	cfg := DefaultConfig()
-	assert.Equal(t, "blacklist", cfg.Policy)
-}
-
-func TestNewConfig_LoadsPolicy(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "policy.yaml")
-
-	content := []byte(`policy: whitelist
-network:
-  mode: monitor
-`)
-	require.NoError(t, os.WriteFile(path, content, 0o644))
-
-	cfg, err := NewConfig(path)
-	require.NoError(t, err)
-	assert.Equal(t, "whitelist", cfg.Policy)
-}
-
 func TestDefaultConfig_IncludesEmptyProcessAllowList(t *testing.T) {
 	cfg := DefaultConfig()
 	assert.Equal(t, []string{}, cfg.RestrictedProcessConfig.Allow)
@@ -105,4 +86,24 @@ func TestNewConfig_LoadsProcessAllowList(t *testing.T) {
 	cfg, err := NewConfig(path)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"bash", "sshd"}, cfg.RestrictedProcessConfig.Allow)
+}
+
+func TestDefaultConfig_PolicyIsBlacklist(t *testing.T) {
+	cfg := DefaultConfig()
+	assert.Equal(t, "blacklist", cfg.Policy)
+}
+
+func TestNewConfig_LoadsPolicy(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "policy.yaml")
+
+	content := []byte(`policy: whitelist
+network:
+  mode: monitor
+`)
+	require.NoError(t, os.WriteFile(path, content, 0o644))
+
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, "whitelist", cfg.Policy)
 }
