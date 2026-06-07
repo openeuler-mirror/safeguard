@@ -3,6 +3,7 @@ package fileaccess
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 	"unsafe"
 
 	"culinux/pkg/config"
@@ -12,20 +13,16 @@ import (
 )
 
 const (
-	FILEACCESS_CONFIG   = "fileopen_safeguard_config_map"
-	FILEACCESS_PIN_PATH = "/sys/fs/bpf/file_config"
-	MODE_MONITOR        = uint32(0)
-	MODE_BLOCK          = uint32(1)
+	FILEACCESS_CONFIG = "fileopen_safeguard_config_map"
+	FILEACCESS_PIN    = "/sys/fs/bpf/file_config"
+	MODE_MONITOR      = uint32(0)
+	MODE_BLOCK        = uint32(1)
 
 	TARGET_HOST      = uint32(0)
 	TARGET_CONTAINER = uint32(1)
 
 	POLICY_BLACKLIST = uint32(0)
 	POLICY_WHITELIST = uint32(1)
-
-	MAP_POLICY_START = 8
-	MAP_POLICY_END   = 12
-	NAME_MAX         = 255
 )
 
 type Manager struct {
@@ -53,7 +50,9 @@ func (m *Manager) Stop() {
 func (m *Manager) Close() {
 	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
 	if err == nil {
-		configMap.Unpin(FILEACCESS_PIN_PATH)
+		if err := configMap.Unpin(FILEACCESS_PIN); err != nil {
+			log.Debug(fmt.Sprintf("failed to unpin file_config: %v", err))
+		}
 	}
 	if m.pb != nil {
 		m.pb.Close()
@@ -147,11 +146,28 @@ func (m *Manager) setDeniedFileAccessMap() error {
 		}
 	}
 
+	/* kernel version lower than 5.10
+	result := ""
+	for _, path := range denied_paths {
+		result += path
+		result += "|"
+	}
+	key := uint8(0)
+	value := []byte(result)
+	err = map_denied_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
+	if err != nil {
+		return err
+	}
+	*/
+
 	return nil
 }
 
+// ConfigKeySize is the size of the config key in bytes (3 uint32 fields: mode, target, policy)
+const ConfigKeySize = 12
+
 func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, 12)
+	key := make([]byte, ConfigKeySize)
 	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
 	if err != nil {
 		return err
@@ -169,13 +185,11 @@ func (m *Manager) setModeAndTarget() error {
 		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
 	}
 
-	// Set policy value
+	// 设置 policy 值
 	if m.config.Policy == "whitelist" {
-		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_WHITELIST)
-		log.Debug("File policy set to whitelist mode")
+		binary.LittleEndian.PutUint32(key[8:12], POLICY_WHITELIST)
 	} else {
-		binary.LittleEndian.PutUint32(key[MAP_POLICY_START:MAP_POLICY_END], POLICY_BLACKLIST)
-		log.Debug("File policy set to blacklist mode")
+		binary.LittleEndian.PutUint32(key[8:12], POLICY_BLACKLIST)
 	}
 
 	k := uint8(0)
@@ -183,33 +197,18 @@ func (m *Manager) setModeAndTarget() error {
 	if err != nil {
 		return err
 	}
-	err = configMap.Pin("/sys/fs/bpf/file_config")
+	err = configMap.Pin(FILEACCESS_PIN)
 	if err != nil {
-		return err
+		if !strings.Contains(err.Error(), "file exists") {
+			return err
+		}
+		if unpinErr := configMap.Unpin(FILEACCESS_PIN); unpinErr != nil {
+			return unpinErr
+		}
+		if pinErr := configMap.Pin(FILEACCESS_PIN); pinErr != nil {
+			return pinErr
+		}
 	}
 
 	return nil
-}
-
-// ValidatePath checks if a path is valid for BPF map
-func ValidatePath(path string) bool {
-	if path == "" {
-		return false
-	}
-	if len(path) > NAME_MAX {
-		return false
-	}
-	// Must be absolute path
-	return path[0] == '/'
-}
-
-// FilterValidPaths returns only valid paths from a list
-func FilterValidPaths(paths []string) []string {
-	var valid []string
-	for _, p := range paths {
-		if ValidatePath(p) {
-			valid = append(valid, p)
-		}
-	}
-	return valid
 }
