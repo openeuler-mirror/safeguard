@@ -535,11 +535,14 @@ func domainNameToBPFMapKey(host string, addresses []net.IP) ([]IPAddress, error)
 }
 
 func ipv4ToKey(n net.IPNet) []byte {
-	key := make([]byte, 16)
+	// struct ipv4_trie_key { u32 prefixlen; struct in_addr addr; }
+	// 总大小: 4 + 4 = 8 字节
+	key := make([]byte, 8)
 	prefixLen, _ := n.Mask.Size()
 
 	binary.LittleEndian.PutUint32(key[0:4], uint32(prefixLen))
-	copy(key[4:], n.IP)
+	// IPv4地址只占4字节
+	copy(key[4:8], n.IP.To4())
 
 	return key
 }
