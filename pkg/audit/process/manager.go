@@ -188,8 +188,9 @@ func (m *Manager) setAllowedProcessList() error {
 	}
 
 	for _, proc := range m.config.RestrictedProcessConfig.Allow {
+		// 截断进程名到16字节
 		key := byteToProcessKey([]byte(proc))
-		value := uint8(0)
+		value := uint32(0) // BPF map value是u32
 		err = processMap.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
 		if err != nil {
 			return err
