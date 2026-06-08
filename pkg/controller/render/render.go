@@ -28,11 +28,11 @@ func BuildConfig(whitelist model.WhitelistModel, mode string) config.Config {
 	cfg.RestrictedFileAccessConfig.Allow = whitelist.Files.Allow
 	cfg.RestrictedFileAccessConfig.Deny = []string{}
 	cfg.RestrictedProcessConfig.Enable = true
-	cfg.RestrictedProcessConfig.Mode = "monitor"
+	cfg.RestrictedProcessConfig.Mode = mode
 	cfg.RestrictedProcessConfig.Target = "host"
 	cfg.RestrictedProcessConfig.Allow = whitelist.Process.Allow
 	cfg.RestrictedMountConfig.Enable = true
-	cfg.RestrictedMountConfig.Mode = "monitor"
+	cfg.RestrictedMountConfig.Mode = mode
 	cfg.RestrictedMountConfig.Target = "host"
 	cfg.RestrictedMountConfig.DenySourcePath = []string{}
 	return *cfg
