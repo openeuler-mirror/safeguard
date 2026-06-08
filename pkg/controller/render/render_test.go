@@ -34,7 +34,7 @@ func TestBuildWhitelist_DeduplicatesAndPopulatesFields(t *testing.T) {
 	assert.Equal(t, []string{"10.0.0.1/32"}, whitelist.Network.CIDRAllow)
 	assert.Equal(t, []uint{0}, whitelist.Network.UIDAllow)
 	assert.Equal(t, []uint{0}, whitelist.Network.GIDAllow)
-	assert.Contains(t, whitelist.Files.Allow, "/")
+	assert.NotContains(t, whitelist.Files.Allow, "/")
 	assert.Contains(t, whitelist.Files.Allow, "/root")
 	assert.Contains(t, whitelist.Files.Allow, "/usr/lib/systemd/systemd")
 	assert.Equal(t, []string{"systemd"}, whitelist.Process.Allow)
@@ -75,4 +75,13 @@ func TestMarshalConfigYAML_RoundTripsThroughConfigParser(t *testing.T) {
 	assert.Equal(t, []string{"127.0.0.1/32"}, cfg.RestrictedNetworkConfig.CIDR.Allow)
 	assert.Equal(t, []string{"/", "/root"}, cfg.RestrictedFileAccessConfig.Allow)
 	assert.Equal(t, []string{"bash"}, cfg.RestrictedProcessConfig.Allow)
+}
+
+func TestBuildConfig_UsesRequestedModeForAllModules(t *testing.T) {
+	cfg := BuildConfig(model.WhitelistModel{}, "block")
+
+	assert.Equal(t, "block", cfg.RestrictedNetworkConfig.Mode)
+	assert.Equal(t, "block", cfg.RestrictedFileAccessConfig.Mode)
+	assert.Equal(t, "block", cfg.RestrictedProcessConfig.Mode)
+	assert.Equal(t, "block", cfg.RestrictedMountConfig.Mode)
 }
