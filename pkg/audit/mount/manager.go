@@ -19,11 +19,6 @@ const (
 
 	TARGET_HOST      = uint32(0)
 	TARGET_CONTAINER = uint32(1)
-
-	POLICY_BLACKLIST = uint32(0)
-	POLICY_WHITELIST = uint32(1)
-
-	NAME_MAX = 255
 )
 
 type Manager struct {
@@ -93,7 +88,7 @@ func (m *Manager) SetConfigToMap() error {
 }
 
 func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, 12)
+	key := make([]byte, 8)
 	configMap, err := m.mod.GetMap(MOUNT_CONFIG)
 	if err != nil {
 		return err
@@ -111,13 +106,6 @@ func (m *Manager) setModeAndTarget() error {
 		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
 	}
 
-	// Set policy
-	if m.config.Policy == "whitelist" {
-		binary.LittleEndian.PutUint32(key[8:12], POLICY_WHITELIST)
-	} else {
-		binary.LittleEndian.PutUint32(key[8:12], POLICY_BLACKLIST)
-	}
-
 	k := uint8(0)
 	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
 	if err != nil {
@@ -125,12 +113,4 @@ func (m *Manager) setModeAndTarget() error {
 	}
 
 	return nil
-}
-
-// ValidateMountPath validates a mount source path
-func ValidateMountPath(path string) bool {
-	if path == "" || len(path) > NAME_MAX {
-		return false
-	}
-	return path[0] == '/'
 }
