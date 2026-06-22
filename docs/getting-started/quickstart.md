@@ -5,6 +5,7 @@
 ```yaml
 # example.yml
 network:
+  enable: true
   mode: block
   target: host
   cidr:
@@ -19,6 +20,7 @@ network:
       - curl
       - safeguard
 files:
+  enable: true
   mode: block
   target: host
   allow:
@@ -32,31 +34,36 @@ log:
 This configuration file sets the following limits:
 
 - Block access to example.com
-    - However, access allowed by specified commands with `command.allow` (such as `curl`)
+- Allow access from commands listed in `command.allow`, such as `curl`
 - Block access to `/etc/passwd`
 
 For more information for configurations, see [here](../configuration/network-restriction/configuration.md).
 
-## Run
+## Run from source
+
+Clone the repository and enter the development environment:
 
 ```shell
 $ git clone --recursive https://atomgit.com/openeuler/safeguard.git && cd safeguard
 $ vagrant up && vagrant reload
 $ vagrant ssh
-
-$ make libbpf-static
-$ make build
-
-$ sudo ./build/safeguard --config config/safeguard.yml #|grep BLOCK
 ```
 
-### Docker
+Build safeguard inside the environment:
 
 ```shell
-$ docker run --rm -it --cgroupns=host --pid=host --privileged \
-    -v /sys/kernel/:/sys/kernel/ \
-    -v /sys/fs/bpf:/sys/fs/bpf \
-    -v /path/to/config.yaml:/config.yaml \
-    --env BOUHEKI_SKIP_COMPATIBLE_CHECK=1 \
-    ghcr.io/mrtc0/bouheki:latest --config /config.yaml
+$ make libbpf-static
+$ make build
+```
+
+Run safeguard with the configuration file created above:
+
+```shell
+$ sudo ./build/safeguard --config example.yml
+```
+
+Use the packaged sample config when you want to start from the repository defaults:
+
+```shell
+$ sudo ./build/safeguard --config config/safeguard.yml
 ```
