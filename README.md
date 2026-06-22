@@ -15,10 +15,10 @@
 ![architecture](docs/architecture.png)
 
 # 编译
-内核配置参考 https://gitee.com/openeuler/safeguard/blob/master/INSTALL.md
+内核配置参考 [INSTALL.md](INSTALL.md)
 
 ```shell
-$ git clone --recursive https://gitee.com/openeuler/safeguard.git && cd safeguard
+$ git clone --recursive https://atomgit.com/openeuler/safeguard.git && cd safeguard
 # $ vagrant up && vagrant reload
 # $ vagrant ssh
 
@@ -28,9 +28,14 @@ $ sudo ./build/safeguard --config config/safeguard.yml
 ```
 
 # 安装
+从 AtomGit release 页面下载对应版本的 RPM 包：
+
+```text
+https://atomgit.com/openeuler/safeguard/releases
+```
+
 ```shell
-$ wget https://gitee.com/openeuler/safeguard/releases/download/v2.0.1/safeguard-2.0.1-2.ule3.x86_64.rpm
-$ yum install safeguard-2.0.1-2.ule3.x86_64.rpm
+$ yum install ./safeguard-*.rpm
 $ sudo safeguard --config /etc/safeguard/safeguard.yml
 ```
 
