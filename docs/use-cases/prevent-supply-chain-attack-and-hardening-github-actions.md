@@ -16,6 +16,7 @@ Install safeguard with reference to [Installation](../getting-started/installati
 
 ```yaml
 network:
+  enable: true
   mode: block
   target: host
   cidr:

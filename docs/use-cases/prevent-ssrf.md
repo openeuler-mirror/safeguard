@@ -4,6 +4,7 @@ Block access to the public cloud Metadata Service. This is a mitigation measure 
 
 ```yaml
 network:
+  enable: true
   mode: block
   target: host
   cidr:
