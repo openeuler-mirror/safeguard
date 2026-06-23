@@ -2,6 +2,7 @@
 
 ```yaml
 mount:
+  enable: true
   mode: block
   target: host
   deny:

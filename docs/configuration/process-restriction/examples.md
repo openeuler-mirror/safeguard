@@ -1,7 +1,8 @@
-#### Monitor process create
+#### Monitor process execution
 
 ```yaml
-mount:
+process:
+  enable: true
   mode: monitor
   target: host
 ```
@@ -9,6 +10,26 @@ mount:
 !!! example
 
     ```shell
-    # docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock ubuntu:latest bash
-    docker: Error response from daemon: OCI runtime create failed: container_linux.go:380: starting container process caused: process_linux.go:545: container init caused: rootfs_linux.go:76: mounting "/var/run/docker.sock" to rootfs at "/var/run/docker.sock" caused: mount through procfd: operation not permitted: unknown.
+    safeguard logs process execution events without blocking them.
+    ```
+
+#### Allow only selected process names
+
+```yaml
+policy: whitelist
+process:
+  enable: true
+  mode: block
+  target: host
+  allow:
+    - bash
+    - sh
+    - python3
+```
+
+!!! example
+
+    ```shell
+    # /usr/bin/curl https://example.com
+    bash: /usr/bin/curl: Operation not permitted
     ```
