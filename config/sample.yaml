@@ -1,4 +1,6 @@
 network:
+  # Enable this section before applying the network policy below.
+  enable: true
   # Block or monitor the network.
   # If block is specified, communication that matches the policy will be blocked.
   mode: block # monitor or block. Default: monitor
@@ -36,6 +38,8 @@ network:
     deny: []
       # 1000
 files:
+  # Enable this section before applying the file policy below.
+  enable: true
   mode: monitor
   target: host
   allow:
@@ -43,6 +47,8 @@ files:
   deny:
     - /proc/sysrq-trigger
 mount:
+  # Enable this section before applying the mount policy below.
+  enable: true
   mode: block
   target: host
   deny:

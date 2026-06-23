@@ -4,6 +4,7 @@
 policy: whitelist  # blacklist (default) or whitelist
 
 network:
+  enable: true
   mode: block
   target: host
   cidr:
@@ -28,6 +29,7 @@ network:
     deny: []
 
 files:
+  enable: true
   mode: block
   target: host
   allow:
@@ -37,12 +39,14 @@ files:
   deny: []
 
 mount:
+  enable: true
   mode: block
   target: host
   deny:
     - /var/run/docker.sock
 
 process:
+  enable: true
   mode: block
   target: host
   allow:
