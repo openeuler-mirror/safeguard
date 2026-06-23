@@ -9,7 +9,7 @@ $ yum install clang llvm bpftool elfutils-devel zlib-devel
 
 ## 内核配置
 
-内核编译时必须开启以下内核选项：
+safeguard 依赖 BPF LSM，建议使用 Linux Kernel >= 5.13.0。内核编译时必须开启以下内核选项：
 
 ```shell
 CONFIG_BPF=y
@@ -21,13 +21,21 @@ CONFIG_BPF_EVENTS=y
 CONFIG_DEBUG_INFO_BTF=y
 ```
 
-内核编译标志可以通过查看`/proc/config.gz`或`/boot/config-<Kernel-version>` 来检查。
+内核编译标志可以通过查看 `/proc/config.gz` 或 `/boot/config-<kernel-version>` 来检查。
 
-此外，`CONFIG_LSM`标志必须包含`bpf`。可以通过以下引导参数进行控制：
+此外，`CONFIG_LSM` 必须包含 `bpf`，运行时 LSM 顺序也需要启用 `bpf`。可以通过以下引导参数进行控制：
 
 ```shell
 $ cat /etc/default/grub
 ...
-GRUB_CMDLINE_LINUX="... lsm=...,bpf"
+GRUB_CMDLINE_LINUX="... lsm=lockdown,yama,apparmor,bpf"
 ...
+```
+
+修改后需要按发行版刷新 grub 配置，例如：
+
+```shell
+sudo update-grub
+# or
+sudo update-grub2
 ```

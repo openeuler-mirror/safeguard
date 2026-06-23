@@ -4,7 +4,8 @@
 
 * Linux Kernel >= 5.13.0
   * BTF(`CONFIG_DEBUG_INFO_BTF`) must be enabled.
-  * BPF LSM(`CONFIG_LSM` with `bpf`) must be enabled. This parameter can also be changed in the boot parameter.
+  * BPF LSM(`CONFIG_BPF_LSM`) must be enabled.
+  * The active LSM list(`CONFIG_LSM` or the `lsm=` boot parameter) must include `bpf`.
 
 ### Kernel Configuration
 
@@ -22,7 +23,7 @@ CONFIG_DEBUG_INFO_BTF=y
 
 Kernel compile flags can usually be checked by looking at `/proc/config.gz` or `/boot/config-<kernel-version>`.
 
-Also, the `CONFIG_LSM` flag must contain `bpf`. This can also be controlled by boot parameters as following:
+Also, the active LSM list must contain `bpf`. This can be controlled by boot parameters as follows:
 
 ```shell
 $ cat /etc/default/grub
@@ -31,9 +32,11 @@ GRUB_CMDLINE_LINUX="... lsm=lockdown,yama,apparmor,bpf"
 ...
 ```
 
-Finally, run `update-grub2`.
+Finally, refresh grub configuration with the command used by your distribution.
 
 ```shell
+sudo update-grub
+# or
 sudo update-grub2
 ```
 
