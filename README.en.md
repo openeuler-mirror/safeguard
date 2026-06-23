@@ -13,11 +13,15 @@ Security events can be audited and blocked based on the container of the process
 
 # Build
 
+See [INSTALL.md](INSTALL.md) for build dependencies and kernel requirements.
+Build libbpf first, then build the safeguard binary.
+
 ```shell
 $ git clone --recursive https://atomgit.com/openeuler/safeguard.git && cd safeguard
 # $ vagrant up && vagrant reload
 # $ vagrant ssh
 
+$ make libbpf-static
 $ make build
 
 sudo ./build/safeguard --config config/safeguard.yml
