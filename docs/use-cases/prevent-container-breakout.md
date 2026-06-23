@@ -21,7 +21,8 @@ mount:
 #### Block access to the `/proc/sys` directory in the container
 
 ```yaml
-file:
+files:
+  enable: true
   mode: block
   target: container
   allow:
@@ -44,7 +45,8 @@ file:
 #### Block escapes from Privileged Container
 
 ```yaml
-file:
+files:
+  enable: true
   mode: block
   target: container
   allow:
