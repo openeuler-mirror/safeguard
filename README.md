@@ -15,13 +15,14 @@
 ![architecture](docs/architecture.png)
 
 # 编译
-内核配置参考 [INSTALL.md](INSTALL.md)
+构建依赖和内核配置参考 [INSTALL.md](INSTALL.md)。先构建 libbpf，再构建 safeguard 二进制。
 
 ```shell
 $ git clone --recursive https://atomgit.com/openeuler/safeguard.git && cd safeguard
 # $ vagrant up && vagrant reload
 # $ vagrant ssh
 
+$ make libbpf-static
 $ make build
 
 $ sudo ./build/safeguard --config config/safeguard.yml

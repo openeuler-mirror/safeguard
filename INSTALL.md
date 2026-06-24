@@ -2,9 +2,10 @@
 
 ## 编译工具
 
-安装必要的编译工具，可能包括：
-```
-$ yum install clang llvm bpftool elfutils-devel zlib-devel 
+源码构建至少需要 Go、gcc/make、clang/llvm、bpftool、libelf 和 zlib。openEuler/RHEL 系发行版可参考：
+
+```shell
+sudo yum install -y git golang make gcc clang llvm bpftool elfutils-devel zlib-devel
 ```
 
 ## 内核配置
