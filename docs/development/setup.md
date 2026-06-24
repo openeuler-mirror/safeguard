@@ -4,8 +4,7 @@ There are several required packages. It is also necessary to change the kernel b
 See Vagrantfile provisioning settings for details.
 
 ```shell
-$ git clone --recursive git@github.com:culinux/safeguard.git && cd safeguard
+$ git clone --recursive https://atomgit.com/openeuler/safeguard.git && cd safeguard
 $ vagrant up && vagrant reload
 $ vagrant ssh
 ```
-
