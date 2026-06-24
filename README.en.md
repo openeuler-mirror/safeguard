@@ -14,7 +14,7 @@ Security events can be audited and blocked based on the container of the process
 # Build
 
 ```shell
-$ git clone --recursive https://gitee.com/openeuler/safeguard.git && cd safeguard
+$ git clone --recursive https://atomgit.com/openeuler/safeguard.git && cd safeguard
 # $ vagrant up && vagrant reload
 # $ vagrant ssh
 
