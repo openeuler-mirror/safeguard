@@ -1,11 +1,14 @@
 # Examples
 
+All active examples set `network.enable: true`; otherwise the network restriction module stays disabled by default.
+
 #### Allow all network connections
 
 Allows all network communications and monitors their connections.
 
 ```yaml
 network:
+  enable: true
   mode: monitor
   target: host
   cidr:
@@ -18,6 +21,7 @@ Block access to `192.168.1.1/24` and `10.0.1.1/24`.
 
 ```yaml
 network:
+  enable: true
   mode: block
   target: host
   cidr:
@@ -33,6 +37,7 @@ Block access to the public cloud Metadata Service. This is a mitigation measure 
 
 ```yaml
 network:
+  enable: true
   mode: block
   target: host
   cidr:
@@ -47,6 +52,7 @@ Block connections to `example.com`. safeguard periodically looks up IP addresses
 
 ```yaml
 network:
+  enable: true
   mode: block
   target: host
   cidr:
@@ -62,6 +68,7 @@ Allow communication from the host, but block communication from the containers.
 
 ```yaml
 network:
+  enable: true
   mode: block
   target: container
   cidr:
@@ -85,7 +92,8 @@ network:
 
 ```yaml
 network:
-  mode: monitor
+  enable: true
+  mode: block
   target: container
   cidr:
     allow: ['0.0.0.0/0']
@@ -118,7 +126,8 @@ Setting that blocks all network access for UID 1000 user, but does not apply res
 
 ```yaml
 network:
-  mode: monitor
+  enable: true
+  mode: block
   target: container
   cidr:
     allow: ['0.0.0.0/0']
