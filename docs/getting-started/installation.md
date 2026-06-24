@@ -46,7 +46,13 @@ sudo update-grub2
 
 ## Install
 
-Download latest released binary from https://github.com/mrtc0/bouheki/releases
+Download release artifacts from the AtomGit project release page:
+
+```text
+https://atomgit.com/openeuler/safeguard/releases
+```
+
+Or build safeguard locally from source:
 
 ```shell
 $ make libbpf-static
