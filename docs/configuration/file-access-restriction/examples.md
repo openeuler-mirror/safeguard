@@ -1,9 +1,12 @@
 # Examples
 
+All active examples set `files.enable: true`; otherwise the file access restriction module stays disabled by default.
+
 #### Allow access to all files
 
 ```yaml
-file:
+files:
+  enable: true
   mode: monitor
   target: host
   allow:
@@ -13,7 +16,8 @@ file:
 #### Block access to `/etc/passwd`
 
 ```yaml
-file:
+files:
+  enable: true
   mode: block
   target: host
   allow:
@@ -25,7 +29,8 @@ file:
 #### Block all access to the `/root/.ssh` directory
 
 ```yaml
-file:
+files:
+  enable: true
   mode: block
   target: host
   allow:
@@ -37,7 +42,8 @@ file:
 #### Block access to the `/proc/sys` directory in the container
 
 ```yaml
-file:
+files:
+  enable: true
   mode: block
   target: container
   allow:
@@ -60,7 +66,8 @@ file:
 #### Block escapes from Privileged Container
 
 ```yaml
-file:
+files:
+  enable: true
   mode: block
   target: container
   allow:
@@ -90,10 +97,11 @@ file:
 In whitelist mode, all file access is denied by default except those explicitly allowed.
 
 ```yaml
+policy: whitelist
 files:
+  enable: true
   mode: block
   target: host
-  policy: whitelist
   allow:
     - /usr/bin
     - /etc
@@ -109,10 +117,10 @@ files:
 In blacklist mode (default), all file access is allowed except those explicitly denied.
 
 ```yaml
-file:
+files:
+  enable: true
   mode: block
   target: host
-  policy: blacklist
   deny:
     - /etc/shadow
     - /etc/gshadow
@@ -124,7 +132,8 @@ file:
 Use monitor mode to audit file access without blocking.
 
 ```yaml
-file:
+files:
+  enable: true
   mode: monitor
   target: container
   deny:
