@@ -1,4 +1,5 @@
 network:
+  enable: true
   mode: monitor
   target: host
   cidr:

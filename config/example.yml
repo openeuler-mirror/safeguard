@@ -1,5 +1,7 @@
 # example.yml
 network:
+  # Enable this section before applying the network policy below.
+  enable: true
   mode: block
   target: host
   cidr:
@@ -15,7 +17,7 @@ network:
       #- curl
       #- safeguard
 files:
-  enable: false
+  enable: true
   mode: block
   target: host
   #allow:
@@ -25,7 +27,8 @@ files:
     #- '/etc/passwd'
 process:
   enable: true
+  mode: monitor
+  target: host
 
 log:
   format: json
-
