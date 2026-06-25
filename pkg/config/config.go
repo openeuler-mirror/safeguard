@@ -161,7 +161,7 @@ func NewConfig(configPath string) (*Config, error) {
 
 func (c *Config) Validate() error {
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
-		return errors.New("One or more dns_proxy.upstrems must be specified.")
+		return errors.New("One or more dns_proxy.upstreams must be specified.")
 	}
 
 	return nil
