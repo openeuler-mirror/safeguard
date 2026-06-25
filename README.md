@@ -4,12 +4,10 @@
 
 # 特性
 
-* 审计：日志记录配置范围内的行为
-* 控制：针对文件，进程，网络的安全访问控制
-* 行为分析：收集信息，进行资源，热点，异常等分析
-* 主机管理：从安全角度自动化构建细粒度资产信息
-* 风险管理：精准发现内部风险，快速定位问题并有效解决安全风险
-* 入侵检测：提供多锚点的检测能力，能够实时、准确的感知入侵事件，发现失陷主机，并提供对入侵事件的响应手段。
+* 审计：记录配置范围内的网络、文件、挂载和进程事件
+* 控制：支持网络访问、文件访问、挂载和进程执行限制
+* 策略：支持 monitor/block 模式，以及 host/container 作用范围
+* 白名单：通过 controller 采集主机状态并生成白名单配置
 
 
 ![architecture](docs/architecture.png)
@@ -58,6 +56,7 @@ $ sudo ./build/safeguard --config whitelist.yaml
 policy: whitelist  # blacklist(默认允许) 或 whitelist(默认阻断)
 
 network:
+  enable: true
   mode: block
   cidr:
     allow:
@@ -66,14 +65,14 @@ network:
     deny: []
 
 process:
+  enable: true
   mode: block
   allow:
     - bash
     - python3
-  deny: []
 ```
 
-# configurate map
+# configuration map
 ```shell
 $ bpftool map update pinned /sys/fs/bpf/file_config key 00 00 00 00 value 01 00 00 00 00 00 00 00
 ```

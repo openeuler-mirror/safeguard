@@ -5,11 +5,14 @@ Security events can be audited and blocked based on the container of the process
 
 # Features
 
-* Restriction rules based on process context, such as command name or UID and more
-* Restrictions limited to containers
+* Audit and control for network, file access, mount, and process events
+* Monitor and block modes
+* Host-wide and container-only restriction targets
 * Network Access Control
 * File Access Control
-* Restrictions bind mounts from host filesystem to containers
+* Mount Access Control
+* Process Access Control
+* Whitelist configuration generation with controller
 
 # LICENSE
 
