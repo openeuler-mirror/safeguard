@@ -53,14 +53,16 @@ func BuildWhitelist(snapshot HostSnapshot, now time.Time) WhitelistModel {
 ### Step 3: Add Rendering
 
 ```go
-func MarshalConfigYAML(w WhitelistModel, mode string) ([]byte, error) {
-    // Add your field to YAML output
+func BuildConfig(w WhitelistModel, mode string) config.Config {
+    cfg := config.DefaultConfig()
+    // Map your whitelist field into safeguard config
+    return *cfg
 }
 ```
 
 ## Custom Output Formats
 
-Create new renderer for different formats:
+Create new renderer functions for additional report formats:
 
 ```go
 func MarshalConfigJSON(w WhitelistModel) ([]byte, error) {

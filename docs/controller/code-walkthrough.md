@@ -2,7 +2,7 @@
 
 ## 概述
 
-`pkg/controller` 模块用于生成白名单配置，通过采集主机数据（用户、进程、网络）自动生成 safeguard 所需的 YAML 配置文件。
+`pkg/controller` 模块用于生成白名单配置，通过采集主机数据（用户、进程、网络）自动生成 safeguard 所需的 YAML 配置文件，并可同时输出 JSON 报告。
 
 ## 项目结构
 
@@ -30,15 +30,19 @@ pkg/controller/
 CLI 入口 (safeguard controller generate)
     │
     ▼
-command.go ──解析参数──▶ Service.Generate()
+command.go ──解析 --mode/--output/--report──▶ Service.Generate()
     │
     ▼
 service.go
     ├─ Collector.Collect()  → HostSnapshot
     ├─ BuildWhitelist()     → WhitelistModel
     ├─ MarshalConfigYAML()  → YAML bytes
-    └─ WriteFile()          → 保存文件
+    ├─ WriteFile()          → 保存 YAML 配置
+    ├─ MarshalReportJSON()  → JSON bytes (可选)
+    └─ WriteFile()          → 保存 JSON 报告 (可选)
     │
     ▼
 collector/ ◀───────────── model/ ◀───────────── render/
 ```
+
+CLI 默认输出 `demo-whitelist.yaml` 和 `demo-whitelist-report.json`，可以通过 `--output` 和 `--report` 覆盖。

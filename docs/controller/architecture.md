@@ -5,6 +5,7 @@
 ### Service Layer
 - Orchestrates whitelist generation
 - Manages collector lifecycle
+- Writes the generated YAML config and optional JSON report
 
 ### Collector Interface
 ```go
@@ -16,11 +17,13 @@ type SnapshotCollector interface {
 ### Model Package
 - `HostSnapshot`: Raw host data
 - `WhitelistModel`: Transformed configuration
+- `BuildWhitelist`: Deduplicates collected host data before rendering
 
 ## Data Flow
 
 ```
-Host Data → Collector → HostSnapshot → BuildWhitelist → WhitelistModel → YAML
+Host Data → Collector → HostSnapshot → BuildWhitelist → WhitelistModel → YAML config
+                                                              └──────────────→ JSON report
 ```
 
 ## Collectors
@@ -35,4 +38,4 @@ Host Data → Collector → HostSnapshot → BuildWhitelist → WhitelistModel �
 
 1. Implement `SnapshotCollector` for new data sources
 2. Add fields to `WhitelistModel` for new config types
-3. Create custom renderers for output formats
+3. Extend `render.BuildConfig` and the report renderer for new output fields
