@@ -1,5 +1,7 @@
 #### Block mount `/var/run/docker.sock` to container
 
+The `deny` list contains mount source paths or device names.
+
 ```yaml
 mount:
   enable: true
