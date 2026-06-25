@@ -7,7 +7,7 @@ The whitelist policy system consists of three layers:
 ```
 ┌─────────────────────────────────────────────────┐
 │                  CLI Layer                       │
-│  culinux controller generate --output xxx.yaml  │
+│  safeguard controller generate --output xxx.yaml│
 └─────────────────────────────────────────────────┘
                         │
                         ▼

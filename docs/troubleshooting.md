@@ -4,7 +4,7 @@
 
 ### Controller Generate Fails
 
-**Symptom**: `controller generate` command fails
+**Symptom**: `safeguard controller generate` command fails
 
 **Solutions**:
 1. Check file permissions
@@ -17,7 +17,7 @@
    ```
 3. Run with debug logging
    ```bash
-   SAFEGUARD_LOG=DEBUG culinux controller generate
+   SAFEGUARD_LOG=DEBUG safeguard controller generate
    ```
 
 ### BPF Map Errors
@@ -40,7 +40,7 @@
 
 **Solution**: Run with sudo
 ```bash
-sudo culinux controller generate
+sudo safeguard controller generate
 ```
 
 ## Debug Mode
@@ -49,7 +49,7 @@ Enable debug logging:
 
 ```bash
 export SAFEGUARD_LOG=DEBUG
-culinux --config whitelist.yaml
+safeguard --config whitelist.yaml
 ```
 
 ## Log Analysis
@@ -69,6 +69,6 @@ grep "error" /var/log/safeguard.log
 Validate configuration:
 
 ```bash
-culinux controller generate --output test.yaml
+safeguard controller generate --output test.yaml
 # Check test.yaml for correctness
 ```
