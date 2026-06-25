@@ -23,6 +23,13 @@ policy: whitelist
 The examples below use the installed `safeguard` command.
 
 ```bash
+safeguard controller generate
+```
+
+By default, the command writes `demo-whitelist.yaml` and `demo-whitelist-report.json`.
+Use `--output` and `--report` when custom file names are needed:
+
+```bash
 safeguard controller generate --output whitelist.yaml --report report.json
 ```
 
@@ -41,11 +48,16 @@ safeguard controller generate --output whitelist.yaml --report report.json
 - Home directories
 - Executable paths
 
+### Report
+- JSON summary written to `demo-whitelist-report.json` by default
+
 ## Applying Configuration
 
 ```bash
-safeguard --config whitelist.yaml
+safeguard --config demo-whitelist.yaml
 ```
+
+If `--output whitelist.yaml` was used during generation, apply that file instead.
 
 ## Mode Comparison
 
