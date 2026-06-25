@@ -7,7 +7,7 @@ The whitelist policy system consists of three layers:
 ```
 ┌─────────────────────────────────────────────────┐
 │                  CLI Layer                       │
-│  safeguard controller generate --output xxx.yaml│
+│  safeguard controller generate                  │
 └─────────────────────────────────────────────────┘
                         │
                         ▼
@@ -58,6 +58,10 @@ func BuildWhitelist(snapshot HostSnapshot, now time.Time) WhitelistModel
 ```
 Config → BPF Maps → LSM Hooks → Kernel Enforcement
 ```
+
+## Default Outputs
+
+`safeguard controller generate` writes `demo-whitelist.yaml` and `demo-whitelist-report.json` by default. The CLI can override them with `--output` and `--report`.
 
 ### Policy Modes
 

@@ -45,4 +45,4 @@ service.go
 collector/ ◀───────────── model/ ◀───────────── render/
 ```
 
-CLI 默认输出 `demo-whitelist.yaml` 和 `demo-whitelist-report.json`，可以通过 `--output` 和 `--report` 覆盖。
+CLI 默认输出 `demo-whitelist.yaml` 和 `demo-whitelist-report.json`，可以通过 `--output` 和 `--report` 覆盖。默认生成的配置可通过 `safeguard --config demo-whitelist.yaml` 应用。
