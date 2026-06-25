@@ -1,9 +1,9 @@
 # Quick Start
 
-## Write a configuration file
+## Write a local quickstart configuration
 
 ```yaml
-# example.yml
+# quickstart.yaml
 network:
   enable: true
   mode: block
@@ -56,13 +56,13 @@ $ make libbpf-static
 $ make build
 ```
 
-Run safeguard with the configuration file created above:
+Run safeguard with the local configuration file created above:
 
 ```shell
-$ sudo ./build/safeguard --config example.yml
+$ sudo ./build/safeguard --config quickstart.yaml
 ```
 
-Use the packaged sample config when you want to start from the repository defaults:
+Use `config/safeguard.yml` when you want to start from the repository default sample:
 
 ```shell
 $ sudo ./build/safeguard --config config/safeguard.yml

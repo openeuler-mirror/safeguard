@@ -30,6 +30,8 @@ $ make build
 sudo ./build/safeguard --config config/safeguard.yml
 ```
 
+`config/safeguard.yml` is the repository default sample config. Use a local file for ad-hoc testing, and use `whitelist.yaml` for controller-generated whitelist configs.
+
 
 
 # LICENSE

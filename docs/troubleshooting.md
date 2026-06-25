@@ -52,6 +52,8 @@ export SAFEGUARD_LOG=DEBUG
 safeguard --config whitelist.yaml
 ```
 
+Use `whitelist.yaml` for controller-generated whitelist configs. For the repository default sample, use `config/safeguard.yml`.
+
 ## Log Analysis
 
 Check logs for errors:
