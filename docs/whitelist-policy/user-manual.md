@@ -20,8 +20,10 @@ policy: whitelist
 
 ### Generating Whitelist
 
+The examples below use the installed `safeguard` command.
+
 ```bash
-culinux controller generate --output whitelist.yaml --report report.json
+safeguard controller generate --output whitelist.yaml --report report.json
 ```
 
 ## Generated Components
@@ -42,7 +44,7 @@ culinux controller generate --output whitelist.yaml --report report.json
 ## Applying Configuration
 
 ```bash
-culinux --config whitelist.yaml
+safeguard --config whitelist.yaml
 ```
 
 ## Mode Comparison
