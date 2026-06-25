@@ -107,3 +107,17 @@ network:
 	require.NoError(t, err)
 	assert.Equal(t, "whitelist", cfg.Policy)
 }
+
+func TestNewConfig_RequiresDNSProxyUpstreams(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dns-proxy.yaml")
+
+	content := []byte(`dns_proxy:
+  enable: true
+`)
+	require.NoError(t, os.WriteFile(path, content, 0o644))
+
+	_, err := NewConfig(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "dns_proxy.upstreams")
+}
