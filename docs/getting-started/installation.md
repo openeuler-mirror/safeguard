@@ -23,6 +23,11 @@ CONFIG_DEBUG_INFO_BTF=y
 
 Kernel compile flags can usually be checked by looking at `/proc/config.gz` or `/boot/config-<kernel-version>`.
 
+```shell
+zgrep -E 'CONFIG_BPF_LSM|CONFIG_DEBUG_INFO_BTF' /proc/config.gz || \
+  grep -E 'CONFIG_BPF_LSM|CONFIG_DEBUG_INFO_BTF' /boot/config-$(uname -r)
+```
+
 Also, the active LSM list must contain `bpf`. This can be controlled by boot parameters as follows:
 
 ```shell
@@ -30,6 +35,12 @@ $ cat /etc/default/grub
 ...
 GRUB_CMDLINE_LINUX="... lsm=lockdown,yama,apparmor,bpf"
 ...
+```
+
+After boot, confirm the active LSM list:
+
+```shell
+cat /sys/kernel/security/lsm
 ```
 
 Finally, refresh grub configuration with the command used by your distribution.
