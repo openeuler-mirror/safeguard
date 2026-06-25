@@ -17,6 +17,14 @@ safeguard can be run in two modes:
 - Monitor Mode
 - Block Mode
 
+safeguard configuration is organized by top-level YAML sections:
+
+- `policy` selects global blacklist or whitelist behavior.
+- `network`, `files`, `mount`, and `process` configure each restriction module.
+- `dns_proxy` and `log` configure DNS forwarding and audit log output.
+
+Each restriction module is disabled by default. Set `enable: true` in the module before applying its rules.
+
 # Features
 
 - Restriction rules can be created based on various process contexts
