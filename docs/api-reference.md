@@ -2,6 +2,12 @@
 
 ## Controller Package
 
+### CLI
+
+```shell
+safeguard controller generate --output demo-whitelist.yaml --report demo-whitelist-report.json --mode monitor
+```
+
 ### Service
 
 ```go
@@ -19,8 +25,8 @@ func (s Service) Generate(options GenerateOptions) error
 ```go
 type GenerateOptions struct {
     Mode       string  // "monitor" or "block"
-    OutputPath string  // YAML output path
-    ReportPath string  // JSON report path
+    OutputPath string  // YAML config output path
+    ReportPath string  // optional JSON report output path
 }
 ```
 
@@ -79,6 +85,7 @@ func BuildWhitelist(snapshot HostSnapshot, now time.Time) WhitelistModel
 ## Render Package
 
 ```go
+func BuildConfig(w WhitelistModel, mode string) config.Config
 func MarshalConfigYAML(w WhitelistModel, mode string) ([]byte, error)
 func MarshalReportJSON(w WhitelistModel) ([]byte, error)
 func WriteFile(path string, data []byte) error
