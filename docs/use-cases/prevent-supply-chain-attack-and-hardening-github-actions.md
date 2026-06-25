@@ -37,14 +37,17 @@ dns_proxy:
   upstreams:
     - 8.8.8.8
     - 8.8.4.4
+  bind:
+    - 127.0.0.1
+    - 172.17.0.1
 log:
   format: json
 ```
 
 ### 3. Change the DNS Server to be used
 
-Change `/etc/resolv.conf` to use safeguard's DNS Proxy.  
-safeguard DNS Proxy also listens on `172.17.0.1`, this default bridge for Docker; this IP address must also be specified in the `nameserver` so that the Docker container can resolve names.
+Change `/etc/resolv.conf` to use safeguard's DNS Proxy.
+The values must match `dns_proxy.bind`. Include `172.17.0.1`, Docker's default bridge address, so containers can resolve names through the proxy.
 
 ```shell
 $ cat /etc/resolv.conf

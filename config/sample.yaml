@@ -54,7 +54,17 @@ mount:
   deny:
     - /var/run/docker.sock
 dns_proxy:
+  # Enable this section when containers or host processes should resolve domains
+  # through safeguard's DNS proxy instead of querying upstream DNS directly.
   enable: false
+  # Required when enable is true.
+  upstreams:
+    - 8.8.8.8
+    - 8.8.4.4
+  # DNS proxy listen addresses. 172.17.0.1 is Docker's default bridge address.
+  bind:
+    - 127.0.0.1
+    - 172.17.0.1
 log:
   # Log format(json or text). Default: json
   format: json

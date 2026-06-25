@@ -11,9 +11,10 @@ Periodically resolves domain names and updates IP addresses in the Allow / Deny 
 
     It is designed to perform name resolution when the TTL value reaches 0. This means that depending on the timing, there may be rare cases where communication to an restricted address is possible, or where communication to an restricted address is not possible. This often occurs in domains with short TTL, such as AWS S3.
 
-## Change DNS Server (Recommend)
+## Change DNS Server (Recommended)
 
-If `dns_proxy` is enabled, safeguard will start DNS Proxy. Specify `127.0.0.1` and `172.17.0.1` (default bridge for docker) for `nameserver` in `/etc/resolv.conf`.
+If `dns_proxy` is enabled, safeguard will start a DNS proxy on each address listed in `dns_proxy.bind`. By default, safeguard binds `127.0.0.1` and `172.17.0.1` (the default Docker bridge address).
+Specify the same addresses as `nameserver` entries in `/etc/resolv.conf`.
 If the domain to be name resolved is restricted, update the IP address in the Allow / Deny list.
 
 
@@ -31,4 +32,16 @@ If the domain to be name resolved is restricted, update the IP address in the Al
 | Config | Type | Description |
 |:------:|:----|:-----------:|
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable DNS Proxy or not. Default is `false`. |
-| `upstreams` | List | Lisf of DNS Servers. |
+| `upstreams` | List | List of upstream DNS servers. Required when `enable` is `true`. |
+| `bind` | List | Local addresses where the DNS proxy listens. Default is `127.0.0.1` and `172.17.0.1`. |
+
+```yaml
+dns_proxy:
+  enable: true
+  upstreams:
+    - 8.8.8.8
+    - 8.8.4.4
+  bind:
+    - 127.0.0.1
+    - 172.17.0.1
+```
