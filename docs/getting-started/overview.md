@@ -1,12 +1,13 @@
 # Overview
 
-safeguard detects (and prevents) two type of security events:
+safeguard detects and controls four types of security events:
 
 - [Network Access](../configuration/network-restriction/configuration.md)
 - [File Access](../configuration/file-access-restriction/configuration.md)
-- [Mount](../configuration//mount-restriction/configuration.md)
+- [Mount](../configuration/mount-restriction/configuration.md)
+- [Process](../configuration/process-restriction/configuration.md)
 
-safeguard can choose between the following two restriction target:
+safeguard can choose between the following restriction targets:
 
 - Host-wide
 - Container Only
@@ -19,9 +20,8 @@ safeguard can be run in two modes:
 # Features
 
 - Restriction rules can be created based on various process contexts
-    - Process (Command) name
-    - Parent Process (Command) name
-    - UID / GID
+    - Command name
+    - UID / GID where supported
 - Monitoring and Blocking modes
     - Two modes are available: monitoring mode, which monitors and logs events, and blocking mode, which blocks events
 - For Containers
