@@ -26,6 +26,8 @@ $ make build
 $ sudo ./build/safeguard --config config/safeguard.yml
 ```
 
+`config/safeguard.yml` 是源码树中的默认示例配置；临时验证可以使用自建配置文件，controller 生成的白名单配置通常使用 `whitelist.yaml`。
+
 # 安装
 从 AtomGit release 页面下载对应版本的 RPM 包：
 

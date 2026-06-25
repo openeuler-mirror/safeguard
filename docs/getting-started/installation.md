@@ -61,5 +61,7 @@ Or build safeguard locally from source:
 $ make libbpf-static
 $ make build
 
-$ sudo ./build/safeguard --config config/safeguard.yml #|grep BLOCK
+$ sudo ./build/safeguard --config config/safeguard.yml
 ```
+
+`config/safeguard.yml` is the repository default sample config. Controller-generated whitelist configs should use their own output path, such as `whitelist.yaml`.
