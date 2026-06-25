@@ -31,8 +31,19 @@
    ```
 2. Verify kernel version
    ```bash
-   uname -r  # Should be >= 5.10
+   uname -r  # Should be >= 5.13
    ```
+3. Check required BPF and BTF kernel options
+   ```bash
+   zgrep -E 'CONFIG_BPF_LSM|CONFIG_DEBUG_INFO_BTF' /proc/config.gz || \
+     grep -E 'CONFIG_BPF_LSM|CONFIG_DEBUG_INFO_BTF' /boot/config-$(uname -r)
+   ```
+   Both options should be set to `y`.
+4. Confirm that BPF LSM is active
+   ```bash
+   cat /sys/kernel/security/lsm
+   ```
+   The output must include `bpf`. If it does not, add `bpf` to the `lsm=` boot parameter and reboot.
 
 ### Permission Denied
 
