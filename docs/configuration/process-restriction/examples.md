@@ -15,6 +15,8 @@ process:
 
 #### Allow only selected process names
 
+Process restriction uses executable basenames in the `allow` list.
+
 ```yaml
 policy: whitelist
 process:
