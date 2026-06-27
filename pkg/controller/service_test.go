@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -62,4 +63,57 @@ func TestServiceGenerate_WritesConfigAndReport(t *testing.T) {
 	reportBytes, err := os.ReadFile(reportPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(reportBytes), "\"hostname\": \"demo-host\"")
+}
+
+func TestServiceGenerate_ReturnsCollectorError(t *testing.T) {
+	dir := t.TempDir()
+	collectErr := errors.New("collect failed")
+	service := Service{
+		Collector: fakeCollector{err: collectErr},
+		Now: func() time.Time {
+			return time.Date(2026, 4, 13, 12, 0, 0, 0, time.UTC)
+		},
+	}
+
+	outputPath := filepath.Join(dir, "demo-whitelist.yaml")
+	err := service.Generate(GenerateOptions{
+		Mode:       "monitor",
+		OutputPath: outputPath,
+	})
+
+	require.ErrorIs(t, err, collectErr)
+	assert.NoFileExists(t, outputPath)
+}
+
+func TestServiceGenerate_SkipsReportWhenReportPathIsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	service := Service{
+		Collector: fakeCollector{
+			snapshot: model.HostSnapshot{
+				Hostname: "demo-host",
+				CIDRs:    []string{"127.0.0.1/32"},
+				RunningProcesses: []model.RunningProcess{
+					{Command: "bash", Executable: "/usr/bin/bash"},
+				},
+			},
+		},
+		Now: func() time.Time {
+			return time.Date(2026, 4, 13, 12, 0, 0, 0, time.UTC)
+		},
+	}
+
+	outputPath := filepath.Join(dir, "demo-whitelist.yaml")
+	err := service.Generate(GenerateOptions{
+		Mode:       "monitor",
+		OutputPath: outputPath,
+		ReportPath: "",
+	})
+	require.NoError(t, err)
+
+	_, err = config.NewConfig(outputPath)
+	require.NoError(t, err)
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "demo-whitelist.yaml", entries[0].Name())
 }
