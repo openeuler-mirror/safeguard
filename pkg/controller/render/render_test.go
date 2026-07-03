@@ -114,3 +114,27 @@ func TestBuildConfig_UsesWhitelistPolicyAndExpectedDefaults(t *testing.T) {
 	assert.Equal(t, []string{}, cfg.RestrictedFileAccessConfig.Deny)
 	assert.Equal(t, []string{}, cfg.RestrictedMountConfig.DenySourcePath)
 }
+
+func TestMarshalReportJSON_IncludesMetadataAndWarnings(t *testing.T) {
+	data, err := MarshalReportJSON(model.WhitelistModel{
+		Metadata: model.Metadata{
+			Hostname: "demo-host",
+		},
+		Warnings: []string{"proc/net/tcp unreadable"},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "\"hostname\": \"demo-host\"")
+	assert.Contains(t, string(data), "\"warnings\": [")
+}
+
+func TestWriteFile_CreatesParentDirectories(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nested", "report.json")
+
+	err := WriteFile(path, []byte("{\"ok\":true}"))
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "{\"ok\":true}", string(data))
+}
