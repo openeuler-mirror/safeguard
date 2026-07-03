@@ -69,3 +69,41 @@ func TestBuildWhitelist_ClampsListsToEBPFMapCapacities(t *testing.T) {
 	assert.Contains(t, whitelist.Warnings, "generated files.allow truncated to 256 entries to fit eBPF map limits")
 	assert.Contains(t, whitelist.Warnings, "generated process.allow truncated to 1024 entries to fit eBPF map limits")
 }
+
+func TestBuildNetworkWhitelist_NormalizesCIDRsAndIDs(t *testing.T) {
+	whitelist, warnings := buildNetworkWhitelist(
+		[]string{
+			"2001:db8::8/128",
+			"10.0.0.8/32",
+			"not-a-cidr",
+			"10.0.0.8/32",
+			"2001:db8::8/128",
+		},
+		[]uint{5, 1, 5},
+		[]uint{9, 3, 9},
+	)
+
+	assert.Equal(t, []string{"10.0.0.8/32", "2001:db8::8/128", "not-a-cidr"}, whitelist.CIDRAllow)
+	assert.Equal(t, []uint{1, 5}, whitelist.UIDAllow)
+	assert.Equal(t, []uint{3, 9}, whitelist.GIDAllow)
+	assert.Empty(t, warnings)
+}
+
+func TestBuildNetworkWhitelist_PreservesInvalidCIDRsAfterTruncatedFamilies(t *testing.T) {
+	cidrs := make([]string, 0, 520)
+	for i := 0; i < 260; i++ {
+		cidrs = append(cidrs, fmt.Sprintf("10.0.%d.%d/32", i/256, i%256))
+	}
+	for i := 0; i < 260; i++ {
+		cidrs = append(cidrs, fmt.Sprintf("2001:db8::%x/128", i))
+	}
+	cidrs = append(cidrs, "still-invalid")
+
+	whitelist, warnings := buildNetworkWhitelist(cidrs, nil, nil)
+
+	assert.Len(t, whitelist.CIDRAllow, 513)
+	assert.Equal(t, "10.0.0.0/32", whitelist.CIDRAllow[0])
+	assert.Equal(t, "still-invalid", whitelist.CIDRAllow[len(whitelist.CIDRAllow)-1])
+	assert.Contains(t, warnings, "generated network.cidr.allow truncated to 256 IPv4 entries to fit eBPF map limits")
+	assert.Contains(t, warnings, "generated network.cidr.allow truncated to 256 IPv6 entries to fit eBPF map limits")
+}
