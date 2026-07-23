@@ -208,3 +208,137 @@ Log retention period in days. Default: 365.
 .B labels
 Key-value labels appended to each log entry.
 .RE
+.SH EXAMPLES
+.SS "Blacklist Mode: Deny Specific File Access"
+.EX
+sudo safeguard \--config /etc/safeguard/safeguard.yml
+.EE
+.sp
+Configuration example:
+.EX
+files:
+  enable: true
+  mode: block
+  target: host
+  deny:
+    \- /etc/passwd
+    \- /etc/shadow
+.EE
+.SS "Whitelist Mode: Allow Only Specified Processes"
+.EX
+sudo safeguard \--config /etc/safeguard/whitelist.yaml
+.EE
+.sp
+Configuration example:
+.EX
+policy: whitelist
+process:
+  enable: true
+  mode: block
+  target: host
+  allow:
+    \- bash
+    \- sh
+    \- python3
+.EE
+.SS "Block Docker Socket Mount in Containers"
+.EX
+mount:
+  enable: true
+  mode: block
+  target: host
+  deny:
+    \- /var/run/docker.sock
+.EE
+.SS "Prevent SSRF: Block Cloud Metadata Service"
+.EX
+network:
+  enable: true
+  mode: block
+  target: host
+  cidr:
+    allow:
+      \- 0.0.0.0/0
+    deny:
+      \- 169.254.169.254/32
+.EE
+.SS "Block Privileged Container Escape Paths"
+.EX
+files:
+  enable: true
+  mode: block
+  target: container
+  allow:
+    \- /
+  deny:
+    \- /proc/sysrq-trigger
+    \- /sys/kernel
+    \- /proc/sys/kernel
+.EE
+.SS "Generate Whitelist Configuration"
+.EX
+sudo safeguard controller generate \--output /etc/safeguard/whitelist.yaml \--mode block
+.EE
+.SS "Generate and Apply Immediately"
+.EX
+sudo safeguard controller generate \--output whitelist.yaml && sudo safeguard \--config whitelist.yaml
+.EE
+.SS "Enable DNS Proxy for Domain-Based Restrictions"
+.EX
+network:
+  enable: true
+  mode: block
+  target: host
+  cidr:
+    allow:
+      \- 0.0.0.0/0
+  domain:
+    deny:
+      \- example.com
+dns_proxy:
+  enable: true
+  upstreams:
+    \- 8.8.8.8
+    \- 8.8.4.4
+  bind:
+    \- 127.0.0.1
+    \- 172.17.0.1
+.EE
+.sp
+When \fBdns_proxy\fP is enabled, point the system DNS to the \fBdns_proxy.bind\fP addresses:
+.EX
+# Edit /etc/resolv.conf
+nameserver 127.0.0.1
+nameserver 172.17.0.1
+.EE
+.sp
+If using systemd-resolved, edit \fI/etc/systemd/resolved.conf\fP instead:
+.EX
+[Resolve]
+DNS=127.0.0.1 172.17.0.1
+.EE
+Then run \fBsystemctl restart systemd-resolved\fP.
+.SS "Hardening GitHub Actions Self-hosted Runner"
+.EX
+network:
+  enable: true
+  mode: block
+  target: host
+  cidr:
+    allow: ["8.8.8.8/32", "8.8.4.4/32", "127.0.0.1/32", "10.0.0.8/32", "172.16.0.0/12", "192.168.0.0/16"]
+  domain:
+    allow:
+      \- github.com
+      \- api.github.com
+      \- codeload.github.com
+      \- objects.githubusercontent.com
+      \- github-releases.githubusercontent.com
+dns_proxy:
+  enable: true
+  upstreams:
+    \- 8.8.8.8
+    \- 8.8.4.4
+  bind:
+    \- 127.0.0.1
+    \- 172.17.0.1
+.EE

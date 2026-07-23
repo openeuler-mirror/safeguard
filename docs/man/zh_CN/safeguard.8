@@ -209,3 +209,113 @@ DNS 代理监听地址列表。默认值：\fI127.0.0.1\fP、\fI172.17.0.1\fP（
 .B labels
 附加到每条日志的键值标签。
 .RE
+.SH EXAMPLES
+.SS "黑名单模式：拒绝特定文件访问"
+.EX
+sudo safeguard --config /etc/safeguard/safeguard.yml
+.EE
+.sp
+配置示例：
+.EX
+files:
+  enable: true
+  mode: block
+  target: host
+  deny:
+    \- /etc/passwd
+    \- /etc/shadow
+.EE
+.SS "白名单模式：只允许指定进程执行"
+.EX
+sudo safeguard --config /etc/safeguard/whitelist.yaml
+.EE
+.sp
+配置示例：
+.EX
+policy: whitelist
+process:
+  enable: true
+  mode: block
+  target: host
+  allow:
+    \- bash
+    \- sh
+    \- python3
+.EE
+.SS "阻止容器挂载 Docker socket"
+.EX
+mount:
+  enable: true
+  mode: block
+  target: host
+  deny:
+    \- /var/run/docker.sock
+.EE
+.SS "阻止 SSRF 攻击（拦截云元数据服务）"
+.EX
+network:
+  enable: true
+  mode: block
+  target: host
+  cidr:
+    allow:
+      \- 0.0.0.0/0
+    deny:
+      \- 169.254.169.254/32
+.EE
+.SS "容器内阻止特权逃逸路径"
+.EX
+files:
+  enable: true
+  mode: block
+  target: container
+  allow:
+    \- /
+  deny:
+    \- /proc/sysrq-trigger
+    \- /sys/kernel
+    \- /proc/sys/kernel
+.EE
+.SS "生成白名单配置"
+.EX
+sudo safeguard controller generate \--output /etc/safeguard/whitelist.yaml \--mode block
+.EE
+.SS "生成白名单后立即应用"
+.EX
+sudo safeguard controller generate \--output whitelist.yaml && sudo safeguard \--config whitelist.yaml
+.EE
+.SS "启用 DNS 代理模式"
+.EX
+network:
+  enable: true
+  mode: block
+  target: host
+  cidr:
+    allow:
+      \- 0.0.0.0/0
+  domain:
+    deny:
+      \- example.com
+dns_proxy:
+  enable: true
+  upstreams:
+    \- 8.8.8.8
+    \- 8.8.4.4
+  bind:
+    \- 127.0.0.1
+    \- 172.17.0.1
+.EE
+.sp
+启用 \fBdns_proxy\fP 后，须将系统 DNS 指向 \fBdns_proxy.bind\fP 地址：
+.EX
+# 修改 /etc/resolv.conf
+nameserver 127.0.0.1
+nameserver 172.17.0.1
+.EE
+.sp
+若使用 systemd-resolved，修改 \fI/etc/systemd/resolved.conf\fP：
+.EX
+[Resolve]
+DNS=127.0.0.1 172.17.0.1
+.EE
+然后执行 \fBsystemctl restart systemd-resolved\fP。
