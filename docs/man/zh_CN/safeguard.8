@@ -79,3 +79,133 @@ safeguard \- Linux 安全审计与白名单控制器（基于 eBPF/LSM）
 .BR \--mode \ MODE
 生成配置的操作模式：\fImonitor\fP（仅日志）或 \fIblock\fP（强制执行）。
 默认值：\fImonitor\fP。
+.SH CONFIGURATION
+配置文件为 YAML 格式，包含以下顶层字段：
+.sp
+.B policy
+.RS 4
+全局策略模式。\fIblacklist\fP（默认允许）或 \fIwhitelist\fP（默认拒绝）。
+.RE
+.sp
+.B network
+.RS 4
+网络访问控制配置。子字段：
+.TP
+.B enable
+是否启用。默认 \fIfalse\fP。
+.TP
+.B mode
+\fImonitor\fP 或 \fIblock\fP。
+.TP
+.B target
+\fIhost\fP 或 \fIcontainer\fP。
+.TP
+.B cidr
+IP 地址段控制。包含 \fIallow\fP 和 \fIdeny\fP 列表，每项为 CIDR 字符串（如 \fI10.0.0.0/8\fP）。
+.TP
+.B domain
+域名控制。包含 \fIallow\fP 和 \fIdeny\fP 列表。域名解析依赖 \fBdns_proxy\fP 或周期性异步解析。
+.TP
+.B command
+进程命令名控制。包含 \fIallow\fP 和 \fIdeny\fP 列表，匹配进程的 comm 字段（如 \fIcurl\fP）。
+.TP
+.B uid
+用户 ID 控制。包含 \fIallow\fP 和 \fIdeny\fP 列表。
+.TP
+.B gid
+组 ID 控制。包含 \fIallow\fP 和 \fIdeny\fP 列表。
+.RE
+.sp
+.B files
+.RS 4
+文件访问控制配置。子字段：
+.TP
+.B enable
+是否启用。默认 \fIfalse\fP。
+.TP
+.B mode
+\fImonitor\fP 或 \fIblock\fP。
+.TP
+.B target
+\fIhost\fP 或 \fIcontainer\fP。
+.TP
+.B allow
+允许访问的路径列表（whitelist 模式下使用）。路径须为绝对路径。
+.TP
+.B deny
+拒绝访问的路径列表（blacklist 模式下使用）。
+.RE
+.sp
+.B mount
+.RS 4
+挂载操作控制配置。子字段：
+.TP
+.B enable
+是否启用。默认 \fIfalse\fP。
+.TP
+.B mode
+\fImonitor\fP 或 \fIblock\fP。
+.TP
+.B target
+\fIhost\fP 或 \fIcontainer\fP。
+.TP
+.B deny
+拒绝的挂载源路径或设备名列表（如 \fI/var/run/docker.sock\fP）。
+.RE
+.sp
+.B process
+.RS 4
+进程执行控制配置。子字段：
+.TP
+.B enable
+是否启用。默认 \fIfalse\fP。
+.TP
+.B mode
+\fImonitor\fP 或 \fIblock\fP。
+.TP
+.B target
+\fIhost\fP 或 \fIcontainer\fP。
+.TP
+.B allow
+允许执行的进程名列表（whitelist 模式下使用），匹配可执行文件的 basename（如 \fIbash\fP、\fIpython3\fP）。
+.sp
+注意：进程拦截当前仅在全局策略为 \fIwhitelist\fP 时生效。
+.RE
+.sp
+.B dns_proxy
+.RS 4
+DNS 代理配置。启用后 safeguard 启动 DNS 代理服务，
+拦截域名解析请求，对受限域名直接阻断，其他请求转发到上游 DNS。
+.TP
+.B enable
+是否启用。默认 \fIfalse\fP。
+.TP
+.B upstreams
+上游 DNS 服务器列表。启用时必填（如 \fI8.8.8.8\fP、\fI8.8.4.4\fP）。
+.TP
+.B bind
+DNS 代理监听地址列表。默认值：\fI127.0.0.1\fP、\fI172.17.0.1\fP（Docker 默认桥接地址）。
+.RE
+.sp
+.B log
+.RS 4
+日志配置。子字段：
+.TP
+.B level
+日志级别：\fIDEBUG\fP、\fIINFO\fP、\fIWARN\fP、\fIERROR\fP。默认 \fIINFO\fP。
+.TP
+.B format
+日志格式：\fIjson\fP 或 \fItext\fP。默认 \fIjson\fP。
+.TP
+.B output
+日志输出路径。默认 \fIstdout\fP。可指定文件路径（如 \fI/var/log/safeguard.log\fP）。
+.TP
+.B max_size
+日志轮转大小上限（MB）。默认 100。
+.TP
+.B max_age
+日志保留天数。默认 365。
+.TP
+.B labels
+附加到每条日志的键值标签。
+.RE
