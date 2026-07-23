@@ -342,3 +342,55 @@ dns_proxy:
     \- 127.0.0.1
     \- 172.17.0.1
 .EE
+.SH FILES
+.TP
+.I /etc/safeguard/safeguard.yml
+Default sample configuration file (after RPM installation).
+.TP
+.I config/safeguard.yml
+Repository default sample configuration.
+.TP
+.I config/whitelist.yaml
+Controller-generated whitelist configuration example.
+.TP
+.I config/sample.yaml
+Fully annotated reference configuration.
+.TP
+.I /sys/fs/bpf/
+BPF filesystem mount point. Used by safeguard at runtime.
+.SH ENVIRONMENT
+.TP
+.B SG_CONFIG_PATH
+Configuration file path. Equivalent to the \fB\--config\fP option.
+.TP
+.B SKIP_COMPATIBLE_CHECK
+Set to any non-empty value to skip kernel compatibility checks (BPF LSM, BTF, etc.).
+Use only for debugging or in known-compatible environments.
+.SH KERNEL REQUIREMENTS
+.B safeguard
+depends on BPF LSM and requires:
+.sp
+.RS 4
+.TP 4
+\(bu Linux Kernel >= 5.13
+.TP
+\(bu Kernel compile options:
+\fBCONFIG_BPF=y\fP, \fBCONFIG_BPF_SYSCALL=y\fP, \fBCONFIG_BPF_LSM=y\fP,
+\fBCONFIG_BPF_JIT=y\fP, \fBCONFIG_DEBUG_INFO_BTF=y\fP
+.TP
+\(bu The active LSM list must include \fBbpf\fP:
+enable via boot parameter \fBlsm=lockdown,yama,apparmor,bpf\fP
+.TP
+\(bu BPF filesystem must be mounted at \fI/sys/fs/bpf\fP
+.RE
+.sp
+Check kernel configuration:
+.EX
+zgrep \-E 'CONFIG_BPF_LSM|CONFIG_DEBUG_INFO_BTF' /proc/config.gz
+.EE
+.sp
+Check active LSM list:
+.EX
+cat /sys/kernel/security/lsm
+.EE
+Output must contain \fBbpf\fP.
