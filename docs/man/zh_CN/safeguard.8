@@ -1,0 +1,81 @@
+.TH SAFEGUARD 8 "2026-07-22" "safeguard 3.0" "System Administration"
+.SH NAME
+safeguard \- Linux 安全审计与白名单控制器（基于 eBPF/LSM）
+.SH SYNOPSIS
+.B safeguard
+.RB [ \--config
+.IR FILE ]
+.RB [ \--version ]
+.RB [ \--help ]
+.sp
+.B safeguard controller generate
+.RB [ \--output
+.IR PATH ]
+.RB [ \--report
+.IR PATH ]
+.RB [ \--mode
+.IR MODE ]
+.SH DESCRIPTION
+.B safeguard
+是基于 eBPF 和 Linux Security Module (LSM) 的主机安全审计与控制工具。
+它通过在内核 LSM 钩子上挂载 eBPF 程序，实现对网络、文件、挂载和进程四类安全事件的
+实时监测与拦截。
+.sp
+每个审计模块支持两种运行模式：
+.sp
+.RS 4
+.TP 8
+.B monitor
+仅记录事件日志，不阻断操作。适合策略验证阶段。
+.TP
+.B block
+拦截匹配策略的操作，并记录日志。适合生产环境。
+.RE
+.sp
+每个模块支持两种作用范围：
+.sp
+.RS 4
+.TP 8
+.B host
+全局生效，包括主机和容器内所有进程。
+.TP
+.B container
+仅对容器内进程生效，主机进程不受限制。
+.RE
+.sp
+全局策略支持两种模式：
+.sp
+.RS 4
+.TP 8
+.B blacklist
+（默认）除明确拒绝的条目外全部允许。
+.TP
+.B whitelist
+除明确允许的条目外全部拒绝。推荐用于高安全场景。
+.RE
+.sp
+.B safeguard
+必须以 root 用户运行，且内核须启用 BPF LSM 和 BTF。
+.SH OPTIONS
+.SS "全局选项"
+.TP
+.BR \--config \ FILE
+指定 YAML 配置文件路径。默认值：\fIsafeguard.yaml\fP。
+也可通过环境变量 \fBSG_CONFIG_PATH\fP 设置。
+.TP
+.BR \--version
+显示版本号。
+.TP
+.BR \--help
+显示帮助信息。
+.SS "controller generate 子命令选项"
+.TP
+.BR \--output \ PATH
+白名单 YAML 配置文件的输出路径。默认值：\fIdemo-whitelist.yaml\fP。
+.TP
+.BR \--report \ PATH
+白名单 JSON 报告文件的输出路径。默认值：\fIdemo-whitelist-report.json\fP。
+.TP
+.BR \--mode \ MODE
+生成配置的操作模式：\fImonitor\fP（仅日志）或 \fIblock\fP（强制执行）。
+默认值：\fImonitor\fP。

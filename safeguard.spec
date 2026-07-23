@@ -25,8 +25,12 @@ make build
 %install
 mkdir -p %{buildroot}/usr/bin
 mkdir -p %{buildroot}/etc/safeguard
+mkdir -p %{buildroot}%{_mandir}/man8
+mkdir -p %{buildroot}%{_mandir}/zh_CN/man8
 cp -a build/safeguard %{buildroot}/usr/bin/
 cp -a config/safeguard.yml %{buildroot}/etc/safeguard/
+cp -a docs/man/en/safeguard.8 %{buildroot}%{_mandir}/man8/
+cp -a docs/man/zh_CN/safeguard.8 %{buildroot}%{_mandir}/zh_CN/man8/
 
 %check
 #make test/unit
@@ -36,6 +40,8 @@ cp -a config/safeguard.yml %{buildroot}/etc/safeguard/
 %doc README.md
 /usr/bin/safeguard
 /etc/safeguard/safeguard.yml
+%{_mandir}/man8/safeguard.8*
+%{_mandir}/zh_CN/man8/safeguard.8*
 
 %changelog
 * Thu Jul 23 2026 Tongyx <tongyx12@chinaunicom.cn> - 3.0.4

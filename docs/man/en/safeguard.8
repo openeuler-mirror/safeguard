@@ -1,0 +1,80 @@
+.TH SAFEGUARD 8 "2026-07-22" "safeguard 3.0" "System Administration"
+.SH NAME
+safeguard \- Linux security audit and whitelist controller based on eBPF/LSM
+.SH SYNOPSIS
+.B safeguard
+.RB [ \--config
+.IR FILE ]
+.RB [ \--version ]
+.RB [ \--help ]
+.sp
+.B safeguard controller generate
+.RB [ \--output
+.IR PATH ]
+.RB [ \--report
+.IR PATH ]
+.RB [ \--mode
+.IR MODE ]
+.SH DESCRIPTION
+.B safeguard
+is a host security audit and control tool based on eBPF and the Linux Security Module (LSM) subsystem.
+It attaches eBPF programs to kernel LSM hooks to provide real-time monitoring and enforcement of
+network, file, mount, and process security events.
+.sp
+Each audit module supports two operational modes:
+.sp
+.RS 4
+.TP 8
+.B monitor
+Log events only; no enforcement. Recommended for policy validation.
+.TP
+.B block
+Enforce the policy: matching operations are blocked and logged. Recommended for production.
+.RE
+.sp
+Each module supports two scope targets:
+.sp
+.RS 4
+.TP 8
+.B host
+Apply restrictions globally, including host and container processes.
+.TP
+.B container
+Apply restrictions only to container processes; host processes are unaffected.
+.RE
+.sp
+The global policy supports two modes:
+.sp
+.RS 4
+.TP 8
+.B blacklist
+(Default) Allow all except explicitly denied entries.
+.TP
+.B whitelist
+Deny all except explicitly allowed entries. Recommended for high-security environments.
+.RE
+.sp
+.B safeguard
+must be run as root. The kernel must have BPF LSM and BTF enabled.
+.SH OPTIONS
+.SS "Global Options"
+.TP
+.BR \--config \ FILE
+Path to the YAML configuration file. Default: \fIsafeguard.yaml\fP.
+Can also be set via the \fBSG_CONFIG_PATH\fP environment variable.
+.TP
+.BR \--version
+Print the version number.
+.TP
+.BR \--help
+Print usage help.
+.SS "controller generate Subcommand Options"
+.TP
+.BR \--output \ PATH
+Output path for the whitelist YAML configuration file. Default: \fIdemo-whitelist.yaml\fP.
+.TP
+.BR \--report \ PATH
+Output path for the whitelist JSON report file. Default: \fIdemo-whitelist-report.json\fP.
+.TP
+.BR \--mode \ MODE
+Operational mode for the generated configuration: \fImonitor\fP (log only) or \fIblock\fP (enforce). Default: \fImonitor\fP.
