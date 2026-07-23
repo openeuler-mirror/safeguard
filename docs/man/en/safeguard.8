@@ -394,3 +394,66 @@ Check active LSM list:
 cat /sys/kernel/security/lsm
 .EE
 Output must contain \fBbpf\fP.
+.SH LSM HOOKS
+.B safeguard
+attaches eBPF programs to the following LSM hooks:
+.sp
+.RS 4
+.TP 4
+Network module:
+\fBsocket_connect\fP, \fBsocket_sendmsg\fP
+.TP
+File module:
+\fBfile_open\fP, \fBfile_truncate\fP,
+\fBpath_unlink\fP, \fBpath_rmdir\fP, \fBpath_rename\fP
+.TP
+Mount module:
+\fBsb_mount\fP, \fBmove_mount\fP
+.TP
+Process module:
+\fBbprm_check_security\fP
+(also uses \fBsched_process_fork\fP and \fBsched_process_exec\fP tracepoints for event collection)
+.RE
+.SH BPF MAPS
+BPF maps can be inspected or updated at runtime via \fBbpftool\fP:
+.EX
+bpftool map update pinned /sys/fs/bpf/file_config key 00 00 00 00 value 01 00 00 00 00 00 00 00
+.EE
+.SH DIAGNOSTICS
+.SS "Permission Denied"
+Error message: \fBMust be run as root user\fP.
+Solution: Run with \fBsudo\fP.
+.SS "BPF Map Failure"
+Error message: \fBfailed to update BPF map\fP.
+Troubleshooting steps:
+.RS 4
+.TP 4
+1. Check BPF filesystem: \fBmount | grep bpf\fP
+.TP
+2. Confirm kernel version >= 5.13: \fBuname \-r\fP
+.TP
+3. Verify kernel options: \fBzgrep CONFIG_BPF_LSM /proc/config.gz\fP
+.TP
+4. Confirm LSM list includes bpf: \fBcat /sys/kernel/security/lsm\fP
+.RE
+.SS "Debug Mode"
+.EX
+export SAFEGUARD_LOG=DEBUG
+sudo safeguard \--config whitelist.yaml
+.EE
+.SS "Log Analysis"
+.EX
+# JSON format logs
+journalctl \-u safeguard \-o json | jq 'select(.level=="error")'
+.EE
+.EX
+# Text format logs
+grep "error" /var/log/safeguard.log
+.EE
+.SS "Whitelist Policy Validation"
+Test a policy in \fImonitor\fP mode first, then switch to \fIblock\fP after verifying logs:
+.EX
+safeguard controller generate \--output test.yaml \--mode monitor
+sudo safeguard \--config test.yaml
+# Review logs; when satisfied, change mode to block
+.EE
