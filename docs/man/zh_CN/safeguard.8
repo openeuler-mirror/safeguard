@@ -371,3 +371,66 @@ zgrep \-E 'CONFIG_BPF_LSM|CONFIG_DEBUG_INFO_BTF' /proc/config.gz
 cat /sys/kernel/security/lsm
 .EE
 输出须包含 \fBbpf\fP。
+.SH LSM HOOKS
+.B safeguard
+挂载以下 LSM 钩子：
+.sp
+.RS 4
+.TP 4
+网络模块：
+\fBsocket_connect\fP、\fBsocket_sendmsg\fP
+.TP
+文件模块：
+\fBfile_open\fP、\fBfile_truncate\fP、
+\fBpath_unlink\fP、\fBpath_rmdir\fP、\fBpath_rename\fP
+.TP
+挂载模块：
+\fBsb_mount\fP、\fBmove_mount\fP
+.TP
+进程模块：
+\fBbprm_check_security\fP
+（另使用 \fBsched_process_fork\fP、\fBsched_process_exec\fP tracepoint 采集事件）
+.RE
+.SH BPF MAPS
+运行时可通过 \fBbpftool\fP 查看或更新 BPF map：
+.EX
+bpftool map update pinned /sys/fs/bpf/file_config key 00 00 00 00 value 01 00 00 00 00 00 00 00
+.EE
+.SH DIAGNOSTICS
+.SS "权限不足"
+错误信息：\fBMust be run as root user\fP。
+解决：使用 \fBsudo\fP 运行。
+.SS "BPF map 失败"
+错误信息：\fBfailed to update BPF map\fP。
+排查步骤：
+.RS 4
+.TP 4
+1. 检查 BPF 文件系统：\fBmount | grep bpf\fP
+.TP
+2. 确认内核版本 >= 5.13：\fBuname \-r\fP
+.TP
+3. 验证内核选项：\fBzgrep CONFIG_BPF_LSM /proc/config.gz\fP
+.TP
+4. 确认 LSM 列表包含 bpf：\fBcat /sys/kernel/security/lsm\fP
+.RE
+.SS "调试模式"
+.EX
+export SAFEGUARD_LOG=DEBUG
+sudo safeguard \--config whitelist.yaml
+.EE
+.SS "日志分析"
+.EX
+# JSON 格式日志
+journalctl \-u safeguard \-o json | jq 'select(.level=="error")'
+.EE
+.EX
+# 文本格式日志
+grep "error" /var/log/safeguard.log
+.EE
+.SS "白名单验证"
+先用 \fImonitor\fP 模式测试策略，确认日志无误后切换为 \fIblock\fP：
+.EX
+safeguard controller generate \--output test.yaml \--mode monitor
+sudo safeguard \--config test.yaml
+# 观察日志，确认策略无误后修改为 mode: block
+.EE
