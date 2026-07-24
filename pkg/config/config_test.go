@@ -106,6 +106,18 @@ func TestDefaultConfig_IncludesEmptyProcessAllowList(t *testing.T) {
 	assert.Equal(t, []string{}, cfg.RestrictedProcessConfig.Allow)
 }
 
+func TestDefaultConfig_IncludesDNSProxyAndLogDefaults(t *testing.T) {
+	cfg := DefaultConfig()
+
+	assert.False(t, cfg.DNSProxyConfig.Enable)
+	assert.Equal(t, []string{}, cfg.DNSProxyConfig.Upstreams)
+	assert.Equal(t, []string{"127.0.0.1", "172.17.0.1"}, cfg.DNSProxyConfig.BindAddresses)
+	assert.Equal(t, "INFO", cfg.Log.Level)
+	assert.Equal(t, "json", cfg.Log.Format)
+	assert.Equal(t, "stdout", cfg.Log.Output)
+	assert.Equal(t, map[string]string{}, cfg.Log.Labels)
+}
+
 func TestNewConfig_LoadsProcessAllowList(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "process-allow.yaml")
@@ -142,6 +154,40 @@ network:
 	cfg, err := NewConfig(path)
 	require.NoError(t, err)
 	assert.Equal(t, "whitelist", cfg.Policy)
+}
+
+func TestNewConfig_LoadsDNSProxyAndLogSettings(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.yaml")
+
+	content := []byte(`dns_proxy:
+  enable: true
+  upstreams:
+    - 1.1.1.1
+  bind:
+    - 127.0.0.1
+log:
+  level: DEBUG
+  format: text
+  output: /tmp/safeguard.log
+  max_size: 32
+  max_age: 14
+  labels:
+    env: test
+`)
+	require.NoError(t, os.WriteFile(path, content, 0o644))
+
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	assert.True(t, cfg.DNSProxyConfig.Enable)
+	assert.Equal(t, []string{"1.1.1.1"}, cfg.DNSProxyConfig.Upstreams)
+	assert.Equal(t, []string{"127.0.0.1"}, cfg.DNSProxyConfig.BindAddresses)
+	assert.Equal(t, "DEBUG", cfg.Log.Level)
+	assert.Equal(t, "text", cfg.Log.Format)
+	assert.Equal(t, "/tmp/safeguard.log", cfg.Log.Output)
+	assert.Equal(t, 32, cfg.Log.MaxSize)
+	assert.Equal(t, 14, cfg.Log.MaxAge)
+	assert.Equal(t, map[string]string{"env": "test"}, cfg.Log.Labels)
 }
 
 func TestNewConfig_RequiresDNSProxyUpstreams(t *testing.T) {
