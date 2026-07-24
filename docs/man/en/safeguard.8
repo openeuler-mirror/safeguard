@@ -78,3 +78,133 @@ Output path for the whitelist JSON report file. Default: \fIdemo-whitelist-repor
 .TP
 .BR \--mode \ MODE
 Operational mode for the generated configuration: \fImonitor\fP (log only) or \fIblock\fP (enforce). Default: \fImonitor\fP.
+.SH CONFIGURATION
+The configuration file is in YAML format with the following top-level sections:
+.sp
+.B policy
+.RS 4
+Global policy mode. \fIblacklist\fP (default allow) or \fIwhitelist\fP (default deny).
+.RE
+.sp
+.B network
+.RS 4
+Network access control configuration. Sub-fields:
+.TP
+.B enable
+Whether to enable. Default: \fIfalse\fP.
+.TP
+.B mode
+\fImonitor\fP or \fIblock\fP.
+.TP
+.B target
+\fIhost\fP or \fIcontainer\fP.
+.TP
+.B cidr
+IP address range control. Contains \fIallow\fP and \fIdeny\fP lists; each entry is a CIDR string (e.g. \fI10.0.0.0/8\fP).
+.TP
+.B domain
+Domain name control. Contains \fIallow\fP and \fIdeny\fP lists. Domain resolution depends on \fBdns_proxy\fP or periodic async resolution.
+.TP
+.B command
+Process command name control. Contains \fIallow\fP and \fIdeny\fP lists; matches the process comm field (e.g. \fIcurl\fP).
+.TP
+.B uid
+User ID control. Contains \fIallow\fP and \fIdeny\fP lists.
+.TP
+.B gid
+Group ID control. Contains \fIallow\fP and \fIdeny\fP lists.
+.RE
+.sp
+.B files
+.RS 4
+File access control configuration. Sub-fields:
+.TP
+.B enable
+Whether to enable. Default: \fIfalse\fP.
+.TP
+.B mode
+\fImonitor\fP or \fIblock\fP.
+.TP
+.B target
+\fIhost\fP or \fIcontainer\fP.
+.TP
+.B allow
+List of allowed file paths (used in whitelist mode). Paths must be absolute.
+.TP
+.B deny
+List of denied file paths (used in blacklist mode).
+.RE
+.sp
+.B mount
+.RS 4
+Mount operation control configuration. Sub-fields:
+.TP
+.B enable
+Whether to enable. Default: \fIfalse\fP.
+.TP
+.B mode
+\fImonitor\fP or \fIblock\fP.
+.TP
+.B target
+\fIhost\fP or \fIcontainer\fP.
+.TP
+.B deny
+List of denied mount source paths or device names (e.g. \fI/var/run/docker.sock\fP).
+.RE
+.sp
+.B process
+.RS 4
+Process execution control configuration. Sub-fields:
+.TP
+.B enable
+Whether to enable. Default: \fIfalse\fP.
+.TP
+.B mode
+\fImonitor\fP or \fIblock\fP.
+.TP
+.B target
+\fIhost\fP or \fIcontainer\fP.
+.TP
+.B allow
+List of allowed process names (used in whitelist mode). Matches the executable basename (e.g. \fIbash\fP, \fIpython3\fP).
+.sp
+Note: Process blocking currently only takes effect when the global \fIpolicy\fP is \fIwhitelist\fP.
+.RE
+.sp
+.B dns_proxy
+.RS 4
+DNS proxy configuration. When enabled, safeguard starts a DNS proxy service that intercepts
+domain resolution requests, blocks restricted domains, and forwards the rest to upstream DNS servers.
+.TP
+.B enable
+Whether to enable. Default: \fIfalse\fP.
+.TP
+.B upstreams
+List of upstream DNS servers. Required when \fIenable\fP is \fItrue\fP (e.g. \fI8.8.8.8\fP, \fI8.8.4.4\fP).
+.TP
+.B bind
+List of local addresses for the DNS proxy to listen on. Default: \fI127.0.0.1\fP, \fI172.17.0.1\fP (Docker default bridge address).
+.RE
+.sp
+.B log
+.RS 4
+Log configuration. Sub-fields:
+.TP
+.B level
+Log level: \fIDEBUG\fP, \fIINFO\fP, \fIWARN\fP, \fIERROR\fP. Default: \fIINFO\fP.
+.TP
+.B format
+Log format: \fIjson\fP or \fItext\fP. Default: \fIjson\fP.
+.TP
+.B output
+Log output path. Default: \fIstdout\fP. A file path can be specified (e.g. \fI/var/log/safeguard.log\fP).
+.TP
+.B max_size
+Maximum log file size before rotation (MB). Default: 100.
+.TP
+.B max_age
+Log retention period in days. Default: 365.
+.TP
+.B labels
+Key-value labels appended to each log entry.
+.RE
