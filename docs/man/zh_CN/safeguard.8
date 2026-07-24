@@ -434,3 +434,40 @@ safeguard controller generate \--output test.yaml \--mode monitor
 sudo safeguard \--config test.yaml
 # 观察日志，确认策略无误后修改为 mode: block
 .EE
+.SH BUILD
+源码构建依赖：Go、gcc/make、clang/llvm、bpftool、libelf、zlib。
+.EX
+sudo yum install \-y git golang make gcc clang llvm bpftool elfutils-devel zlib-devel
+.EE
+.sp
+构建步骤：
+.EX
+git clone \--recursive https://atomgit.com/openeuler/safeguard.git && cd safeguard
+make libbpf-static
+make build
+sudo ./build/safeguard \--config config/safeguard.yml
+.EE
+.sp
+静态构建：
+.EX
+make build-static
+.EE
+.sp
+RPM 构建：
+.EX
+make rpmbuild
+.EE
+.SH SEE ALSO
+.BR bpftool (8),
+.BR bpf (2),
+.BR resolv.conf (5),
+.BR systemd-resolved (8)
+.SH BUGS
+项目主页：\fIhttps://atomgit.com/openeuler/safeguard\fP
+.sp
+Release 页面：\fIhttps://atomgit.com/openeuler/safeguard/releases\fP
+.SH AUTHOR
+safeguard 由 openEuler 社区开发和维护。
+.SH LICENSE
+用户空间程序：Apache License 2.0。
+eBPF 程序（pkg/bpf 目录）：GNU General Public License version 2。
