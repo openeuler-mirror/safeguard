@@ -37,6 +37,24 @@ func TestIsOnlyContainer(t *testing.T) {
 	})
 }
 
+func TestIsOnlyContainer_ForMountProcessAndUnknownTarget(t *testing.T) {
+	config := DefaultConfig()
+
+	config.RestrictedMountConfig.Target = "container"
+	assert.True(t, config.IsOnlyContainer("mount"))
+
+	config.RestrictedMountConfig.Target = "host"
+	assert.False(t, config.IsOnlyContainer("mount"))
+
+	config.RestrictedProcessConfig.Target = "container"
+	assert.True(t, config.IsOnlyContainer("process"))
+
+	config.RestrictedProcessConfig.Target = "host"
+	assert.False(t, config.IsOnlyContainer("process"))
+
+	assert.False(t, config.IsOnlyContainer("unknown"))
+}
+
 func TestIsRestrictedMode(t *testing.T) {
 	config := DefaultConfig()
 
@@ -63,6 +81,24 @@ func TestIsRestrictedMode(t *testing.T) {
 			assert.Equal(t, config.IsRestrictedMode("fileaccess"), false)
 		})
 	})
+}
+
+func TestIsRestrictedMode_ForMountProcessAndUnknownTarget(t *testing.T) {
+	config := DefaultConfig()
+
+	config.RestrictedMountConfig.Mode = "block"
+	assert.True(t, config.IsRestrictedMode("mount"))
+
+	config.RestrictedMountConfig.Mode = "monitor"
+	assert.False(t, config.IsRestrictedMode("mount"))
+
+	config.RestrictedProcessConfig.Mode = "block"
+	assert.True(t, config.IsRestrictedMode("process"))
+
+	config.RestrictedProcessConfig.Mode = "monitor"
+	assert.False(t, config.IsRestrictedMode("process"))
+
+	assert.False(t, config.IsRestrictedMode("unknown"))
 }
 
 func TestDefaultConfig_IncludesEmptyProcessAllowList(t *testing.T) {
