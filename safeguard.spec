@@ -1,8 +1,8 @@
 Name: safeguard
 Version: 3.0
-Release: 3%{?dist}
+Release: 4%{?dist}
 Summary: A tool for restricting network, file, mount and process operations using eBPF
-License: MIT
+License: Apache-2.0
 URL: https://atomgit.com/openeuler/safeguard
 Source: %{name}-%{version}.tar.gz
 
@@ -38,6 +38,9 @@ cp -a config/safeguard.yml %{buildroot}/etc/safeguard/
 /etc/safeguard/safeguard.yml
 
 %changelog
+* Thu Jul 23 2026 Tongyx <tongyx12@chinaunicom.cn> - 3.0.4
+- Correct License field from MIT to Apache-2.0
+
 * Wed May 13 2026 Tongyx <tongyx12@chinaunicom.cn> - 3.0.3
 - Fix process whitelist map value size and IPv4 CIDR trie key encoding
 - Narrow generated network allow entries to host CIDRs and skip unspecified addresses
