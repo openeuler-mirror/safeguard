@@ -85,3 +85,32 @@ func TestBuildConfig_UsesRequestedModeForAllModules(t *testing.T) {
 	assert.Equal(t, "block", cfg.RestrictedProcessConfig.Mode)
 	assert.Equal(t, "block", cfg.RestrictedMountConfig.Mode)
 }
+
+func TestBuildConfig_UsesWhitelistPolicyAndExpectedDefaults(t *testing.T) {
+	cfg := BuildConfig(model.WhitelistModel{
+		Network: model.NetworkWhitelist{
+			CIDRAllow: []string{"127.0.0.1/32"},
+			UIDAllow:  []uint{0},
+			GIDAllow:  []uint{0},
+		},
+		Files: model.FileWhitelist{
+			Allow: []string{"/root"},
+		},
+		Process: model.ProcessWhitelist{
+			Allow: []string{"bash"},
+		},
+	}, "monitor")
+
+	assert.Equal(t, "whitelist", cfg.Policy)
+	assert.True(t, cfg.RestrictedNetworkConfig.Enable)
+	assert.True(t, cfg.RestrictedFileAccessConfig.Enable)
+	assert.True(t, cfg.RestrictedProcessConfig.Enable)
+	assert.True(t, cfg.RestrictedMountConfig.Enable)
+	assert.Equal(t, "host", cfg.RestrictedNetworkConfig.Target)
+	assert.Equal(t, "host", cfg.RestrictedFileAccessConfig.Target)
+	assert.Equal(t, "host", cfg.RestrictedProcessConfig.Target)
+	assert.Equal(t, "host", cfg.RestrictedMountConfig.Target)
+	assert.Equal(t, []string{}, cfg.RestrictedNetworkConfig.Command.Allow)
+	assert.Equal(t, []string{}, cfg.RestrictedFileAccessConfig.Deny)
+	assert.Equal(t, []string{}, cfg.RestrictedMountConfig.DenySourcePath)
+}
