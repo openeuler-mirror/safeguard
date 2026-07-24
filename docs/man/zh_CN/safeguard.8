@@ -319,3 +319,55 @@ nameserver 172.17.0.1
 DNS=127.0.0.1 172.17.0.1
 .EE
 然后执行 \fBsystemctl restart systemd-resolved\fP。
+.SH FILES
+.TP
+.I /etc/safeguard/safeguard.yml
+默认示例配置文件（RPM 安装后）。
+.TP
+.I config/safeguard.yml
+源码树中的默认示例配置。
+.TP
+.I config/whitelist.yaml
+controller 生成的白名单配置示例。
+.TP
+.I config/sample.yaml
+带完整注释的参考配置。
+.TP
+.I /sys/fs/bpf/
+BPF 文件系统挂载点。safeguard 运行时使用。
+.SH ENVIRONMENT
+.TP
+.B SG_CONFIG_PATH
+配置文件路径。与 \fB\--config\fP 选项等价。
+.TP
+.B SKIP_COMPATIBLE_CHECK
+设置为任意非空值可跳过内核兼容性检查（BPF LSM、BTF 等）。
+仅在调试或已知兼容的环境中使用。
+.SH KERNEL REQUIREMENTS
+.B safeguard
+依赖 BPF LSM，要求：
+.sp
+.RS 4
+.TP 4
+\(bu Linux Kernel >= 5.13
+.TP
+\(bu 内核编译选项：
+\fBCONFIG_BPF=y\fP、\fBCONFIG_BPF_SYSCALL=y\fP、\fBCONFIG_BPF_LSM=y\fP、
+\fBCONFIG_BPF_JIT=y\fP、\fBCONFIG_DEBUG_INFO_BTF=y\fP
+.TP
+\(bu 运行时 LSM 列表须包含 \fBbpf\fP：
+通过引导参数 \fBlsm=lockdown,yama,apparmor,bpf\fP 启用
+.TP
+\(bu BPF 文件系统须挂载于 \fI/sys/fs/bpf\fP
+.RE
+.sp
+检查内核配置：
+.EX
+zgrep \-E 'CONFIG_BPF_LSM|CONFIG_DEBUG_INFO_BTF' /proc/config.gz
+.EE
+.sp
+检查 LSM 列表：
+.EX
+cat /sys/kernel/security/lsm
+.EE
+输出须包含 \fBbpf\fP。
