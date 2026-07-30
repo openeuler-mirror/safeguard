@@ -74,3 +74,45 @@ func TestSnapshotCollector_StoresWarningsForUnreadableProcNetFiles(t *testing.T)
 	assert.Equal(t, []string{"127.0.0.1/8"}, snapshot.CIDRs)
 	assert.Len(t, snapshot.Warnings, 1)
 }
+
+func TestReadPasswdAccounts_SkipsMalformedLines(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "passwd")
+	content := "root:x:0:0:root:/root:/bin/bash\nshortline\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+
+	accounts, uids, gids, err := readPasswdAccounts(path)
+	require.NoError(t, err)
+	assert.Len(t, accounts, 2)
+	assert.Contains(t, uids, uint(0))
+	assert.Contains(t, gids, uint(65534))
+}
+
+func TestReadPasswdAccounts_SkipsNonNumericUID(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "passwd")
+	content := "baduser:x:abc:0:baduser:/home:/bin/bash\nroot:x:0:0:root:/root:/bin/bash\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+
+	accounts, uids, _, err := readPasswdAccounts(path)
+	require.NoError(t, err)
+	assert.Len(t, accounts, 1)
+	assert.Contains(t, uids, uint(0))
+}
+
+func TestReadPasswdAccounts_ReturnsErrorForMissingFile(t *testing.T) {
+	_, _, _, err := readPasswdAccounts("/nonexistent/passwd")
+	assert.Error(t, err)
+}
+
+func TestParseStatusIDs(t *testing.T) {
+	uid, gid := parseStatusIDs("Uid:\t1000\t1000\t1000\t1000\nGid:\t1000\t1000\t1000\t1000\n")
+	assert.Equal(t, uint(1000), uid)
+	assert.Equal(t, uint(1000), gid)
+}
+
+func TestParseStatusIDs_ReturnsZeroForMissingFields(t *testing.T) {
+	uid, gid := parseStatusIDs("Name:\tbash\n")
+	assert.Equal(t, uint(0), uid)
+	assert.Equal(t, uint(0), gid)
+}
