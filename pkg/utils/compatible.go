@@ -130,10 +130,12 @@ func hasBPFLSM() error {
 	return fmt.Errorf("BPF LSM is not enabled. Enable bpf in the active LSM list, CONFIG_LSM, or boot lsm= parameters")
 }
 
+// AmIRootUser checks if the current process is running as root.
 func AmIRootUser() bool {
 	return os.Geteuid() == 0
 }
 
+// IsCompatible checks if the system meets safeguard requirements (kernel version, BPF LSM, BTF).
 func IsCompatible() error {
 	if !isLinux() {
 		return errors.New("required to run on Linux")
