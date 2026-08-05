@@ -57,6 +57,7 @@ const (
 	MAP_ALLOW_GID_INDEX     = 20
 )
 
+// Manager manages network audit events and BPF map operations for network restriction.
 type Manager struct {
 	mod         *libbpfgo.Module
 	config      *config.Config
@@ -65,6 +66,7 @@ type Manager struct {
 	dnsCache    map[string]string
 }
 
+// IPAddress represents an IP address with BPF map key conversion capabilities.
 type IPAddress struct {
 	address  net.IP
 	cidrMask net.IPMask
@@ -87,10 +89,12 @@ func (i *IPAddress) ipAddressToBPFMapKey() []byte {
 	return i.key
 }
 
+// DNSResolver defines the interface for DNS resolution operations.
 type DNSResolver interface {
 	Resolve(host string, recordType uint16) (*DNSAnswer, error)
 }
 
+// DefaultResolver implements DNSResolver using the standard Go DNS resolver.
 type DefaultResolver struct {
 	config        *dns.ClientConfig
 	client        *dns.Client
