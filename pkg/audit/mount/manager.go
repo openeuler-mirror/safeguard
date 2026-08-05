@@ -21,6 +21,7 @@ const (
 	TARGET_CONTAINER = uint32(1)
 )
 
+// Manager handles mount audit events and BPF map operations for mount restriction.
 type Manager struct {
 	mod    *libbpfgo.Module
 	config *config.Config
