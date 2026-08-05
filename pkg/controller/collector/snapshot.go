@@ -6,6 +6,7 @@ import (
 	"culinux/pkg/controller/model"
 )
 
+// SnapshotCollector aggregates data from multiple collectors into a HostSnapshot.
 type SnapshotCollector struct {
 	PasswdPath       string
 	ProcRoot         string
@@ -14,6 +15,7 @@ type SnapshotCollector struct {
 	InterfaceCIDRsFn func() ([]string, error)
 }
 
+// NewSnapshotCollector creates a new SnapshotCollector with all built-in collectors.
 func NewSnapshotCollector() SnapshotCollector {
 	return SnapshotCollector{
 		PasswdPath: "/etc/passwd",
