@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// BuildConfig maps a WhitelistModel into a safeguard Config.
 func BuildConfig(whitelist model.WhitelistModel, mode string) config.Config {
 	cfg := config.DefaultConfig()
 	cfg.Policy = "whitelist" // controller 生成为白名单模式
@@ -38,15 +39,18 @@ func BuildConfig(whitelist model.WhitelistModel, mode string) config.Config {
 	return *cfg
 }
 
+// MarshalConfigYAML serializes a WhitelistModel as a YAML configuration file.
 func MarshalConfigYAML(whitelist model.WhitelistModel, mode string) ([]byte, error) {
 	cfg := BuildConfig(whitelist, mode)
 	return yaml.Marshal(&cfg)
 }
 
+// MarshalReportJSON serializes a WhitelistModel as a JSON report.
 func MarshalReportJSON(whitelist model.WhitelistModel) ([]byte, error) {
 	return json.MarshalIndent(whitelist, "", "  ")
 }
 
+// WriteFile writes data to the specified file path.
 func WriteFile(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
