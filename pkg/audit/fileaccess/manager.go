@@ -25,6 +25,7 @@ const (
 	POLICY_WHITELIST = uint32(1)
 )
 
+// Manager handles file access audit events and BPF map operations for file access restriction.
 type Manager struct {
 	mod    *libbpfgo.Module
 	config *config.Config
