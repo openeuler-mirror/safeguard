@@ -9,12 +9,16 @@ import (
 	"time"
 )
 
+// bpfMapLimitEntries is the maximum number of entries in a BPF map.
+// bpfProcessMapLimit is the maximum number of allowed process entries.
+// bpfProcessNameMaxLength is the maximum length of a process name in a BPF map key.
 const (
 	bpfMapLimitEntries      = 256
 	bpfProcessMapLimit      = 1024
 	bpfProcessNameMaxLength = 15
 )
 
+// defaultFileAllow lists the default directory paths allowed for file access.
 var defaultFileAllow = []string{
 	"/bin", "/usr/bin", "/usr/sbin", "/lib", "/lib64", "/etc",
 	"/tmp", "/var", "/run", "/usr/lib", "/home", "/root",
@@ -68,6 +72,8 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	}
 }
 
+// buildNetworkWhitelist constructs the network whitelist from CIDRs, UIDs, and GIDs,
+// clamping values to eBPF map limits and returning any truncation warnings.
 func buildNetworkWhitelist(cidrs []string, uids []uint, gids []uint) (NetworkWhitelist, []string) {
 	warnings := []string{}
 	cidrAllow, cidrWarnings := clampCIDRs(uniqueStrings(cidrs))
@@ -90,6 +96,8 @@ func buildNetworkWhitelist(cidrs []string, uids []uint, gids []uint) (NetworkWhi
 	}, warnings
 }
 
+// clampCIDRs separates CIDRs into IPv4 and IPv6 groups, clamps each to the
+// eBPF map limit, and returns the combined list with truncation warnings.
 func clampCIDRs(values []string) ([]string, []string) {
 	ipv4 := make([]string, 0, len(values))
 	ipv6 := make([]string, 0, len(values))
@@ -126,6 +134,9 @@ func clampCIDRs(values []string) ([]string, []string) {
 	return result, warnings
 }
 
+// normalizeProcessAllowEntry extracts the process name from a RunningProcess,
+// preferring the executable basename over the command field, and truncates to
+// the BPF process name length limit.
 func normalizeProcessAllowEntry(process RunningProcess) string {
 	candidate := strings.TrimSpace(process.Command)
 	if process.Executable != "" {
@@ -139,6 +150,7 @@ func normalizeProcessAllowEntry(process RunningProcess) string {
 	return truncateString(candidate, bpfProcessNameMaxLength)
 }
 
+// truncateString truncates a string to at most maxLen bytes.
 func truncateString(value string, maxLen int) string {
 	if len(value) <= maxLen {
 		return value
@@ -146,6 +158,8 @@ func truncateString(value string, maxLen int) string {
 	return value[:maxLen]
 }
 
+// clampStrings truncates a string slice to the given limit and reports whether
+// truncation occurred.
 func clampStrings(values []string, limit int) ([]string, bool) {
 	if len(values) <= limit {
 		return values, false
@@ -153,6 +167,8 @@ func clampStrings(values []string, limit int) ([]string, bool) {
 	return values[:limit], true
 }
 
+// clampUints truncates a uint slice to the given limit and reports whether
+// truncation occurred.
 func clampUints(values []uint, limit int) ([]uint, bool) {
 	if len(values) <= limit {
 		return values, false
@@ -160,6 +176,8 @@ func clampUints(values []uint, limit int) ([]uint, bool) {
 	return values[:limit], true
 }
 
+// uniqueStrings deduplicates and sorts a string slice, trimming whitespace and
+// skipping empty entries.
 func uniqueStrings(values []string) []string {
 	seen := map[string]struct{}{}
 	result := make([]string, 0, len(values))
@@ -178,6 +196,7 @@ func uniqueStrings(values []string) []string {
 	return result
 }
 
+// uniqueUints deduplicates and sorts a uint slice.
 func uniqueUints(values []uint) []uint {
 	seen := map[uint]struct{}{}
 	result := make([]uint, 0, len(values))

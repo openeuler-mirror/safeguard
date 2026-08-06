@@ -73,10 +73,12 @@ type IPAddress struct {
 	key      []byte
 }
 
+// isV6address checks whether the IP address is an IPv6 address.
 func (i *IPAddress) isV6address() bool {
 	return i.address.To4() == nil
 }
 
+// ipAddressToBPFMapKey converts the IP address to a BPF map key byte slice.
 func (i *IPAddress) ipAddressToBPFMapKey() []byte {
 	ip := net.IPNet{IP: i.address.Mask(i.cidrMask), Mask: i.cidrMask}
 
