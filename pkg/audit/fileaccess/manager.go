@@ -32,6 +32,7 @@ type Manager struct {
 	pb     *libbpfgo.PerfBuffer
 }
 
+// Start initializes the perf buffer for file access events and begins polling.
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
 	pb, err := m.mod.InitPerfBuf("fileopen_events", eventChannel, lostChannel, 1024)
 	if err != nil {
@@ -44,10 +45,12 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 	return nil
 }
 
+// Stop halts the perf buffer polling for file access events.
 func (m *Manager) Stop() {
 	m.pb.Stop()
 }
 
+// Close unpins the BPF config map and releases the perf buffer.
 func (m *Manager) Close() {
 	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
 	if err == nil {
@@ -60,6 +63,7 @@ func (m *Manager) Close() {
 	}
 }
 
+// Attach attaches the BPF LSM programs for file access restriction.
 func (m *Manager) Attach() error {
 	for _, prog_name := range []string{"restricted_file_open",
 		"restricted_path_unlink",

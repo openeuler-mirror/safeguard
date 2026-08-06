@@ -51,6 +51,7 @@ type Manager struct {
 	rb     *libbpfgo.RingBuffer
 }
 
+// Start initializes the perf buffer for process events and begins polling.
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
 	pb, err := m.mod.InitPerfBuf("process_events", eventChannel, lostChannel, 1024)
 	if err != nil {
@@ -76,6 +77,7 @@ func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint
 	return nil
 }
 
+// Stop halts the perf buffer and ring buffer polling for process events.
 func (m *Manager) Stop() {
 	m.pb.Stop()
 	if m.rb != nil {
@@ -83,6 +85,7 @@ func (m *Manager) Stop() {
 	}
 }
 
+// Close releases the perf buffer and ring buffer resources.
 func (m *Manager) Close() {
 	m.pb.Close()
 	if m.rb != nil {
@@ -90,6 +93,7 @@ func (m *Manager) Close() {
 	}
 }
 
+// Attach attaches the BPF LSM programs for process restriction.
 func (m *Manager) Attach() error {
 	prog, err := m.mod.GetProgram(BPF_PROGRAM_FORK)
 	if err != nil {
