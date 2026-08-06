@@ -3,7 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"regexp"
 	"runtime"
@@ -13,13 +13,14 @@ import (
 const btfFile = "/sys/kernel/btf/vmlinux"
 const securityLSMFile = "/sys/kernel/security/lsm"
 
+// isLinux checks whether the current OS is Linux.
 func isLinux() bool {
 	return runtime.GOOS == "linux"
 }
 
+// hasBTF checks if the kernel has BTF support enabled.
 func hasBTF() error {
 	f, err := os.Open(btfFile)
-
 	if err != nil {
 		// lint:ignore ST1005
 		return fmt.Errorf("Current kernel is not supported for BTF. Requires kernel with `CONFIG_DEBUG_INFO_BTF` enabled")
@@ -30,66 +31,71 @@ func hasBTF() error {
 	return nil
 }
 
+// getKernelVersion reads the kernel release string from /proc.
 func getKernelVersion() (string, error) {
 	buf, err := os.ReadFile("/proc/sys/kernel/osrelease")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("reading kernel version: %w", err)
 	}
 	return strings.TrimSpace(string(buf)), nil
 }
 
+// readKernelConfig reads the kernel configuration file for the current kernel.
 func readKernelConfig() (string, error) {
 	kernelVer, err := getKernelVersion()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("reading kernel config: %w", err)
 	}
 
 	configPath := fmt.Sprintf("/boot/config-%s", kernelVer)
 	f, err := os.Open(configPath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("opening kernel config %s: %w", configPath, err)
 	}
 	defer f.Close()
 
-	kernelConfig, err := ioutil.ReadAll(f)
+	kernelConfig, err := io.ReadAll(f)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("reading kernel config: %w", err)
 	}
 
-	return string(kernelConfig), err
+	return string(kernelConfig), nil
 }
 
+// readCmdline reads the kernel boot command line from /proc/cmdline.
 func readCmdline() (string, error) {
 	f, err := os.Open("/proc/cmdline")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("opening /proc/cmdline: %w", err)
 	}
 
 	defer f.Close()
 
-	cmdline, err := ioutil.ReadAll(f)
+	cmdline, err := io.ReadAll(f)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("reading /proc/cmdline: %w", err)
 	}
 
-	return string(cmdline), err
+	return string(cmdline), nil
 }
 
+// readSecurityLSM reads the active LSM list from /sys/kernel/security/lsm.
 func readSecurityLSM() (string, error) {
 	f, err := os.Open(securityLSMFile)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("opening security LSM file: %w", err)
 	}
 	defer f.Close()
 
-	lsm, err := ioutil.ReadAll(f)
+	lsm, err := io.ReadAll(f)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("reading security LSM file: %w", err)
 	}
 
 	return string(lsm), nil
 }
 
+// lsmListContainsBPF checks if "bpf" is present in the comma-separated LSM list.
 func lsmListContainsBPF(lsmList string) bool {
 	for _, lsm := range strings.Split(lsmList, ",") {
 		if strings.TrimSpace(lsm) == "bpf" {
@@ -99,12 +105,14 @@ func lsmListContainsBPF(lsmList string) bool {
 	return false
 }
 
+// kernelConfigHasBPFLSM checks if the kernel CONFIG_LSM option includes bpf.
 func kernelConfigHasBPFLSM(kernelConfig string) bool {
 	re := regexp.MustCompile(`CONFIG_LSM="([^"]*)"`)
 	matches := re.FindStringSubmatch(kernelConfig)
 	return len(matches) > 0 && lsmListContainsBPF(matches[1])
 }
 
+// cmdlineHasBPFLSM checks if the boot command line lsm= parameter includes bpf.
 func cmdlineHasBPFLSM(cmdline string) bool {
 	for _, field := range strings.Fields(cmdline) {
 		if strings.HasPrefix(field, "lsm=") {
@@ -114,6 +122,7 @@ func cmdlineHasBPFLSM(cmdline string) bool {
 	return false
 }
 
+// hasBPFLSM checks if BPF LSM is enabled via the active LSM list, boot parameters, or kernel config.
 func hasBPFLSM() error {
 	if activeLSM, err := readSecurityLSM(); err == nil && lsmListContainsBPF(activeLSM) {
 		return nil
