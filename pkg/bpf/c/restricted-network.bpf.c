@@ -196,7 +196,8 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   allowed_gid.gid = (unsigned)(bpf_get_current_uid_gid() >> 32);
   denied_gid.gid = (unsigned)(bpf_get_current_uid_gid() >> 32);
 
-  // Redundant by BPF constraints...
+  // Copy config flags into locals because the BPF verifier may reject
+  // direct pointer-field reads through complex control flow.
   int has_allow_command = 0;
   int has_allow_uid = 0;
   int has_allow_gid = 0;
