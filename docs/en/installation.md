@@ -8,6 +8,12 @@ Source builds require at least Go, gcc/make, clang/llvm, bpftool, libelf, and zl
 sudo yum install -y git golang make gcc clang llvm bpftool elfutils-devel zlib-devel
 ```
 
+For Ubuntu/Debian-based distributions:
+
+```shell
+sudo apt install -y git golang make gcc clang llvm bpftool libelf-dev zlib1g-dev
+```
+
 ## Kernel Configuration
 
 safeguard depends on BPF LSM and requires Linux Kernel >= 5.13.0. The following kernel options must be enabled:
@@ -41,6 +47,8 @@ sudo update-grub
 sudo update-grub2
 ```
 
+Reboot the system after updating the grub configuration.
+
 ## Build from Source
 
 ```shell
@@ -66,4 +74,23 @@ https://atomgit.com/openeuler/safeguard/releases
 ```shell
 yum install ./safeguard-*.rpm
 sudo safeguard --config /etc/safeguard/safeguard.yml
+```
+
+## Vagrant Development Environment
+
+For development and testing, use the provided Vagrant configuration:
+
+```shell
+git clone --recursive https://atomgit.com/openeuler/safeguard.git && cd safeguard
+vagrant up && vagrant reload
+vagrant ssh
+```
+
+Inside the VM, build and test:
+
+```shell
+cd /vagrant/safeguard
+make libbpf-static
+make build
+make test
 ```
