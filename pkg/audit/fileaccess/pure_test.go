@@ -6,16 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRetToaction_Allowed(t *testing.T) {
-	assert.Equal(t, "ALLOWED", retToaction(0))
+func TestRetToAction_Allowed(t *testing.T) {
+	assert.Equal(t, "ALLOWED", retToAction(0))
 }
 
-func TestRetToaction_Monitor(t *testing.T) {
-	assert.Equal(t, "MONITOR", retToaction(1))
+func TestRetToAction_Monitor(t *testing.T) {
+	assert.Equal(t, "MONITOR", retToAction(1))
 }
 
-func TestRetToaction_Blocked(t *testing.T) {
-	assert.Equal(t, "BLOCKED", retToaction(-1))
+func TestRetToAction_Blocked(t *testing.T) {
+	assert.Equal(t, "BLOCKED", retToAction(-1))
 }
 
 func TestPathToString_StopsAtNull(t *testing.T) {

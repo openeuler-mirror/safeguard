@@ -38,6 +38,11 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
     bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
     bpf_probe_read_kernel_str(&event.path, sizeof(event.path), dev_name);
 
+// NOTE: bpf_for_each_map_elem is disabled (#if 0) because the verifier
+// rejects the callback on some supported kernels. As a result only the
+// entry at key 0 is ever checked — see audit finding #6. Do not assume
+// new kernels take this branch; it is dead until the `0 &&` is removed
+// and the callback passes verification.
 #if 0 && LINUX_VERSION_CODE > VERSION_5_10
     struct callback_ctx cb = { .path = event.path, .found = false };
     bpf_for_each_map_elem(&mount_denied_source_list, cb_check_path, &cb, 0);

@@ -37,6 +37,12 @@ const (
 	ALLOWED_COMMAND_LIST_MAP_NAME    = "allowed_command_list"
 	DENIED_COMMAND_LIST_MAP_NAME     = "denied_command_list"
 
+	// Kernel task_struct.comm is char[16] with the last byte reserved
+	// for NUL, so a command-list entry longer than 15 bytes can never
+	// match a real task comm. Truncate user-supplied entries to this
+	// bound and warn so collisions are visible.
+	maxCommandNameLen = 15
+
 	/*
 	   +---------------+---------------+---------------+-------------------+-------------------+-------------------+
 	   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |10 |11 |12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 |
@@ -239,6 +245,10 @@ func (m *Manager) setAllowedCommandList() error {
 	}
 
 	for _, c := range m.config.RestrictedNetworkConfig.Command.Allow {
+		if len(c) > maxCommandNameLen {
+			log.Info(fmt.Sprintf("network command allow entry %q exceeds %d bytes; truncating to %q (distinct long names may collide)",
+				c, maxCommandNameLen, c[:maxCommandNameLen]))
+		}
 		key := byteToKey([]byte(c))
 		value := uint8(0)
 		err = commands.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
@@ -257,6 +267,10 @@ func (m *Manager) setDeniedCommandList() error {
 	}
 
 	for _, c := range m.config.RestrictedNetworkConfig.Command.Deny {
+		if len(c) > maxCommandNameLen {
+			log.Info(fmt.Sprintf("network command deny entry %q exceeds %d bytes; truncating to %q (distinct long names may collide)",
+				c, maxCommandNameLen, c[:maxCommandNameLen]))
+		}
 		key := byteToKey([]byte(c))
 		value := uint8(0)
 		err = commands.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
@@ -414,8 +428,8 @@ func (m *Manager) initDomainList() error {
 			continue
 		}
 
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateAllowedFQDNist(answer)
+		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		err = m.updateAllowedFQDNList(answer)
 		if err != nil {
 			return err
 		}
@@ -426,8 +440,8 @@ func (m *Manager) initDomainList() error {
 			continue
 		}
 
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateAllowedFQDNist(answer)
+		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		err = m.updateAllowedFQDNList(answer)
 		if err != nil {
 			return err
 		}
@@ -436,7 +450,7 @@ func (m *Manager) initDomainList() error {
 	return nil
 }
 
-func (m *Manager) updateAllowedFQDNist(answer *DNSAnswer) error {
+func (m *Manager) updateAllowedFQDNList(answer *DNSAnswer) error {
 	allowedAddresses, err := domainNameToBPFMapKey(answer.Domain, answer.Addresses)
 	if err != nil {
 		return err
@@ -558,7 +572,10 @@ func ipv6ToKey(n net.IPNet) []byte {
 }
 
 func byteToKey(b []byte) []byte {
-	key := make([]byte, 16)
+	key := make([]byte, 16) // zero-initialised: leaves room for NUL
+	if len(b) > maxCommandNameLen {
+		b = b[:maxCommandNameLen]
+	}
 	copy(key[0:], b)
 	return key
 }

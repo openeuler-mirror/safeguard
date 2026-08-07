@@ -113,8 +113,19 @@ func remoteAddressToCIDR(raw string) (string, error) {
 	}
 
 	if len(decoded) == 16 {
-		for i := 0; i < 8; i++ {
-			decoded[i], decoded[15-i] = decoded[15-i], decoded[i]
+		// Linux /proc/net/tcp6 prints each 32-bit word of the IPv6
+		// address via "%08X" against a __be32 (network-order) value,
+		// which on a little-endian host emits the bytes in
+		// swapped-within-word order. Recover network-byte-order by
+		// reversing bytes inside each 4-byte word; the word *order*
+		// itself is unchanged. (The previous code did a full 16-byte
+		// reverse, which only happened to be correct for addresses
+		// with a single non-zero byte at one end — e.g. ::1, and even
+		// then only against an equally-wrong fixture.)
+		for i := 0; i < 4; i++ {
+			base := i * 4
+			decoded[base], decoded[base+3] = decoded[base+3], decoded[base]
+			decoded[base+1], decoded[base+2] = decoded[base+2], decoded[base+1]
 		}
 		ip := net.IP(decoded)
 		cidr, ok := ipAddressToCIDR(ip)

@@ -55,9 +55,22 @@ func TestRemoteAddressToCIDR(t *testing.T) {
 			expected: "127.0.0.1/32",
 		},
 		{
-			name:     "proc net tcp6 ipv6 address",
-			raw:      "01000000000000000000000000000000:01BB",
+			name:     "proc net tcp6 ipv6 loopback",
+			raw:      "00000000000000000000000001000000:01BB",
 			expected: "::1/128",
+		},
+		{
+			// Public IPv6 with non-zero bytes in multiple words.
+			// Exercises the per-word byte-swap fix: a full-array
+			// reverse would yield a completely different address.
+			// 2606:4700:4700::1111 in memory bytes is
+			//   26 06 47 00 | 47 00 00 00 | 00 00 00 00 | 00 00 11 11
+			// On a little-endian host each 4-byte word is emitted via
+			// %08X against the network-order bytes, producing
+			//   00470626   |   00000047  |   00000000  |   11110000.
+			name:     "proc net tcp6 ipv6 public",
+			raw:      "00470626000000470000000011110000:01BB",
+			expected: "2606:4700:4700::1111/128",
 		},
 	}
 

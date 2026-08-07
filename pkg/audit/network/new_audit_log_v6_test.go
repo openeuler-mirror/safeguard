@@ -8,7 +8,7 @@ import (
 
 func TestNewAuditLog_IPv6(t *testing.T) {
 	initDNSCache()
-	header := eventHeader{PID: 200, EventType: BLOCKED_IPV6}
+	header := eventHeader{PID: 200, EventType: EVENT_IPV6}
 	var dstIP [DSTIP_V6_LEN]byte
 	dstIP[15] = 1
 	body := detectEventIPv6{DstIP: dstIP, DstPort: 443, SockType: TCP, Action: ACTION_MONITOR}
