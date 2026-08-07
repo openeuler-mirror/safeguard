@@ -22,6 +22,15 @@ func Test_toFqdn(t *testing.T) {
 			domain: "example.com.",
 			expect: "example.com.",
 		},
+		{
+			// Audit #18: empty string used to panic at
+			// domainName[len(domainName)-1:]. Lock in the
+			// defensive behavior so the regression cannot silently
+			// reappear if the guard is ever refactored away.
+			name:   "empty -> empty (no panic)",
+			domain: "",
+			expect: "",
+		},
 	}
 
 	for _, test := range tests {
