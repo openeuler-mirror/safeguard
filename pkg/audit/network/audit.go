@@ -36,8 +36,8 @@ const (
 	ACTION_UNKNOWN_STRING       = "UNKNOWN"
 	MODULE                      = "network"
 
-	BLOCKED_IPV4 int32 = 0
-	BLOCKED_IPV6 int32 = 1
+	EVENT_IPV4 int32 = 0
+	EVENT_IPV6 int32 = 1
 
 	LSM_HOOK_POINT_CONNECT uint8 = 0
 	LSM_HOOK_POINT_SENDMSG uint8 = 1
@@ -118,11 +118,16 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 	return mod, nil
 }
 
+// RunAudit launches the network audit module. See fileaccess.RunAudit
+// for the contract: it runs as a goroutine, signals wg on return,
+// returns nil when the module is disabled, returns an error on setup
+// failure before the event loop, and otherwise blocks until ctx is
+// cancelled.
 func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
 	defer wg.Done()
 
 	if !conf.RestrictedNetworkConfig.Enable {
-		log.Info("network audit is disable. shutdown...")
+		log.Info("network audit is disabled; shutting down...")
 		return nil
 	}
 
@@ -170,7 +175,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		log.Fatal(err)
 	}
 
-	log.Info("Start the network audit.")
+	log.Info("Network audit started.")
 	eventsChannel := make(chan []byte)
 	mgr.Start(eventsChannel)
 
@@ -194,7 +199,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	<-ctx.Done()
 	mgr.Close()
-	log.Info("Terminated the network audit.")
+	log.Info("Network audit stopped.")
 
 	return nil
 }
@@ -206,7 +211,7 @@ func newAuditLog(header eventHeader, body detectEvent) log.RestrictedNetworkLog 
 		socktype uint8
 	)
 
-	if header.EventType == BLOCKED_IPV6 {
+	if header.EventType == EVENT_IPV6 {
 		body := body.(detectEventIPv6)
 		port = body.DstPort
 		addr = net.ParseIP(byte2IPv6(body.DstIP)).String()
@@ -244,14 +249,14 @@ func parseEvent(eventBytes []byte) (eventHeader, detectEvent, error) {
 	if err != nil {
 		return eventHeader{}, detectEventIPv4{}, err
 	}
-	if header.EventType == BLOCKED_IPV4 {
+	if header.EventType == EVENT_IPV4 {
 		body, err := parseEventBlockedIPv4(buf)
 		if err != nil {
 			return eventHeader{}, detectEventIPv4{}, err
 		}
 
 		return header, body, nil
-	} else if header.EventType == BLOCKED_IPV6 {
+	} else if header.EventType == EVENT_IPV6 {
 		body, err := parseEventBlockedIPv6(buf)
 		if err != nil {
 			return eventHeader{}, detectEventIPv6{}, err

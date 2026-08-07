@@ -25,6 +25,11 @@ const (
 	ALLOWED_PROCESS_LIST_MAP_NAME     = "allowed_process_list"
 
 	TASK_COMM_LEN = 16
+	// Kernel task_struct.comm is char[16] with the last byte reserved
+	// for NUL, so an allow-list entry longer than 15 bytes can never
+	// match a real task comm. Truncate user-supplied entries to this
+	// bound and warn so collisions are visible.
+	maxCommandNameLen = TASK_COMM_LEN - 1
 
 	/*
 	   +---------------+---------------+---------------+-------------------+
@@ -64,7 +69,7 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 }
 
 // StartExecAudit 启动进程执行审计（ringbuf）
-func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint64) error {
+func (m *Manager) StartExecAudit(eventChannel chan []byte) error {
 	rb, err := m.mod.InitRingBuf("process_exec_events", eventChannel)
 	if err != nil {
 		return err
@@ -188,7 +193,11 @@ func (m *Manager) setAllowedProcessList() error {
 	}
 
 	for _, proc := range m.config.RestrictedProcessConfig.Allow {
-		// 截断进程名到16字节
+		if len(proc) > maxCommandNameLen {
+			log.Info(fmt.Sprintf("process allow entry %q exceeds %d bytes; truncating to %q (distinct long names may collide)",
+				proc, maxCommandNameLen, proc[:maxCommandNameLen]))
+		}
+		// 截断进程名到15字节,保留1字节NUL终止符
 		key := byteToProcessKey([]byte(proc))
 		value := uint32(0) // BPF map value是u32
 		err = processMap.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
@@ -201,7 +210,10 @@ func (m *Manager) setAllowedProcessList() error {
 }
 
 func byteToProcessKey(b []byte) []byte {
-	key := make([]byte, TASK_COMM_LEN)
+	key := make([]byte, TASK_COMM_LEN) // zero-initialised: leaves room for NUL
+	if len(b) > maxCommandNameLen {
+		b = b[:maxCommandNameLen]
+	}
 	copy(key[0:], b)
 	return key
 }

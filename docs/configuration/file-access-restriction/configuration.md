@@ -8,8 +8,8 @@ Linux Kernel >= 5.13 is required to use this option.
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, file access events are only logged. If `block` is specified, matching file access is blocked. |
 | `target` | Enum with the following possible values: `host`, `container` | Selecting `host` applies the restriction host-wide. Selecting `container` applies the restriction only to containers. |
 | `policy` | Enum with the following possible values: `blacklist`, `whitelist` | If `blacklist` is specified (default), allow all except denied. If `whitelist` is specified, deny all except allowed. |
-| `allow` | A list of allow file paths | |
-| `deny` | A list of allow file paths | |
+| `allow` | A list of allowed file path prefixes (matched against the start of the absolute path) | |
+| `deny` | A list of denied file path prefixes (matched against the start of the absolute path) | |
 
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the file access restriction module disabled even when `mode`, `policy`, `allow`, or `deny` are configured.
 Use `monitor` mode first when validating a new file access policy, then switch to `block` after the required paths are confirmed.
@@ -21,7 +21,7 @@ Use `monitor` mode first when validating a new file access policy, then switch t
 In blacklist mode, all file access is allowed by default. Only files in the `deny` list will be blocked.
 
 ```yaml
-file:
+files:
   enable: true
   mode: block
   target: host
@@ -36,7 +36,7 @@ file:
 In whitelist mode, all file access is denied by default. Only files in the `allow` list will be permitted.
 
 ```yaml
-file:
+files:
   enable: true
   mode: block
   target: host
@@ -49,8 +49,8 @@ file:
 
 !!! warning
 
-    Currently file access restrictions cannot be based on process context (command name, UID, etc).  
-    This is because the eBPF Program size becomes too large, and it is failed pass by the eBPF Verifier's limitations.  
+    Currently file access restrictions cannot be based on process context (command name, UID, etc).
+    Adding these checks currently causes the program to exceed the eBPF verifier's complexity limits.
     If you can create a better eBPF program, please contribute!
 
 ## Troubleshooting

@@ -9,7 +9,8 @@ LIBBPF_OBJ = $(abspath $(OUTPUT)/libbpf.a)
 LIBBPF_OBJDIR = $(abspath ./$(OUTPUT)/libbpf)
 LIBBPF_DESTDIR = $(abspath ./$(OUTPUT))
 LLVM_STRIP ?= $(shell which llvm-strip || which llvm-strip-12)
-CLANG_BPF_SYS_INCLUDES := `shell $(CLANG) -v -E - </dev/null 2>&1 | sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }'`
+CLANG ?= clang
+CLANG_BPF_SYS_INCLUDES := $(shell $(CLANG) -v -E - </dev/null 2>&1 | sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
 CGOFLAG = CGO_CFLAGS="-I$(BASEDIR)/$(OUTPUT)" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)"
 STATIC=-extldflags -static
 
@@ -35,7 +36,7 @@ $(BPF_BUILDDIR):
 	mkdir -p $(BPF_BUILDDIR)
 	mkdir -p build
 
-$(BPF_BUILDDIR)/%.bpf.o: pkg/bpf/c/%.bpf.c $(wildcard bpf/*.h) | $(BPF_BUILDDIR)
+$(BPF_BUILDDIR)/%.bpf.o: pkg/bpf/c/%.bpf.c $(wildcard pkg/bpf/c/*.h) | $(BPF_BUILDDIR)
 	clang -g -O2 -target bpf -D__TARGET_ARCH_$(KERNEL_ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -E $(filter %.c,$^) -o "$@.i"
 	clang -g -O2 -target bpf -D__TARGET_ARCH_$(KERNEL_ARCH) $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES) -c $(filter %.c,$^) -o $@
 	$(LLVM_STRIP) -g $@ # strip useless DWARF info
@@ -64,7 +65,7 @@ build-static:  libbpf vmlinux bpf-restricted-network bpf-restricted-file bpf-res
 
 .PHONY: vmlinux
 vmlinux:
-	$(shell bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(OUTPUT)/vmlinux.h)
+	bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(OUTPUT)/vmlinux.h
 
 clean:
 	rm -rf pkg/bpf/bytecode/*
@@ -77,12 +78,12 @@ build/docker:
 .PHONY: test/unit
 test/unit: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
 	which gotestsum || go install gotest.tools/gotestsum@latest
-	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- --mod=vendor -bench=^$$ -race ./...
+	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- -bench=^$$ -race ./...
 
 .PHONY: test
 test: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
 	which gotestsum || go install gotest.tools/gotestsum@latest
-	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- --tags=integration --mod=vendor -bench=^$$ -race ./...
+	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- --tags=integration -bench=^$$ -race ./...
 
 .PHONY: test/integration/specify
 test/integration/specify: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
@@ -103,6 +104,6 @@ rpmbuild:
 	which rpmbuild || sudo yum install rpm-build -y
 	mkdir -p ~/rpmbuild/{SPECS,SOURCES}
 	cp safeguard.spec ~/rpmbuild/SPECS/
-	tar --transform "s/^\./safeguard/"  -zcvf ~/rpmbuild/SOURCES/safeguard-2.0.tar.gz .
+	tar --transform "s/^\./safeguard/"  -zcvf ~/rpmbuild/SOURCES/safeguard-3.0.tar.gz .
 	cd ~/rpmbuild && sudo yum builddep -y SPECS/safeguard.spec && rpmbuild -ba SPECS/safeguard.spec
 

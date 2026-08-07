@@ -8,7 +8,9 @@ import (
 )
 
 func TestRemoteAddressToCIDR_IPv6Loopback(t *testing.T) {
-	result, err := remoteAddressToCIDR("01000000000000000000000000000000:0035")
+	// ::1 as it actually appears in /proc/net/tcp6 on a little-endian
+	// host: word[3] is printed as 01000000, not 00000001.
+	result, err := remoteAddressToCIDR("00000000000000000000000001000000:0035")
 	require.NoError(t, err)
 	assert.Equal(t, "::1/128", result)
 }

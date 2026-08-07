@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package mount
 
 import (
@@ -31,7 +34,7 @@ func Test_SetConfigMap(t *testing.T) {
 
 			deniedMap, err := mgr.mod.GetMap(MOUNT_DENIED_SOURCE_LIST)
 			if err != nil {
-				t.Fatalf("Failed open eBPF map for %s, err: %s", MOUNT_DENIED_SOURCE_LIST, err)
+				t.Fatalf("Failed to open eBPF map for %s, err: %s", MOUNT_DENIED_SOURCE_LIST, err)
 			}
 
 			key := uint8(0)
@@ -72,7 +75,7 @@ func Test_setModeAndTarget(t *testing.T) {
 
 			configMap, err := mgr.mod.GetMap(MOUNT_CONFIG)
 			if err != nil {
-				t.Fatalf("Failed open eBPF map for %s, err: %s", MOUNT_CONFIG, err)
+				t.Fatalf("Failed to open eBPF map for %s, err: %s", MOUNT_CONFIG, err)
 			}
 
 			key := uint8(0)

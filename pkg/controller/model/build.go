@@ -15,9 +15,23 @@ const (
 	bpfProcessNameMaxLength = 15
 )
 
+// defaultFileAllow is the baseline of system binaries and shared
+// libraries that almost every process needs to exec/ld. Sensitive or
+// user-writable top-level directories are intentionally NOT included
+// here (audit #30):
+//
+//	/etc   – contains secrets (shadow, ssh keys, tokens)
+//	/tmp   – world-writable, common payload-staging location
+//	/var   – world-writable subdirs, log injection points
+//	/run   – runtime state, sockets/pids that shouldn't be allowlisted
+//	/home  – captured per-account via snapshot.Accounts[].HomeDir
+//	/root  – captured per-account via snapshot.Accounts[].HomeDir
+//
+// The snapshot adds ExecutablePaths observed for running processes,
+// and HomeDir for each detected account, on top of this baseline.
 var defaultFileAllow = []string{
-	"/bin", "/usr/bin", "/usr/sbin", "/lib", "/lib64", "/etc",
-	"/tmp", "/var", "/run", "/usr/lib", "/home", "/root",
+	"/bin", "/usr/bin", "/usr/sbin",
+	"/lib", "/lib64", "/usr/lib",
 }
 
 func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel {
