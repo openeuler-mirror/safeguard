@@ -64,7 +64,7 @@ build-static:  libbpf vmlinux bpf-restricted-network bpf-restricted-file bpf-res
 
 .PHONY: vmlinux
 vmlinux:
-	$(shell bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(OUTPUT)/vmlinux.h)
+	bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(OUTPUT)/vmlinux.h
 
 clean:
 	rm -rf pkg/bpf/bytecode/*
