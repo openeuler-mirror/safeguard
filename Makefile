@@ -12,6 +12,8 @@ LLVM_STRIP ?= $(shell which llvm-strip || which llvm-strip-12)
 CLANG_BPF_SYS_INCLUDES := `shell $(CLANG) -v -E - </dev/null 2>&1 | sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }'`
 CGOFLAG = CGO_CFLAGS="-I$(BASEDIR)/$(OUTPUT)" CGO_LDFLAGS="-lelf -lz $(LIBBPF_OBJ)"
 STATIC=-extldflags -static
+VERSION ?= 3.0
+LDFLAGS := -w -s -X main.version=$(VERSION)
 
 .PHONY: libbpf-static
 libbpf-static: $(LIBBPF_SRC) $(wildcard $(LIBBPF_SRC)/*.[ch])
@@ -57,10 +59,10 @@ tools: libbpf
 
 .PHONY: build
 build:  libbpf vmlinux bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
-	$(CGOFLAG) go build -tags netgo -ldflags "-w -s" -o build/safeguard cmd/safeguard/safeguard.go
+	$(CGOFLAG) go build -tags netgo -ldflags "$(LDFLAGS)" -o build/safeguard cmd/safeguard/safeguard.go
 
 build-static:  libbpf vmlinux bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
-	$(CGOFLAG) go build -tags netgo -ldflags "-w -s $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
+	$(CGOFLAG) go build -tags netgo -ldflags "$(LDFLAGS) $(STATIC)" -o build/safeguard cmd/safeguard/safeguard.go
 
 .PHONY: vmlinux
 vmlinux:
