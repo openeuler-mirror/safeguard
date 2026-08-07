@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// RestrictedNetworkConfig holds network restriction settings.
 type RestrictedNetworkConfig struct {
 	Enable  bool          `yaml:"enable"`
 	Mode    string        `yaml:"mode"`
@@ -18,6 +19,7 @@ type RestrictedNetworkConfig struct {
 	GID     GIDConfig     `yaml:"gid"`
 }
 
+// RestrictedFileAccessConfig holds file access restriction settings.
 type RestrictedFileAccessConfig struct {
 	Enable bool     `yaml:"enable"`
 	Mode   string   `yaml:"mode"`
@@ -26,6 +28,7 @@ type RestrictedFileAccessConfig struct {
 	Deny   []string `yaml:"deny"`
 }
 
+// RestrictedMountConfig holds mount restriction settings.
 type RestrictedMountConfig struct {
 	Enable         bool     `yaml:"enable"`
 	Mode           string   `yaml:"mode"`
@@ -33,6 +36,7 @@ type RestrictedMountConfig struct {
 	DenySourcePath []string `yaml:"deny"`
 }
 
+// RestrictedProcessConfig holds process restriction settings.
 type RestrictedProcessConfig struct {
 	Enable bool     `yaml:"enable"`
 	Mode   string   `yaml:"mode"`
@@ -40,38 +44,45 @@ type RestrictedProcessConfig struct {
 	Allow  []string `yaml:"allow"`
 }
 
+// DomainConfig holds domain allow and deny lists.
 type DomainConfig struct {
 	Allow    []string `yaml:"allow"`
 	Deny     []string `yaml:"deny"`
 	Interval uint     `yaml:"interval"` // deprecated
 }
 
+// DNSProxyConfig holds DNS proxy settings.
 type DNSProxyConfig struct {
 	Enable        bool     `yaml:"enable"`
 	Upstreams     []string `yaml:"upstreams"`
 	BindAddresses []string `yaml:"bind"`
 }
 
+// CIDRConfig holds CIDR allow and deny lists.
 type CIDRConfig struct {
 	Allow []string `yaml:"allow"`
 	Deny  []string `yaml:"deny"`
 }
 
+// CommandConfig holds command allow and deny lists.
 type CommandConfig struct {
 	Allow []string `yaml:"allow"`
 	Deny  []string `yaml:"deny"`
 }
 
+// UIDConfig holds UID allow and deny lists.
 type UIDConfig struct {
 	Allow []uint `yaml:"allow"`
 	Deny  []uint `yaml:"deny"`
 }
 
+// GIDConfig holds GID allow and deny lists.
 type GIDConfig struct {
 	Allow []uint `yaml:"allow"`
 	Deny  []uint `yaml:"deny"`
 }
 
+// LogConfig holds logging configuration settings.
 type LogConfig struct {
 	Level   string            `yaml:"level"`
 	Format  string            `yaml:"format"`
@@ -81,6 +92,7 @@ type LogConfig struct {
 	Labels  map[string]string `yaml:"labels"`
 }
 
+// Config is the top-level safeguard configuration structure.
 type Config struct {
 	Policy                      string `yaml:"policy"` // blacklist 或 whitelist
 	RestrictedNetworkConfig    `yaml:"network"`
@@ -91,6 +103,7 @@ type Config struct {
 	Log                        LogConfig
 }
 
+// DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
 		Policy: "blacklist", // 默认黑名单模式
@@ -137,6 +150,7 @@ func DefaultConfig() *Config {
 	}
 }
 
+// NewConfig reads and parses a YAML configuration file.
 func NewConfig(configPath string) (*Config, error) {
 	file, err := os.Open(configPath)
 	if err != nil {
