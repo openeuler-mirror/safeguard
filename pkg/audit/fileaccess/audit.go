@@ -117,7 +117,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 func newAuditLog(event auditLog) log.RestrictedFileAccessLog {
 	auditEvent := log.AuditEventLog{
 		Module:     MODULE,
-		Action:     retToaction(event.Ret),
+		Action:     retToAction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
 		UID:        event.UID,
@@ -144,7 +144,7 @@ func parseEvent(eventBytes []byte) (auditLog, error) {
 	return event, nil
 }
 
-func retToaction(ret int32) string {
+func retToAction(ret int32) string {
 	if ret == 0 {
 		return "ALLOWED"
 	} else if ret > 0 {
