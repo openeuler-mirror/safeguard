@@ -178,7 +178,7 @@ func (l *RestrictedFileAccessLog) Info() {
 		"Comm":       l.Comm,
 		"ParentComm": l.ParentComm,
 		"Path":       l.Path,
-	}).Info("File access is trapped in th filter.")
+	}).Info("File access is trapped in the filter.")
 }
 
 func (l *RestrictedMountLog) Info() {
@@ -190,7 +190,7 @@ func (l *RestrictedMountLog) Info() {
 		"Comm":       l.Comm,
 		"ParentComm": l.ParentComm,
 		"SourcePath": l.SourcePath,
-	}).Info("Mount event is trapped in th filter.")
+	}).Info("Mount event is trapped in the filter.")
 }
 
 func (l *RestrictedProcessLog) Info() {
@@ -202,5 +202,5 @@ func (l *RestrictedProcessLog) Info() {
 		"PPID":       l.PPID,
 		"Comm":       l.Comm,
 		"ParentComm": l.ParentComm,
-	}).Info("Process event is trapped in th filter.")
+	}).Info("Process event is trapped in the filter.")
 }
