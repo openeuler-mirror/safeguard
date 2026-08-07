@@ -131,6 +131,17 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		}
 	}()
 
+	// 消费 perf buffer lost channel，否则丢失事件无可见性
+	go func() {
+		for {
+			lost := <-lostChannel
+			log.WithFields(logrus.Fields{
+				"Module":     MODULE,
+				"LostEvents": lost,
+			}).Warn("Perf buffer lost audit events.")
+		}
+	}()
+
 	// 处理 LSM hook 执行审计事件
 	go func() {
 		for {
