@@ -2,7 +2,10 @@ network:
   # Enable this section before applying the network policy below.
   enable: true
   # Block or monitor the network.
-  # If block is specified, communication that matches the policy will be blocked.
+  # In blacklist mode (top-level policy: blacklist, the default), the deny list
+  # is blocked and everything else is allowed. In whitelist mode, the allow list
+  # is permitted and everything else is blocked; the deny list is then used as
+  # exceptions removed from the allow set.
   mode: block # monitor or block. Default: monitor
   # Restriction to the whole host or to a container
   target: host # host or container. Default: host
@@ -19,11 +22,14 @@ network:
       #- example.com
       - baidu.com
   # Restrictions by command name (optional).
+  # In blacklist mode, an empty allow list means all commands are allowed and
+  # deny blocks listed commands. In whitelist mode, an empty allow list blocks
+  # every command and allow enumerates the exceptions.
   command:
-    # Default: empty. All command will be allowed.
+    # Default: empty. Behavior depends on policy mode (see above).
     allow: []
     # - curl
-    # Default: empty. All command will be allowed.
+    # Default: empty. Behavior depends on policy mode (see above).
     deny: []
     #  - wget
     #  - nc
