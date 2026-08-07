@@ -142,5 +142,7 @@ $ bpftool map update pinned /sys/fs/bpf/file_config key 00 00 00 00 value 01 00 
 
 # LICENSE
 
-safeguard's userspace program is licensed under Apache License 2.0 License.  
-eBPF programs inside [pkg/bpf directory](pkg/bpf) are licensed under [GNU General Public License version 2](./pkg/bpf/LICENSE.md).  
+safeguard's userspace program is licensed under Apache License 2.0 License.
+eBPF programs inside [pkg/bpf directory](pkg/bpf) are licensed under [GNU General Public License version 2](./pkg/bpf/LICENSE.md).
+
+> Note: the BPF C sources declare the kernel-facing license string individually via `SEC("license")`. Three of the four programs (`restricted-file.bpf.c`, `restricted-mount.bpf.c`, `restricted-network.bpf.c`) declare `"Dual BSD/GPL"`, while `restricted-process.bpf.c` declares `"GPL"`. Both declarations are compatible with the GPL v2 text in `pkg/bpf/LICENSE.md`, but they are not yet uniform. The authoritative license is the GPL v2 text; unifying the declared strings is tracked as a maintainer follow-up.
