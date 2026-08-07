@@ -164,7 +164,7 @@ func (l *RestrictedNetworkLog) Info() {
 		"Domain":     l.Domain,
 		"Port":       l.Port,
 		"Protocol":   l.Protocol,
-	}).Info("Traffic is trapped in the filter.")
+	}).Info("Network policy event.")
 }
 
 func (l *RestrictedFileAccessLog) Info() {
