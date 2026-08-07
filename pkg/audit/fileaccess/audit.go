@@ -59,6 +59,13 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 	return mod, nil
 }
 
+// RunAudit launches the file access audit module. It is meant to be
+// invoked as a goroutine: it calls wg.Done() on return and blocks on
+// ctx until shutdown. A disabled module (Enable=false) returns nil
+// immediately after signalling wg. A setup failure (config error,
+// BPF load or attach failure) is returned as an error before the
+// blocking event loop begins; once the loop starts, the function only
+// returns when ctx is cancelled.
 func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
 	defer wg.Done()
 
