@@ -62,7 +62,7 @@ func SetOutput(path string) {
 	if path == "stdout" || path == "" {
 		Logger.Logger.Out = os.Stdout
 	} else {
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0640)
 		if err != nil {
 			Logger.Fatal(err)
 		}
