@@ -318,7 +318,7 @@ static inline void reoprt_net_events(struct network_safeguard_config *c, int can
   }
 }
 
-// TODO: lsm/send_msg
+// TODO: implement and attach lsm/socket_sendmsg for UDP sendto() coverage
 SEC("lsm/socket_connect")
 int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
              int addrlen) {
