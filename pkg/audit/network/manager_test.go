@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package network
 
 import (
@@ -115,7 +118,7 @@ func Test_domainNameToBPFMapKey(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			addrs, err := domainNameToBPFMapKey(test.domainName, test.addresses)
 			if err != nil {
-				t.Errorf("domanNameToBPFMapKey return error: %#v", err)
+				t.Errorf("domainNameToBPFMapKey return error: %#v", err)
 			}
 			assert.Equal(t, test.expected, addrs)
 		})

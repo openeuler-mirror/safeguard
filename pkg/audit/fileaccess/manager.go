@@ -60,12 +60,15 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) Attach() error {
+	// TODO: restricted_mmap_file and restricted_file_ioctl are not
+	// attached because they exceed verifier complexity limits on
+	// supported kernels. See audit finding #49.
 	for _, prog_name := range []string{"restricted_file_open",
 		"restricted_path_unlink",
 		"restricted_file_truncate",
 		"restricted_path_rmdir",
 		"restricted_path_rename",
-		"restricted_file_receive"} { //, "restricted_mmap_file", "restricted_file_ioctl"} {
+		"restricted_file_receive"} {
 		prog, err := m.mod.GetProgram(prog_name)
 		if err != nil {
 			return err
@@ -146,54 +149,45 @@ func (m *Manager) setDeniedFileAccessMap() error {
 		}
 	}
 
-	/* kernel version lower than 5.10
-	result := ""
-	for _, path := range denied_paths {
-		result += path
-		result += "|"
-	}
-	key := uint8(0)
-	value := []byte(result)
-	err = map_denied_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
-	if err != nil {
-		return err
-	}
-	*/
+	// NOTE: On kernels <= 5.10 the BPF C #else branch still expects a
+	// single concatenated entry at map key 0, but userspace no longer
+	// writes that format. Old-kernel support for denied file paths is
+	// therefore incomplete; see audit findings #6 and #56.
 
 	return nil
 }
 
-// ConfigKeySize is the size of the config key in bytes (3 uint32 fields: mode, target, policy)
-const ConfigKeySize = 12
+// ConfigValueSize is the size of the config value written to the BPF map (3 uint32 fields: mode, target, policy)
+const ConfigValueSize = 12
 
 func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, ConfigKeySize)
+	value := make([]byte, ConfigValueSize)
 	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
 	if err != nil {
 		return err
 	}
 
 	if m.config.IsRestrictedMode("fileaccess") {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_BLOCK)
+		binary.LittleEndian.PutUint32(value[0:4], MODE_BLOCK)
 	} else {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_MONITOR)
+		binary.LittleEndian.PutUint32(value[0:4], MODE_MONITOR)
 	}
 
 	if m.config.IsOnlyContainer("fileaccess") {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_CONTAINER)
+		binary.LittleEndian.PutUint32(value[4:8], TARGET_CONTAINER)
 	} else {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
+		binary.LittleEndian.PutUint32(value[4:8], TARGET_HOST)
 	}
 
 	// 设置 policy 值
 	if m.config.Policy == "whitelist" {
-		binary.LittleEndian.PutUint32(key[8:12], POLICY_WHITELIST)
+		binary.LittleEndian.PutUint32(value[8:12], POLICY_WHITELIST)
 	} else {
-		binary.LittleEndian.PutUint32(key[8:12], POLICY_BLACKLIST)
+		binary.LittleEndian.PutUint32(value[8:12], POLICY_BLACKLIST)
 	}
 
 	k := uint8(0)
-	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
+	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&value[0]))
 	if err != nil {
 		return err
 	}

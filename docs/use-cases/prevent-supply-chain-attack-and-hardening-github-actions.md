@@ -1,4 +1,4 @@
-# Prevent Supply Chain Attacks and Hardening GitHub Actions Self-hosted Runner
+# Prevent supply-chain attacks and harden self-hosted GitHub Actions runners
 
 In recent years, there have been many incidents of credentials being compromised from CI / CD environments due to supply chain attacks.  
 Signature verification and hash verification help prevent supply chain attacks, and egress restriction is another measure that should be taken.
@@ -6,7 +6,7 @@ safeguard can be installed in a CI/CD environment to restrict network communicat
 
 ## Hardening GitHub Actions Self-hosted Runner
 
-Hardening a Workflow running on GitHub Actions Self-hosted Runner is done in the following steps:
+Hardening a workflow running on a self-hosted GitHub Actions runner is done in the following steps:
 
 ### 1. Install safeguard
 

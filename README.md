@@ -79,53 +79,40 @@ process:
 $ bpftool map update pinned /sys/fs/bpf/file_config key 00 00 00 00 value 01 00 00 00 00 00 00 00
 ```
 
-# 项目功能(部分位于开发阶段)
+# 项目功能
+
+下面区分**已实现**的核心能力与仍在探索中的**规划方向**。规划方向仅作为设计意图记录,不一定在短期版本中落地;请勿在阅读时假设这些功能当前可用。具体平台支持矩阵见后续 [开发路线](#开发路线) 一节。
+
+## 已实现
 
 ### 审计控制
-文件：
-- 追踪文件系统的活动，包括文件的打开、关闭、读写、删除等。
-- 修改文件系统的行为，例如拦截某些文件操作，或者实现自定义的**安全策略**。
-	安全策略：
-    1.  拦截或重定向某些文件操作，使用eBPF来拦截对敏感文件的读写操作，或者重定向对某些文件的访问到其他位置。
-    2.  实现自定义的访问控制，使用eBPF来检查对文件的访问者的身份、权限、环境等信息，然后根据一些规则来允许或拒绝访问。
-    3.  实现自定义的审计和监控，使用eBPF来记录对某些文件的操作的详细信息，如操作者、时间、内容等，并将这些信息输出到日志。
+文件:
+- 通过 LSM hook 追踪文件系统的活动,包括打开、关闭、读写、删除等。
+- 基于 allow/deny 路径前缀,在 block 模式下拦截匹配的文件访问(黑/白名单两种策略)。
 
-进程：
-- 追踪进程的生命周期，例如进程的创建、终止、调度、上下文切换等。
-- 修改进程的行为，例如注入或修改某些系统调用，或者实现自定义的调度策略。
+进程:
+- 通过 LSM hook 追踪进程执行(exec)与生命周期事件。
 
-网络：
-- 追踪网络的活动，例如网络包的发送、接收、转发、丢弃等。
-- 修改网络的行为，例如过滤或重写某些网络包，或者实现自定义的路由策略。
+网络:
+- 通过 sockaddr / connect 路径追踪并拦截出站 TCP 连接,结合域名解析结果做 CIDR 级别匹配。
+- 通过 /proc/net 周期采样补充监听端口与已建立连接的快照。
 
-
-### 行为分析
-- 收集并分析文件系统的性能、热点、异常等。（选择合适的eBPF程序类型和挂载点，例如，使用kprobes或tracepoints来追踪文件系统相关的内核函数或事件，如vfs\_read, vfs\_write, ext4\_sync\_file等。）
-    
-- 收集信息来分析进程的资源消耗、状态变化、依赖关系等（do\_fork, do\_exit, schedule等）。
-- 收集信息，分析网络的流量、延迟、丢包率、拥塞等（使用tc或xdp来追踪网络包的发送、接收、转发、丢弃等事件）。
+挂载:
+- 通过 LSM hook 追踪并拦截 `mount` 系统调用,基于 source 维度匹配策略。
 
 ### 主机管理
-从安全角度自动化构建细粒度资产信息，支持对业务层资产精准识别和动态感知，让保护对象清晰可见。
-- 账号展示
-- 端口列表
-- 进程列表
+控制器(controller)从 /proc、/etc/passwd 与网络接口采集一次快照,自动生成可在 monitor / block 模式下使用的白名单基线,并输出基线对比报告。
 
-### 风险管理
-精准发现内部风险，快速定位问题并有效解决安全风险，提供详细的资产信息、风险信息以供分析和响应。
-- 漏洞检测
-- 安全补丁
-- 弱密码
-- 系统风险
-- 账号风险
+## 规划与探索方向
 
-### 入侵检测
-提供多锚点的检测能力，能够实时、准确的感知入侵事件，发现失陷主机，并提供对入侵事件的响应手段。
-- 暴力破解
-- 异常登录
-- 反弹shell
-- 本地提权
-- 后门检测，Web后门
+以下条目描述的是设计意图或调研方向,当前代码**尚未实现**;实现细节、可行性与上线时间均未确定。
+
+- 文件访问重定向、按身份/环境的细粒度访问控制、文件操作内容采集。
+- 进程行为改写,例如系统调用注入、自定义调度策略。
+- 网络包重写、自定义路由、基于 tc/xdp 的流量分析。
+- 文件系统/进程/网络的性能、热点、延迟与拥塞等行为分析。
+- 风险管理:漏洞检测、安全补丁、弱密码、系统与账号风险评估。
+- 入侵检测:暴力破解、异常登录、反弹 shell、本地提权、持久化后门与 Web 后门。
 
 
 # 开发路线
@@ -155,5 +142,7 @@ $ bpftool map update pinned /sys/fs/bpf/file_config key 00 00 00 00 value 01 00 
 
 # LICENSE
 
-safeguard's userspace program is licensed under Apache License 2.0 License.  
-eBPF programs inside [pkg/bpf directory](pkg/bpf) are licensed under [GNU General Public License version 2](./pkg/bpf/LICENSE.md).  
+safeguard's userspace program is licensed under Apache License 2.0 License.
+eBPF programs inside [pkg/bpf directory](pkg/bpf) are licensed under [GNU General Public License version 2](./pkg/bpf/LICENSE.md).
+
+> Note: the BPF C sources declare the kernel-facing license string individually via `SEC("license")`. Three of the four programs (`restricted-file.bpf.c`, `restricted-mount.bpf.c`, `restricted-network.bpf.c`) declare `"Dual BSD/GPL"`, while `restricted-process.bpf.c` declares `"GPL"`. Both declarations are compatible with the GPL v2 text in `pkg/bpf/LICENSE.md`, but they are not yet uniform. The authoritative license is the GPL v2 text; unifying the declared strings is tracked as a maintainer follow-up.

@@ -67,7 +67,7 @@ static inline void report_ipv4_event(void *ctx, u64 cg, enum action action,
   BPF_CORE_READ_INTO(&ev.hdr.nodename, current_task, nsproxy, uts_ns, name.nodename);
   ev.hdr.cgroup = cg;
   ev.hdr.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
-  ev.hdr.type = BLOCKED_IPV4;
+  ev.hdr.type = EVENT_IPV4;
   bpf_get_current_comm(&ev.hdr.task, sizeof(ev.hdr.task));
 
   struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
@@ -100,7 +100,7 @@ static inline void report_ipv6_event(void *ctx, u64 cg, enum action action,
 
   ev.hdr.cgroup = cg;
   ev.hdr.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
-  ev.hdr.type = BLOCKED_IPV6;
+  ev.hdr.type = EVENT_IPV6;
   bpf_get_current_comm(&ev.hdr.task, sizeof(ev.hdr.task));
 
   struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
@@ -117,8 +117,12 @@ static inline void report_ipv6_event(void *ctx, u64 cg, enum action action,
   bpf_ringbuf_output(&audit_events, &ev, sizeof(ev), 0);
 }
 
-// In some cases, such as getaddrinfo(), sin_port is set to 0.
-// Not audited because no communication actually occurs.
+// Port 0 check.
+// For connect() (e.g. getaddrinfo() lookups) sin_port can be 0 and no
+// communication occurs on that call — safe to skip.
+// For bind(), port 0 means the kernel assigns an ephemeral port; the
+// socket can still communicate. Applying the same skip to bind is a
+// known gap — see audit finding #54.
 static inline bool is_destination_port_zero_v4(struct sockaddr_in *inet_addr) {
   return __builtin_bswap16(inet_addr->sin_port) == 0;
 }
@@ -192,7 +196,8 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   allowed_gid.gid = (unsigned)(bpf_get_current_uid_gid() >> 32);
   denied_gid.gid = (unsigned)(bpf_get_current_uid_gid() >> 32);
 
-  // Redundant by BPF constraints...
+  // Copy config flags into locals because the BPF verifier may reject
+  // direct pointer-field reads through complex control flow.
   int has_allow_command = 0;
   int has_allow_uid = 0;
   int has_allow_gid = 0;
@@ -234,7 +239,8 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
     allow_command = 0;
   }
 
-  // Deny 列表检查（优先级最高，始终生效）
+  // Deny 列表检查（deny 是基线策略；allow 的 command/UID/GID 可作为
+  // CIDR deny 的例外 override allow_connect，见下方 allow_*_list 逻辑）
   if (bpf_map_lookup_elem(&denied_command_list, &denied_command)) {
     allow_command = -EPERM;
   }
@@ -280,7 +286,7 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   return can_access;
 } 
 
-static inline void reoprt_net_events(struct network_safeguard_config *c, int can_access, unsigned long long *ctx,
+static inline void report_net_events(struct network_safeguard_config *c, int can_access, unsigned long long *ctx,
                                     struct socket *sock, struct sockaddr *address){
   unsigned short family = BPF_CORE_READ(address, sa_family);
   bool is_ipv6 = (family == AF_INET6);
@@ -318,7 +324,7 @@ static inline void reoprt_net_events(struct network_safeguard_config *c, int can
   }
 }
 
-// TODO: lsm/send_msg
+// TODO: implement and attach lsm/socket_sendmsg for UDP sendto() coverage
 SEC("lsm/socket_connect")
 int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
              int addrlen) {
@@ -327,7 +333,7 @@ int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
       (struct network_safeguard_config *)bpf_map_lookup_elem(&network_safeguard_config_map, &index);
 
   int can_access = get_net_perm(c, address);
-  reoprt_net_events(c, can_access, ctx, sock, address);
+  report_net_events(c, can_access, ctx, sock, address);
 
   // In monitor mode, allow all access
   if (c && c->mode == MODE_MONITOR) {
@@ -344,7 +350,7 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
       (struct network_safeguard_config *)bpf_map_lookup_elem(&network_safeguard_config_map, &index);
 
   int can_access = get_net_perm(c, address);
-  reoprt_net_events(c, can_access, ctx, sock, address);
+  report_net_events(c, can_access, ctx, sock, address);
 
   // In monitor mode, allow all access
   if (c && c->mode == MODE_MONITOR) {

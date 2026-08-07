@@ -17,6 +17,8 @@ import (
 
 	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -58,11 +60,15 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 	return mod, nil
 }
 
+// RunAudit launches the mount audit module. See fileaccess.RunAudit for
+// the contract: it runs as a goroutine, signals wg on return, returns
+// nil when the module is disabled, returns an error on setup failure
+// before the event loop, and otherwise blocks until ctx is cancelled.
 func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
 	defer wg.Done()
 
 	if !conf.RestrictedMountConfig.Enable {
-		log.Info("mount audit is disable. shutdown...")
+		log.Info("mount audit is disabled; shutting down...")
 		return nil
 	}
 
@@ -84,7 +90,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mgr.Attach()
 
-	log.Info("Start the mount audit.")
+	log.Info("Mount audit started.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
 	mgr.Start(eventChannel, lostChannel)
@@ -106,9 +112,19 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		}
 	}()
 
+	go func() {
+		for {
+			lost := <-lostChannel
+			log.WithFields(logrus.Fields{
+				"Module":     MODULE,
+				"LostEvents": lost,
+			}).Warn("Perf buffer lost audit events.")
+		}
+	}()
+
 	<-ctx.Done()
 	mgr.Close()
-	log.Info("Terminated the mount audit.")
+	log.Info("Mount audit stopped.")
 
 	return nil
 }
@@ -116,7 +132,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 func newAuditLog(event auditLog) log.RestrictedMountLog {
 	auditEvent := log.AuditEventLog{
 		Module:     MODULE,
-		Action:     retToaction(event.Ret),
+		Action:     retToAction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
 		Comm:       helpers.CommToString(event.Command),
@@ -142,7 +158,7 @@ func parseEvent(eventBytes []byte) (auditLog, error) {
 	return event, nil
 }
 
-func retToaction(ret int32) string {
+func retToAction(ret int32) string {
 	if ret == 0 {
 		return "ALLOWED"
 	} else if ret > 0 {
