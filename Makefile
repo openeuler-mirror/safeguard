@@ -77,12 +77,12 @@ build/docker:
 .PHONY: test/unit
 test/unit: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
 	which gotestsum || go install gotest.tools/gotestsum@latest
-	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- --mod=vendor -bench=^$$ -race ./...
+	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- -bench=^$$ -race ./...
 
 .PHONY: test
 test: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
 	which gotestsum || go install gotest.tools/gotestsum@latest
-	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- --tags=integration --mod=vendor -bench=^$$ -race ./...
+	$(CGOFLAG) sudo -E `go env GOPATH`/bin/gotestsum -- --tags=integration -bench=^$$ -race ./...
 
 .PHONY: test/integration/specify
 test/integration/specify: bpf-restricted-network bpf-restricted-file bpf-restricted-mount bpf-restricted-process
