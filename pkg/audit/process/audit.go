@@ -75,6 +75,11 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 	return mod, nil
 }
 
+// RunAudit launches the process audit module. See fileaccess.RunAudit
+// for the contract: it runs as a goroutine, signals wg on return,
+// returns nil when the module is disabled, returns an error on setup
+// failure before the event loop, and otherwise blocks until ctx is
+// cancelled.
 func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
 	defer wg.Done()
 
