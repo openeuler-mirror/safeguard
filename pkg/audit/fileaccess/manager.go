@@ -163,37 +163,37 @@ func (m *Manager) setDeniedFileAccessMap() error {
 	return nil
 }
 
-// ConfigKeySize is the size of the config key in bytes (3 uint32 fields: mode, target, policy)
-const ConfigKeySize = 12
+// ConfigValueSize is the size of the config value written to the BPF map (3 uint32 fields: mode, target, policy)
+const ConfigValueSize = 12
 
 func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, ConfigKeySize)
+	value := make([]byte, ConfigValueSize)
 	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
 	if err != nil {
 		return err
 	}
 
 	if m.config.IsRestrictedMode("fileaccess") {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_BLOCK)
+		binary.LittleEndian.PutUint32(value[0:4], MODE_BLOCK)
 	} else {
-		binary.LittleEndian.PutUint32(key[0:4], MODE_MONITOR)
+		binary.LittleEndian.PutUint32(value[0:4], MODE_MONITOR)
 	}
 
 	if m.config.IsOnlyContainer("fileaccess") {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_CONTAINER)
+		binary.LittleEndian.PutUint32(value[4:8], TARGET_CONTAINER)
 	} else {
-		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
+		binary.LittleEndian.PutUint32(value[4:8], TARGET_HOST)
 	}
 
 	// 设置 policy 值
 	if m.config.Policy == "whitelist" {
-		binary.LittleEndian.PutUint32(key[8:12], POLICY_WHITELIST)
+		binary.LittleEndian.PutUint32(value[8:12], POLICY_WHITELIST)
 	} else {
-		binary.LittleEndian.PutUint32(key[8:12], POLICY_BLACKLIST)
+		binary.LittleEndian.PutUint32(value[8:12], POLICY_BLACKLIST)
 	}
 
 	k := uint8(0)
-	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
+	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&value[0]))
 	if err != nil {
 		return err
 	}
