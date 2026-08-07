@@ -33,6 +33,7 @@ func NewSnapshotCollector() SnapshotCollector {
 	}
 }
 
+// Collect gathers host data from all registered collectors into a HostSnapshot.
 func (c SnapshotCollector) Collect() (model.HostSnapshot, error) {
 	hostname, err := c.HostnameFn()
 	if err != nil {
