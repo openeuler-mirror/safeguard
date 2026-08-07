@@ -28,7 +28,13 @@ func initDNSCache() {
 
 // To FQDN format
 // e.g. example.com -> example.com.
+// Defensive against empty input: toFqdn("") would otherwise index
+// domainName[-1:] and panic. The config layer does not currently
+// reject empty domain entries, so callers may pass "" through.
 func toFqdn(domainName string) string {
+	if domainName == "" {
+		return ""
+	}
 	if domainName[len(domainName)-1:] == "." {
 		return domainName
 	}
@@ -129,7 +135,7 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 		if err != nil {
 			return 5, nil
 		}
-		err = mgr.updateAllowedFQDNist(answer)
+		err = mgr.updateAllowedFQDNList(answer)
 		if err != nil {
 			return 5, nil
 		}
@@ -141,7 +147,7 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 		if err != nil {
 			return 5, nil
 		}
-		err = mgr.updateAllowedFQDNist(answer)
+		err = mgr.updateAllowedFQDNList(answer)
 		if err != nil {
 			return 5, nil
 		}

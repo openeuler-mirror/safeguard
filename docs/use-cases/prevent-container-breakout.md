@@ -1,6 +1,6 @@
-# Prevent Breakout Container
+# Prevent container breakout
 
-#### Block mount `/var/run/docker.sock` to container
+#### Block mounting `/var/run/docker.sock` into a container
 
 ```yaml
 mount:

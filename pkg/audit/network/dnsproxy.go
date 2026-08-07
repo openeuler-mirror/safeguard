@@ -67,7 +67,7 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 		for _, allowedDomain := range this.manager.config.Domain.Allow {
 			if toFqdn(allowedDomain) == fqdn {
-				this.manager.updateAllowedFQDNist(dnsAnswer)
+				this.manager.updateAllowedFQDNList(dnsAnswer)
 				break
 			}
 		}
