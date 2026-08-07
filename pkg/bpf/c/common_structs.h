@@ -49,7 +49,7 @@ enum lsm_hook_point
   SENDMSG // Not implemented yet.
 };
 
-enum svrtarget
+enum server_target
 {
 	TARGET_HOST,
 	TARGET_CONTAINER
