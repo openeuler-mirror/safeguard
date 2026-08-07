@@ -415,7 +415,7 @@ func (m *Manager) initDomainList() error {
 		}
 
 		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateAllowedFQDNist(answer)
+		err = m.updateAllowedFQDNList(answer)
 		if err != nil {
 			return err
 		}
@@ -427,7 +427,7 @@ func (m *Manager) initDomainList() error {
 		}
 
 		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateAllowedFQDNist(answer)
+		err = m.updateAllowedFQDNList(answer)
 		if err != nil {
 			return err
 		}
@@ -436,7 +436,7 @@ func (m *Manager) initDomainList() error {
 	return nil
 }
 
-func (m *Manager) updateAllowedFQDNist(answer *DNSAnswer) error {
+func (m *Manager) updateAllowedFQDNList(answer *DNSAnswer) error {
 	allowedAddresses, err := domainNameToBPFMapKey(answer.Domain, answer.Addresses)
 	if err != nil {
 		return err
