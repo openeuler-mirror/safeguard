@@ -398,11 +398,11 @@ func (m *Manager) initDomainList() error {
 	for _, domain := range m.config.RestrictedNetworkConfig.Domain.Deny {
 		answer, err := m.ResolveAddressv4(domain)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domain, err))
+			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s", domain, err))
 			continue
 		}
 
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		err = m.updateDeniedFQDNList(answer)
 		if err != nil {
 			return err
@@ -410,11 +410,11 @@ func (m *Manager) initDomainList() error {
 
 		answer, err = m.ResolveAddressv6(domain)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s\n", domain, err))
+			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s", domain, err))
 			continue
 		}
 
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		err = m.updateDeniedFQDNList(answer)
 		if err != nil {
 			return err
@@ -424,7 +424,7 @@ func (m *Manager) initDomainList() error {
 	for _, domain := range m.config.RestrictedNetworkConfig.Domain.Allow {
 		answer, err := m.ResolveAddressv4(domain)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domain, err))
+			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s", domain, err))
 			continue
 		}
 
@@ -436,7 +436,7 @@ func (m *Manager) initDomainList() error {
 
 		answer, err = m.ResolveAddressv6(domain)
 		if err != nil {
-			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s\n", domain, err))
+			log.Debug(fmt.Sprintf("%s (AAAA) resolve failed. %s", domain, err))
 			continue
 		}
 
