@@ -79,7 +79,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	defer wg.Done()
 
 	if !conf.RestrictedProcessConfig.Enable {
-		log.Info("process audit is disable. shutdown...")
+		log.Info("process audit is disabled; shutting down...")
 		return nil
 	}
 
