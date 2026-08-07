@@ -129,7 +129,7 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 		if err != nil {
 			return 5, nil
 		}
-		err = mgr.updateAllowedFQDNist(answer)
+		err = mgr.updateAllowedFQDNList(answer)
 		if err != nil {
 			return 5, nil
 		}
@@ -141,7 +141,7 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 		if err != nil {
 			return 5, nil
 		}
-		err = mgr.updateAllowedFQDNist(answer)
+		err = mgr.updateAllowedFQDNList(answer)
 		if err != nil {
 			return 5, nil
 		}
