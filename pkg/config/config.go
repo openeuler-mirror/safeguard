@@ -43,7 +43,7 @@ type RestrictedProcessConfig struct {
 type DomainConfig struct {
 	Allow    []string `yaml:"allow"`
 	Deny     []string `yaml:"deny"`
-	Interval uint     `yaml:"interval"` // deprecated
+	Interval uint     `yaml:"interval"` // ignored; retained only for config compatibility. DNS refresh uses TTL.
 }
 
 type DNSProxyConfig struct {
