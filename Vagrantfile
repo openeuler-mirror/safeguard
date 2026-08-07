@@ -58,6 +58,7 @@ Vagrant.configure("2") do |config|
 EOF
     systemctl restart docker
     curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    echo "f3f10cf3dbb8107e9ba2ea5f23c1d2159ff7321d16f0a23051d68d8e2547b323  /usr/local/bin/docker-compose" | sha256sum -c -
     chmod +x /usr/local/bin/docker-compose
   SHELL
 end
