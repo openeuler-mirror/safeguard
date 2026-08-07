@@ -62,7 +62,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	defer wg.Done()
 
 	if !conf.RestrictedMountConfig.Enable {
-		log.Info("mount audit is disable. shutdown...")
+		log.Info("mount audit is disabled; shutting down...")
 		return nil
 	}
 
