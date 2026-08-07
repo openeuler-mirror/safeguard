@@ -117,8 +117,12 @@ static inline void report_ipv6_event(void *ctx, u64 cg, enum action action,
   bpf_ringbuf_output(&audit_events, &ev, sizeof(ev), 0);
 }
 
-// In some cases, such as getaddrinfo(), sin_port is set to 0.
-// Not audited because no communication actually occurs.
+// Port 0 check.
+// For connect() (e.g. getaddrinfo() lookups) sin_port can be 0 and no
+// communication occurs on that call — safe to skip.
+// For bind(), port 0 means the kernel assigns an ephemeral port; the
+// socket can still communicate. Applying the same skip to bind is a
+// known gap — see audit finding #54.
 static inline bool is_destination_port_zero_v4(struct sockaddr_in *inet_addr) {
   return __builtin_bswap16(inet_addr->sin_port) == 0;
 }
