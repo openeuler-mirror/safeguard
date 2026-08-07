@@ -8,8 +8,8 @@ Linux Kernel >= 5.13 is required to use this option.
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, file access events are only logged. If `block` is specified, matching file access is blocked. |
 | `target` | Enum with the following possible values: `host`, `container` | Selecting `host` applies the restriction host-wide. Selecting `container` applies the restriction only to containers. |
 | `policy` | Enum with the following possible values: `blacklist`, `whitelist` | If `blacklist` is specified (default), allow all except denied. If `whitelist` is specified, deny all except allowed. |
-| `allow` | A list of allow file paths | |
-| `deny` | A list of allow file paths | |
+| `allow` | A list of allowed file path prefixes (matched against the start of the absolute path) | |
+| `deny` | A list of denied file path prefixes (matched against the start of the absolute path) | |
 
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the file access restriction module disabled even when `mode`, `policy`, `allow`, or `deny` are configured.
 Use `monitor` mode first when validating a new file access policy, then switch to `block` after the required paths are confirmed.
