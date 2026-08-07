@@ -79,7 +79,10 @@ struct file_open_audit_event {
     char task[TASK_COMM_LEN];
     char parent_task[TASK_COMM_LEN];
     unsigned char path[NAME_MAX];
-}; //512 stack size restrict, now [479 - 64(cgroup) + 32(uid)] + other_stack
+};
+// NOTE: this event struct is too large for the 512-byte BPF stack.
+// BPF programs must reserve space via ring/perf buffer and write into
+// the reservation, not allocate this struct as a local variable.
 
 struct fileopen_safeguard_config {
     u32 mode;
