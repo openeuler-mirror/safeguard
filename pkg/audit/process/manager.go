@@ -64,7 +64,7 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 }
 
 // StartExecAudit 启动进程执行审计（ringbuf）
-func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint64) error {
+func (m *Manager) StartExecAudit(eventChannel chan []byte) error {
 	rb, err := m.mod.InitRingBuf("process_exec_events", eventChannel)
 	if err != nil {
 		return err
