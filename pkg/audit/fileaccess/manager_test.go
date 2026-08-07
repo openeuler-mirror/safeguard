@@ -11,7 +11,7 @@ import (
 )
 
 func Test_Attach(t *testing.T) {
-	t.Run("expect to be attach BPF Program", func(t *testing.T) {
+	t.Run("attaches the BPF program", func(t *testing.T) {
 		config := config.DefaultConfig()
 		mgr := createManager(config)
 		defer mgr.mod.Close()
@@ -46,7 +46,7 @@ func Test_SetConfigMap_AllowedFiles(t *testing.T) {
 
 			map_allowed_files, err := mgr.mod.GetMap(ALLOWED_FILES_MAP_NAME)
 			if err != nil {
-				t.Fatalf("Failed open eBPF map for %s, err: %s", ALLOWED_FILES_MAP_NAME, err)
+				t.Fatalf("Failed to open eBPF map for %s, err: %s", ALLOWED_FILES_MAP_NAME, err)
 			}
 
 			key := uint8(0)
@@ -87,7 +87,7 @@ func Test_SetConfigMap_DeniedFiles(t *testing.T) {
 
 			map_denied_files, err := mgr.mod.GetMap(DENIED_FILES_MAP_NAME)
 			if err != nil {
-				t.Fatalf("Failed open eBPF map for %s, err: %s", DENIED_FILES_MAP_NAME, err)
+				t.Fatalf("Failed to open eBPF map for %s, err: %s", DENIED_FILES_MAP_NAME, err)
 			}
 
 			iter := map_denied_files.Iterator()
