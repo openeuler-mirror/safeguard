@@ -69,7 +69,7 @@ log:
   # Log format(json or text). Default: json
   format: json
   # Specified log file location. Default: stdout
-  # output: /var/log/cuob.log.json
+  # output: /var/log/safeguard/audit.json
   # Maximum size to rotate (MB)
   # max_size: 100
   # Period for which logs are kept
