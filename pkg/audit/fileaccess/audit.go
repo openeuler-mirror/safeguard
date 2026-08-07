@@ -85,7 +85,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mgr.Attach()
 
-	log.Info("Start the fileaccess audit.")
+	log.Info("Fileaccess audit started.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
 	mgr.Start(eventChannel, lostChannel)
@@ -109,7 +109,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	<-ctx.Done()
 	mgr.Close()
-	log.Info("Terminated the fileaccess audit.")
+	log.Info("Fileaccess audit stopped.")
 
 	return nil
 }

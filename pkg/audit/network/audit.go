@@ -170,7 +170,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		log.Fatal(err)
 	}
 
-	log.Info("Start the network audit.")
+	log.Info("Network audit started.")
 	eventsChannel := make(chan []byte)
 	mgr.Start(eventsChannel)
 
@@ -194,7 +194,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	<-ctx.Done()
 	mgr.Close()
-	log.Info("Terminated the network audit.")
+	log.Info("Network audit stopped.")
 
 	return nil
 }

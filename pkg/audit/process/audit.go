@@ -100,7 +100,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mgr.Attach()
 
-	log.Info("Start the process audit.")
+	log.Info("Process audit started.")
 
 	// 处理 tracepoint 事件（fork/exec）
 	eventChannel := make(chan []byte)
@@ -166,7 +166,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	<-ctx.Done()
 	mgr.Close()
-	log.Info("Terminated the process audit.")
+	log.Info("Process audit stopped.")
 
 	return nil
 }

@@ -84,7 +84,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mgr.Attach()
 
-	log.Info("Start the mount audit.")
+	log.Info("Mount audit started.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
 	mgr.Start(eventChannel, lostChannel)
@@ -108,7 +108,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	<-ctx.Done()
 	mgr.Close()
-	log.Info("Terminated the mount audit.")
+	log.Info("Mount audit stopped.")
 
 	return nil
 }

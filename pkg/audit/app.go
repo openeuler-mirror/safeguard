@@ -87,7 +87,7 @@ EXAMPLES:
 		go mount.RunAudit(ctx, &wg, conf)
 
 		wg.Wait()
-		log.Info("Terminate all audit.")
+		log.Info("All audit modules stopped.")
 		return nil
 	}
 
