@@ -78,7 +78,7 @@ func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, e
 	}
 
 	if len(res.Answer) == 0 {
-		return nil, errors.New(fmt.Sprintf("%s has not records(type %d)", host, recordType))
+		return nil, fmt.Errorf("%s has no records of type %d", host, recordType)
 	}
 
 	answer := DNSAnswer{Domain: host}
@@ -98,7 +98,7 @@ func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, e
 	}
 
 	if answer.Addresses == nil {
-		return nil, errors.New(fmt.Sprintf("%s has not records(type %d)", host, recordType))
+		return nil, fmt.Errorf("%s has no records of type %d", host, recordType)
 	}
 
 	return &answer, nil
