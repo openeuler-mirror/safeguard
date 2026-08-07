@@ -75,6 +75,13 @@ func SetRotation(path string, maxSize, maxAge int) {
 		return
 	}
 
+	// SetOutput may have opened the same path as a plain *os.File; once
+	// lumberjack takes over, that handle would leak. Close it (best-effort,
+	// never the Stdout/Stderr sentinels) before swapping the writer.
+	if f, ok := Logger.Logger.Out.(*os.File); ok && f != os.Stdout && f != os.Stderr {
+		_ = f.Close()
+	}
+
 	log.SetOutput(&lumberjack.Logger{
 		Filename: path,
 		MaxSize:  maxSize,
