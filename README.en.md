@@ -1,6 +1,6 @@
-# safeguard: KRSI(eBPF+LSM) based Linux security auditing tool
+# safeguard: a KRSI (eBPF + LSM)-based Linux security auditing and enforcement tool
 
-safeguard is a Linux audit and observer tool based on eBPF.
+safeguard is a Linux security auditing and observability tool based on eBPF.
 Security events can be audited and blocked based on the container of the process, and restrictions can be applied to container environments.
 
 # Features
