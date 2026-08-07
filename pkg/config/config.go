@@ -91,6 +91,11 @@ type Config struct {
 	Log                        LogConfig
 }
 
+// DefaultConfig returns a populated *Config with the values used when a
+// YAML key is omitted. The returned config enables no modules; callers
+// must still set the per-module Enable flags or provide matching YAML.
+// The pointer is freshly allocated on every call and safe for single-
+// threaded construction use.
 func DefaultConfig() *Config {
 	return &Config{
 		Policy: "blacklist", // 默认黑名单模式
@@ -137,6 +142,12 @@ func DefaultConfig() *Config {
 	}
 }
 
+// NewConfig reads, parses and validates the YAML configuration file at
+// configPath. It starts from DefaultConfig and overlays the decoded YAML
+// on top, so omitted fields keep their defaults. Validation runs after
+// decoding; an invalid value yields a non-nil error and a nil *Config.
+// The returned *Config is safe for read-only access by the audit
+// modules after construction; it is not safe to mutate concurrently.
 func NewConfig(configPath string) (*Config, error) {
 	file, err := os.Open(configPath)
 	if err != nil {
