@@ -9,7 +9,7 @@ import (
 )
 
 func Test_Attach(t *testing.T) {
-	t.Run("expect to be attach BPF Program", func(t *testing.T) {
+	t.Run("attaches the BPF program", func(t *testing.T) {
 		config := config.DefaultConfig()
 		mgr := createManager(config)
 		defer mgr.mod.Close()
