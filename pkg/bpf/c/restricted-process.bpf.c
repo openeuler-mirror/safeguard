@@ -122,11 +122,13 @@ static inline void report_process_exec_event(struct linux_binprm *bprm, __u8 act
     bpf_ringbuf_submit(event, 0);
 }
 
-// 从路径中提取文件名（basename）
+// 从路径前缀提取文件名 basename。
+// 注意:仅扫描前 TASK_COMM_LEN (16) 字节,超过该长度的路径会得到错误结果。
+// 完整路径算法属于审计发现 #2 的后续工作。
 static inline void get_basename(const char *path, char *basename, size_t max_len) {
     int i = 0, last_slash = -1;
 
-    // 找到最后一个 '/'
+    // 在前 16 字节中找到最后一个 '/'
     #pragma unroll
     for (i = 0; i < TASK_COMM_LEN; i++) {
         char c;
@@ -162,7 +164,7 @@ int BPF_PROG(restricted_process_bprm_check, struct linux_binprm *bprm) {
         return 0;
     }
 
-    // 从完整路径提取文件名
+    // 从路径前缀提取文件名（受 16 字节扫描限制，见 get_basename）
     struct allowed_process_key key = {};
     const char *filename = BPF_CORE_READ(bprm, filename);
     get_basename(filename, key.comm, sizeof(key.comm));

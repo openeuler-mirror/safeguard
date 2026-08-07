@@ -1,6 +1,6 @@
-# safeguard: KRSI(eBPF+LSM) based Linux security auditing tool
+# safeguard: a KRSI (eBPF + LSM)-based Linux security auditing and enforcement tool
 
-safeguard is a Linux audit and observer tool based on eBPF.
+safeguard is a Linux security auditing and observability tool based on eBPF.
 Security events can be audited and blocked based on the container of the process, and restrictions can be applied to container environments.
 
 # Features
@@ -36,5 +36,7 @@ sudo ./build/safeguard --config config/safeguard.yml
 
 # LICENSE
 
-safeguard's userspace program is licensed under Apache License 2.0 License.  
-eBPF programs inside [pkg/bpf directory](pkg/bpf) are licensed under [GNU General Public License version 2](./pkg/bpf/LICENSE.md).  
+safeguard's userspace program is licensed under Apache License 2.0 License.
+eBPF programs inside [pkg/bpf directory](pkg/bpf) are licensed under [GNU General Public License version 2](./pkg/bpf/LICENSE.md).
+
+> Note: the BPF C sources declare the kernel-facing license string individually via `SEC("license")`. Three of the four programs (`restricted-file.bpf.c`, `restricted-mount.bpf.c`, `restricted-network.bpf.c`) declare `"Dual BSD/GPL"`, while `restricted-process.bpf.c` declares `"GPL"`. Both declarations are compatible with the GPL v2 text in `pkg/bpf/LICENSE.md`, but they are not yet uniform. The authoritative license is the GPL v2 text; unifying the declared strings is tracked as a maintainer follow-up.

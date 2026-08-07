@@ -17,6 +17,8 @@ import (
 
 	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -59,11 +61,18 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 	return mod, nil
 }
 
+// RunAudit launches the file access audit module. It is meant to be
+// invoked as a goroutine: it calls wg.Done() on return and blocks on
+// ctx until shutdown. A disabled module (Enable=false) returns nil
+// immediately after signalling wg. A setup failure (config error,
+// BPF load or attach failure) is returned as an error before the
+// blocking event loop begins; once the loop starts, the function only
+// returns when ctx is cancelled.
 func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
 	defer wg.Done()
 
 	if !conf.RestrictedFileAccessConfig.Enable {
-		log.Info("fileaccess audit is disable. shutdown...")
+		log.Info("fileaccess audit is disabled; shutting down...")
 		return nil
 	}
 
@@ -85,7 +94,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mgr.Attach()
 
-	log.Info("Start the fileaccess audit.")
+	log.Info("Fileaccess audit started.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
 	mgr.Start(eventChannel, lostChannel)
@@ -107,9 +116,19 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		}
 	}()
 
+	go func() {
+		for {
+			lost := <-lostChannel
+			log.WithFields(logrus.Fields{
+				"Module":     MODULE,
+				"LostEvents": lost,
+			}).Warn("Perf buffer lost audit events.")
+		}
+	}()
+
 	<-ctx.Done()
 	mgr.Close()
-	log.Info("Terminated the fileaccess audit.")
+	log.Info("Fileaccess audit stopped.")
 
 	return nil
 }
@@ -117,7 +136,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 func newAuditLog(event auditLog) log.RestrictedFileAccessLog {
 	auditEvent := log.AuditEventLog{
 		Module:     MODULE,
-		Action:     retToaction(event.Ret),
+		Action:     retToAction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
 		UID:        event.UID,
@@ -144,7 +163,7 @@ func parseEvent(eventBytes []byte) (auditLog, error) {
 	return event, nil
 }
 
-func retToaction(ret int32) string {
+func retToAction(ret int32) string {
 	if ret == 0 {
 		return "ALLOWED"
 	} else if ret > 0 {
