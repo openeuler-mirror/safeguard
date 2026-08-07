@@ -33,6 +33,7 @@ Vagrant.configure("2") do |config|
 
     # Setup Golang
     wget https://go.dev/dl/go1.17.5.linux-amd64.tar.gz -O /tmp/go1.17.5.linux-amd64.tar.gz
+    echo "bd78114b0d441b029c8fe0341f4910370925a4d270a6a590668840675b0c653e  /tmp/go1.17.5.linux-amd64.tar.gz" | sha256sum -c -
     rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go1.17.5.linux-amd64.tar.gz && ln -sf /usr/local/go/bin/go /usr/bin/go
     echo "PATH=\$PATH:/usr/local/go/bin" > /etc/profile
     mkdir -p /opt/go/{bin,src}
