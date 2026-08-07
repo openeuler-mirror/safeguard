@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 
 	"culinux/pkg/audit/fileaccess"
 	"culinux/pkg/audit/mount"
@@ -28,6 +29,9 @@ var (
 	}
 )
 
+// NewApp builds the top-level urfave/cli App for safeguard, wiring the
+// audit subcommand against the supplied version string. The returned
+// App is ready to pass to app.Run; do not reuse it across invocations.
 func NewApp(version string) *cli.App {
 	app := cli.NewApp()
 	app.Name = "safeguard"
@@ -75,7 +79,12 @@ EXAMPLES:
 		log.SetLabel(conf.Log.Labels)
 		log.SetLevel(conf.Log.Level)
 
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		// os.Interrupt covers Ctrl-C (SIGINT). SIGTERM is the default
+		// signal sent by systemd, container runtimes and process
+		// supervisors on shutdown; without it the goroutines below
+		// would never observe a graceful shutdown and the BPF programs
+		// would be torn down only by SIGTERM's default action.
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()
 
 		var wg sync.WaitGroup
@@ -87,7 +96,7 @@ EXAMPLES:
 		go mount.RunAudit(ctx, &wg, conf)
 
 		wg.Wait()
-		log.Info("Terminate all audit.")
+		log.Info("All audit modules stopped.")
 		return nil
 	}
 

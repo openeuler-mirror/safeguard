@@ -42,9 +42,7 @@ type SnapshotCollector interface {
 
 ### Implementations
 
-- `PasswdCollector`: Reads /etc/passwd
-- `ProcCollector`: Reads /proc filesystem
-- `NetworkCollector`: Gathers network info
+The package provides a single concrete type, `SnapshotCollector`, configured with file paths and network sources. It merges user accounts, processes, and network data into one `model.HostSnapshot` via internal helpers (`readPasswdAccounts`, `readProcProcesses`, `readProcNetCIDRs` and the host-interface CIDR collector).
 
 ## Model Package
 

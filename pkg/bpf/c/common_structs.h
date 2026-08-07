@@ -3,7 +3,13 @@
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 
-#define AUDIT_EVENTS_RING_SIZE (4 * 4096)
+// Size of the network audit events ring buffer, in bytes.
+// Must be a power of 2 and a multiple of the page size.
+// 256 KiB matches restricted-process.bpf.c's process_exec_events and
+// is large enough to absorb short bursts of connect()/sendmsg() events
+// without dropping; previously this was 16 KiB which audit #22 found
+// to be too small for burst traffic.
+#define AUDIT_EVENTS_RING_SIZE (64 * 4096)
 #define TASK_COMM_LEN 16
 #define NEW_UTS_LEN 64
 #define NAME_MAX 255
@@ -49,7 +55,7 @@ enum lsm_hook_point
   SENDMSG // Not implemented yet.
 };
 
-enum svrtarget
+enum server_target
 {
 	TARGET_HOST,
 	TARGET_CONTAINER
@@ -79,7 +85,10 @@ struct file_open_audit_event {
     char task[TASK_COMM_LEN];
     char parent_task[TASK_COMM_LEN];
     unsigned char path[NAME_MAX];
-}; //512 stack size restrict, now [479 - 64(cgroup) + 32(uid)] + other_stack
+};
+// NOTE: this event struct is too large for the 512-byte BPF stack.
+// BPF programs must reserve space via ring/perf buffer and write into
+// the reservation, not allocate this struct as a local variable.
 
 struct fileopen_safeguard_config {
     u32 mode;

@@ -7,8 +7,8 @@
 #define AF_INET6 10
 
 enum audit_event_type {
-  BLOCKED_IPV4,
-  BLOCKED_IPV6
+  EVENT_IPV4,
+  EVENT_IPV6
 };
 
 enum action

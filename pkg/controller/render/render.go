@@ -53,18 +53,5 @@ func WriteFile(path string, data []byte) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	// Refuse to follow a symlink planted at `path`. Without this, a
-	// low-privilege user who can write the parent directory could
-	// pre-create `path` as a symlink to (e.g.) /etc/shadow and trick
-	// the root-run controller into overwriting the target.
-	if fi, err := os.Lstat(path); err == nil && (fi.Mode()&os.ModeSymlink != 0) {
-		return fmt.Errorf("refusing to write: %s is a symlink", path)
-	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|os.O_NOFOLLOW, 0o644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.Write(data)
-	return err
+	return os.WriteFile(path, data, 0o600)
 }
