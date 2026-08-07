@@ -19,13 +19,19 @@ files:
   mode: block
   target: host
   deny:
-    - '|/home/1|/home/2|/test' # use vertical bar as separation
+    # NOTE: the '|'-separated form below only works for the 22.03 LTS
+    # kernel build, where the BPF side splits a single map entry on '|'.
+    # New kernels (see sample.yaml / safeguard2403.yml) expect one YAML
+    # list item per path; copying this verbatim into a new-kernel build
+    # would silently treat the whole string as one path prefix.
+    - '|/home/1|/home/2|/test'
 
 mount:
   enable: true
   mode: block
   target: host
   deny:
+    # Same 22.03-only '|'-separated form as the files section above.
     - '/dev/vdx1|/home/test|/dev/sdx1'
 
 process:

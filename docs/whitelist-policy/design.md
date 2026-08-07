@@ -34,11 +34,13 @@ type SnapshotCollector interface {
 
 ### Implementations
 
-| Collector | Source | Output |
+A single concrete type, `SnapshotCollector`, merges data from several host sources into one `HostSnapshot`:
+
+| Source | Path | Output |
 |-----------|--------|--------|
-| PasswdCollector | /etc/passwd | User accounts |
-| ProcCollector | /proc/* | Running processes |
-| NetworkCollector | /sys/class/net | Network interfaces |
+| passwd | /etc/passwd | User accounts |
+| proc | /proc/* | Running processes |
+| network | /proc/net plus host interfaces | Network CIDRs |
 
 ## Model Transformation
 

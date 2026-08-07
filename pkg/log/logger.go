@@ -62,7 +62,7 @@ func SetOutput(path string) {
 	if path == "stdout" || path == "" {
 		Logger.Logger.Out = os.Stdout
 	} else {
-		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0640)
 		if err != nil {
 			Logger.Fatal(err)
 		}
@@ -73,6 +73,13 @@ func SetOutput(path string) {
 func SetRotation(path string, maxSize, maxAge int) {
 	if path == "stdout" || path == "" {
 		return
+	}
+
+	// SetOutput may have opened the same path as a plain *os.File; once
+	// lumberjack takes over, that handle would leak. Close it (best-effort,
+	// never the Stdout/Stderr sentinels) before swapping the writer.
+	if f, ok := Logger.Logger.Out.(*os.File); ok && f != os.Stdout && f != os.Stderr {
+		_ = f.Close()
 	}
 
 	log.SetOutput(&lumberjack.Logger{
@@ -170,7 +177,7 @@ func (l *RestrictedFileAccessLog) Info() {
 		"UName": func(UID uint32) string {
 			u, err := user.LookupId(strconv.FormatUint(uint64(UID), 10))
 			if err != nil {
-				return "Nan"
+				return "unknown"
 			} else {
 				return u.Username
 			}
@@ -178,7 +185,7 @@ func (l *RestrictedFileAccessLog) Info() {
 		"Comm":       l.Comm,
 		"ParentComm": l.ParentComm,
 		"Path":       l.Path,
-	}).Info("File access is trapped in th filter.")
+	}).Info("File access is trapped in the filter.")
 }
 
 func (l *RestrictedMountLog) Info() {
@@ -190,7 +197,7 @@ func (l *RestrictedMountLog) Info() {
 		"Comm":       l.Comm,
 		"ParentComm": l.ParentComm,
 		"SourcePath": l.SourcePath,
-	}).Info("Mount event is trapped in th filter.")
+	}).Info("Mount event is trapped in the filter.")
 }
 
 func (l *RestrictedProcessLog) Info() {
@@ -203,5 +210,5 @@ func (l *RestrictedProcessLog) Info() {
 		"PPID":       l.PPID,
 		"Comm":       l.Comm,
 		"ParentComm": l.ParentComm,
-	}).Info("Process event is trapped in th filter.")
+	}).Info("Process event is trapped in the filter.")
 }

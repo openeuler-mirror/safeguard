@@ -75,11 +75,16 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 	return mod, nil
 }
 
+// RunAudit launches the process audit module. See fileaccess.RunAudit
+// for the contract: it runs as a goroutine, signals wg on return,
+// returns nil when the module is disabled, returns an error on setup
+// failure before the event loop, and otherwise blocks until ctx is
+// cancelled.
 func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
 	defer wg.Done()
 
 	if !conf.RestrictedProcessConfig.Enable {
-		log.Info("process audit is disable. shutdown...")
+		log.Info("process audit is disabled; shutting down...")
 		return nil
 	}
 
@@ -100,7 +105,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mgr.Attach()
 
-	log.Info("Start the process audit.")
+	log.Info("Process audit started.")
 
 	// 处理 tracepoint 事件（fork/exec）
 	eventChannel := make(chan []byte)
@@ -109,11 +114,9 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	// 处理 LSM hook ringbuf 事件（进程执行审计）
 	execEventChannel := make(chan []byte)
-	execLostChannel := make(chan uint64)
-	if err := mgr.StartExecAudit(execEventChannel, execLostChannel); err != nil {
+	if err := mgr.StartExecAudit(execEventChannel); err != nil {
 		log.Info("Failed to start exec audit: " + err.Error())
 	}
-	_ = execLostChannel // unused
 
 	// 处理 tracepoint 事件
 	go func() {
@@ -130,6 +133,17 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 			auditLog := newAuditLog(event)
 			auditLog.Info()
+		}
+	}()
+
+	// 消费 perf buffer lost channel，否则丢失事件无可见性
+	go func() {
+		for {
+			lost := <-lostChannel
+			log.WithFields(logrus.Fields{
+				"Module":     MODULE,
+				"LostEvents": lost,
+			}).Warn("Perf buffer lost audit events.")
 		}
 	}()
 
@@ -166,7 +180,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	<-ctx.Done()
 	mgr.Close()
-	log.Info("Terminated the process audit.")
+	log.Info("Process audit stopped.")
 
 	return nil
 }
@@ -174,9 +188,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 func newAuditLog(event auditLog) log.RestrictedProcessLog {
 	auditEvent := log.AuditEventLog{
 		Module: MODULE,
-		// Action omitted: fork/exec tracepoint events are lifecycle
-		// audits, not policy decisions — there is no ret to translate.
-		//Action:     retToaction(event.Ret),
+		//Action:     retToAction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
 		Comm:       helpers.CommToString(event.Command),
