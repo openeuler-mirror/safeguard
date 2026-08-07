@@ -20,6 +20,7 @@ var defaultFileAllow = []string{
 	"/tmp", "/var", "/run", "/usr/lib", "/home", "/root",
 }
 
+// BuildWhitelist transforms a HostSnapshot into a WhitelistModel with deduplication and normalization.
 func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel {
 	fileAllow := append([]string{}, defaultFileAllow...)
 	fileAllow = append(fileAllow, snapshot.ExecutablePaths...)
