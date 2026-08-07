@@ -109,11 +109,9 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	// 处理 LSM hook ringbuf 事件（进程执行审计）
 	execEventChannel := make(chan []byte)
-	execLostChannel := make(chan uint64)
-	if err := mgr.StartExecAudit(execEventChannel, execLostChannel); err != nil {
+	if err := mgr.StartExecAudit(execEventChannel); err != nil {
 		log.Info("Failed to start exec audit: " + err.Error())
 	}
-	_ = execLostChannel // unused
 
 	// 处理 tracepoint 事件
 	go func() {
