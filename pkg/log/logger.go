@@ -170,7 +170,7 @@ func (l *RestrictedFileAccessLog) Info() {
 		"UName": func(UID uint32) string {
 			u, err := user.LookupId(strconv.FormatUint(uint64(UID), 10))
 			if err != nil {
-				return "Nan"
+				return "unknown"
 			} else {
 				return u.Username
 			}
