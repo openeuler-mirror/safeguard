@@ -17,6 +17,8 @@ import (
 
 	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -103,6 +105,16 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 			auditLog := newAuditLog(event)
 			auditLog.Info()
+		}
+	}()
+
+	go func() {
+		for {
+			lost := <-lostChannel
+			log.WithFields(logrus.Fields{
+				"Module":     MODULE,
+				"LostEvents": lost,
+			}).Warn("Perf buffer lost audit events.")
 		}
 	}()
 
