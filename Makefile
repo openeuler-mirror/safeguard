@@ -104,6 +104,6 @@ rpmbuild:
 	which rpmbuild || sudo yum install rpm-build -y
 	mkdir -p ~/rpmbuild/{SPECS,SOURCES}
 	cp safeguard.spec ~/rpmbuild/SPECS/
-	tar --transform "s/^\./safeguard/"  -zcvf ~/rpmbuild/SOURCES/safeguard-2.0.tar.gz .
+	tar --transform "s/^\./safeguard/"  -zcvf ~/rpmbuild/SOURCES/safeguard-3.0.tar.gz .
 	cd ~/rpmbuild && sudo yum builddep -y SPECS/safeguard.spec && rpmbuild -ba SPECS/safeguard.spec
 
