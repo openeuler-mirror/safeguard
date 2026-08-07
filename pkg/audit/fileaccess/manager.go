@@ -60,12 +60,15 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) Attach() error {
+	// TODO: restricted_mmap_file and restricted_file_ioctl are not
+	// attached because they exceed verifier complexity limits on
+	// supported kernels. See audit finding #49.
 	for _, prog_name := range []string{"restricted_file_open",
 		"restricted_path_unlink",
 		"restricted_file_truncate",
 		"restricted_path_rmdir",
 		"restricted_path_rename",
-		"restricted_file_receive"} { //, "restricted_mmap_file", "restricted_file_ioctl"} {
+		"restricted_file_receive"} {
 		prog, err := m.mod.GetProgram(prog_name)
 		if err != nil {
 			return err
