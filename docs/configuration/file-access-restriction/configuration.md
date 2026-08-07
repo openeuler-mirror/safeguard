@@ -21,7 +21,7 @@ Use `monitor` mode first when validating a new file access policy, then switch t
 In blacklist mode, all file access is allowed by default. Only files in the `deny` list will be blocked.
 
 ```yaml
-file:
+files:
   enable: true
   mode: block
   target: host
@@ -36,7 +36,7 @@ file:
 In whitelist mode, all file access is denied by default. Only files in the `allow` list will be permitted.
 
 ```yaml
-file:
+files:
   enable: true
   mode: block
   target: host
