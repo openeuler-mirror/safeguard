@@ -160,7 +160,7 @@ func TestAuditBlockModeV4(t *testing.T) {
 	header, rawBody, err := parseEvent(eventBytes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, EVENT_IPV4, header.EventType)
 
 	body := rawBody.(detectEventIPv4)
 
@@ -212,7 +212,7 @@ func TestAuditBlockModeDomainV4(t *testing.T) {
 	header, rawBody, err := parseEvent(eventBytes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, EVENT_IPV4, header.EventType)
 	body := rawBody.(detectEventIPv4)
 
 	assert.Equal(t, ACTION_BLOCKED_STRING, body.ActionResult())
@@ -248,7 +248,7 @@ func TestAuditBlockModeDomainV6(t *testing.T) {
 	header, rawBody, err := parseEvent(eventBytes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV6, header.EventType)
+	assert.Equal(t, EVENT_IPV6, header.EventType)
 	body := rawBody.(detectEventIPv6)
 
 	assert.Equal(t, ACTION_BLOCKED_STRING, body.ActionResult())
@@ -279,7 +279,7 @@ func TestAuditMonitorModeDomainV4(t *testing.T) {
 	header, rawBody, err := parseEvent(eventBytes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, EVENT_IPV4, header.EventType)
 
 	body := rawBody.(detectEventIPv4)
 
@@ -304,7 +304,7 @@ func TestAuditMonitorModeDomainV6(t *testing.T) {
 	header, rawBody, err := parseEvent(eventBytes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV6, header.EventType)
+	assert.Equal(t, EVENT_IPV6, header.EventType)
 
 	body := rawBody.(detectEventIPv6)
 
@@ -325,7 +325,7 @@ func TestAuditBlockModeV6(t *testing.T) {
 	header, rawBody, err := parseEvent(eventBytes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV6, header.EventType)
+	assert.Equal(t, EVENT_IPV6, header.EventType)
 
 	body := rawBody.(detectEventIPv6)
 
@@ -351,7 +351,7 @@ func TestAuditMonitorModeV4(t *testing.T) {
 	header, rawBody, err := parseEvent(eventBytes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, EVENT_IPV4, header.EventType)
 
 	body := rawBody.(detectEventIPv4)
 
@@ -370,7 +370,7 @@ func TestAuditMonitorModeV6(t *testing.T) {
 	header, rawBody, err := parseEvent(eventBytes)
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV6, header.EventType)
+	assert.Equal(t, EVENT_IPV6, header.EventType)
 
 	body := rawBody.(detectEventIPv6)
 
@@ -440,7 +440,7 @@ func TestAuditContainerBlock(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	assert.Equal(t, BLOCKED_IPV4, header.EventType)
+	assert.Equal(t, EVENT_IPV4, header.EventType)
 
 	body := rawBody.(detectEventIPv4)
 
