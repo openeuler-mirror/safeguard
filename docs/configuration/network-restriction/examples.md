@@ -15,7 +15,7 @@ network:
     allow: ['0.0.0.0/0']
 ```
 
-#### Block specify Private Networks
+#### Block specified private networks
 
 Block access to `192.168.1.1/24` and `10.0.1.1/24`.
 
