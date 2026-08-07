@@ -239,7 +239,8 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
     allow_command = 0;
   }
 
-  // Deny 列表检查（优先级最高，始终生效）
+  // Deny 列表检查（deny 是基线策略；allow 的 command/UID/GID 可作为
+  // CIDR deny 的例外 override allow_connect，见下方 allow_*_list 逻辑）
   if (bpf_map_lookup_elem(&denied_command_list, &denied_command)) {
     allow_command = -EPERM;
   }
