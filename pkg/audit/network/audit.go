@@ -36,8 +36,8 @@ const (
 	ACTION_UNKNOWN_STRING       = "UNKNOWN"
 	MODULE                      = "network"
 
-	BLOCKED_IPV4 int32 = 0
-	BLOCKED_IPV6 int32 = 1
+	EVENT_IPV4 int32 = 0
+	EVENT_IPV6 int32 = 1
 
 	LSM_HOOK_POINT_CONNECT uint8 = 0
 	LSM_HOOK_POINT_SENDMSG uint8 = 1
@@ -206,7 +206,7 @@ func newAuditLog(header eventHeader, body detectEvent) log.RestrictedNetworkLog 
 		socktype uint8
 	)
 
-	if header.EventType == BLOCKED_IPV6 {
+	if header.EventType == EVENT_IPV6 {
 		body := body.(detectEventIPv6)
 		port = body.DstPort
 		addr = net.ParseIP(byte2IPv6(body.DstIP)).String()
@@ -244,14 +244,14 @@ func parseEvent(eventBytes []byte) (eventHeader, detectEvent, error) {
 	if err != nil {
 		return eventHeader{}, detectEventIPv4{}, err
 	}
-	if header.EventType == BLOCKED_IPV4 {
+	if header.EventType == EVENT_IPV4 {
 		body, err := parseEventBlockedIPv4(buf)
 		if err != nil {
 			return eventHeader{}, detectEventIPv4{}, err
 		}
 
 		return header, body, nil
-	} else if header.EventType == BLOCKED_IPV6 {
+	} else if header.EventType == EVENT_IPV6 {
 		body, err := parseEventBlockedIPv6(buf)
 		if err != nil {
 			return eventHeader{}, detectEventIPv6{}, err

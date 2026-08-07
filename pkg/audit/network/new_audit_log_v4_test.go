@@ -8,7 +8,7 @@ import (
 
 func TestNewAuditLog_IPv4(t *testing.T) {
 	initDNSCache()
-	header := eventHeader{PID: 100, EventType: BLOCKED_IPV4}
+	header := eventHeader{PID: 100, EventType: EVENT_IPV4}
 	var dstIP [DSTIP_V4_LEN]byte
 	copy(dstIP[:], []byte{10, 0, 0, 1})
 	body := detectEventIPv4{DstIP: dstIP, DstPort: 80, SockType: TCP, Action: ACTION_BLOCKED}
