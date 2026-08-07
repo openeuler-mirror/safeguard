@@ -79,8 +79,8 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 		}
 
-		log.Debug(fmt.Sprintf("Domain resolved: %s (%d)\n", fqdn, q.Qtype))
-		log.Debug(fmt.Sprintf("Current DNS Cache: %#v\n", dnsCache))
+		log.Debug(fmt.Sprintf("Domain resolved: %s (%d)", fqdn, q.Qtype))
+		log.Debug(fmt.Sprintf("Current DNS Cache: %#v", dnsCache))
 	}
 
 	w.WriteMsg(&msg)

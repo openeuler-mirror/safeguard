@@ -134,7 +134,7 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		return answer.TTL, nil
 	case dns.TypeAAAA:
 		answer, err := mgr.ResolveAddressv6(domainName)
@@ -146,7 +146,7 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		return answer.TTL, nil
 	}
 
@@ -165,7 +165,7 @@ func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		return answer.TTL, nil
 	case dns.TypeAAAA:
 		answer, err := mgr.ResolveAddressv6(domainName)
@@ -177,7 +177,7 @@ func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		return answer.TTL, nil
 	}
 
