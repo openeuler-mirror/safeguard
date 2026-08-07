@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// collectInterfaceCIDRs gathers CIDR addresses from all network interfaces on the host.
 func collectInterfaceCIDRs() ([]string, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -32,6 +33,7 @@ func collectInterfaceCIDRs() ([]string, error) {
 	return result, nil
 }
 
+// interfaceAddressToCIDR converts a net.Addr to a CIDR string, returning false for unsupported types.
 func interfaceAddressToCIDR(addr net.Addr) (string, bool) {
 	switch value := addr.(type) {
 	case *net.IPNet:
@@ -43,6 +45,7 @@ func interfaceAddressToCIDR(addr net.Addr) (string, bool) {
 	}
 }
 
+// ipAddressToCIDR converts a net.IP to a CIDR string with the appropriate prefix length.
 func ipAddressToCIDR(ip net.IP) (string, bool) {
 	if ip == nil || ip.IsUnspecified() {
 		return "", false
@@ -59,6 +62,7 @@ func ipAddressToCIDR(ip net.IP) (string, bool) {
 	return "", false
 }
 
+// readProcNetCIDRs reads CIDR addresses from /proc/net files, returning warnings for unreadable paths.
 func readProcNetCIDRs(paths []string) ([]string, []string) {
 	result := []string{}
 	warnings := []string{}
@@ -92,6 +96,7 @@ func readProcNetCIDRs(paths []string) ([]string, []string) {
 	return result, warnings
 }
 
+// remoteAddressToCIDR parses a hex-encoded remote address from /proc/net into a CIDR string.
 func remoteAddressToCIDR(raw string) (string, error) {
 	hostPort := strings.Split(raw, ":")
 	if len(hostPort) != 2 {

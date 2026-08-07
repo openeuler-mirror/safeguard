@@ -18,8 +18,10 @@ type DNSAnswer struct {
 	TTL       uint32
 }
 
+// dnsCache stores resolved domain-to-IP mappings for periodic name resolution.
 var dnsCache map[string]string
 
+// initDNSCache initializes the DNS cache map if it has not been created yet.
 func initDNSCache() {
 	if dnsCache == nil {
 		dnsCache = make(map[string]string)
@@ -28,6 +30,7 @@ func initDNSCache() {
 
 // To FQDN format
 // e.g. example.com -> example.com.
+// toFqdn converts a domain name to FQDN format by appending a trailing dot.
 func toFqdn(domainName string) string {
 	if domainName[len(domainName)-1:] == "." {
 		return domainName

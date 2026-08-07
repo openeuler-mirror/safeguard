@@ -28,6 +28,7 @@ type Manager struct {
 	pb     *libbpfgo.PerfBuffer
 }
 
+// Start initializes the perf buffer for mount events and begins polling.
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
 	pb, err := m.mod.InitPerfBuf("mount_events", eventChannel, lostChannel, 1024)
 	if err != nil {
@@ -40,14 +41,17 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 	return nil
 }
 
+// Stop halts the perf buffer polling for mount events.
 func (m *Manager) Stop() {
 	m.pb.Stop()
 }
 
+// Close releases the perf buffer resources.
 func (m *Manager) Close() {
 	m.pb.Close()
 }
 
+// Attach attaches the BPF LSM programs for mount restriction.
 func (m *Manager) Attach() error {
 	for _, p := range BPF_PROGRAM_NAME {
 		prog, err := m.mod.GetProgram(p)
