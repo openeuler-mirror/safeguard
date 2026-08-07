@@ -382,16 +382,17 @@ func (m *Manager) setDeniedCIDRList() error {
 
 func (m *Manager) initDomainList() error {
 	for _, domain := range m.config.RestrictedNetworkConfig.Domain.Deny {
+		// A and AAAA must be queried independently: a domain that
+		// only has AAAA records (IPv6-only) would otherwise be
+		// skipped entirely when the A query failed.
 		answer, err := m.ResolveAddressv4(domain)
 		if err != nil {
 			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domain, err))
-			continue
-		}
-
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateDeniedFQDNList(answer)
-		if err != nil {
-			return err
+		} else {
+			log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+			if err = m.updateDeniedFQDNList(answer); err != nil {
+				return err
+			}
 		}
 
 		answer, err = m.ResolveAddressv6(domain)
@@ -411,13 +412,11 @@ func (m *Manager) initDomainList() error {
 		answer, err := m.ResolveAddressv4(domain)
 		if err != nil {
 			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s\n", domain, err))
-			continue
-		}
-
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
-		err = m.updateAllowedFQDNist(answer)
-		if err != nil {
-			return err
+		} else {
+			log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+			if err = m.updateAllowedFQDNist(answer); err != nil {
+				return err
+			}
 		}
 
 		answer, err = m.ResolveAddressv6(domain)
