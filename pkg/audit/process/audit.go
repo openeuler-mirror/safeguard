@@ -174,6 +174,8 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 func newAuditLog(event auditLog) log.RestrictedProcessLog {
 	auditEvent := log.AuditEventLog{
 		Module: MODULE,
+		// Action omitted: fork/exec tracepoint events are lifecycle
+		// audits, not policy decisions — there is no ret to translate.
 		//Action:     retToaction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
