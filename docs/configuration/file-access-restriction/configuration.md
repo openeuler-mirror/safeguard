@@ -49,8 +49,8 @@ file:
 
 !!! warning
 
-    Currently file access restrictions cannot be based on process context (command name, UID, etc).  
-    This is because the eBPF Program size becomes too large, and it is failed pass by the eBPF Verifier's limitations.  
+    Currently file access restrictions cannot be based on process context (command name, UID, etc).
+    Adding these checks currently causes the program to exceed the eBPF verifier's complexity limits.
     If you can create a better eBPF program, please contribute!
 
 ## Troubleshooting
