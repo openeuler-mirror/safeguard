@@ -28,6 +28,9 @@ var (
 	}
 )
 
+// NewApp builds the top-level urfave/cli App for safeguard, wiring the
+// audit subcommand against the supplied version string. The returned
+// App is ready to pass to app.Run; do not reuse it across invocations.
 func NewApp(version string) *cli.App {
 	app := cli.NewApp()
 	app.Name = "safeguard"
