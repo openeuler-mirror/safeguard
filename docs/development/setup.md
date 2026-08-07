@@ -15,3 +15,51 @@ $ git clone --recursive https://atomgit.com/openeuler/safeguard.git && cd safegu
 $ vagrant up && vagrant reload
 $ vagrant ssh
 ```
+
+## Manual Setup (Without Vagrant)
+
+If you prefer not to use Vagrant, install the following dependencies manually:
+
+### Kernel Requirements
+
+Verify your kernel version and BPF LSM support:
+
+```shell
+$ uname -r
+5.15.0-generic
+
+$ cat /sys/kernel/security/lsm | tr ',' '\n' | grep bpf
+bpf
+```
+
+If BPF LSM is not enabled, add `bpf` to the `lsm=` kernel boot parameter and reboot.
+
+### Package Installation (openEuler/RHEL)
+
+```shell
+$ sudo dnf install golang clang llvm elfutils-libelf-devel zlib-devel bpftool
+```
+
+### Package Installation (Ubuntu/Debian)
+
+```shell
+$ sudo apt install golang clang llvm libelf-dev zlib1g-dev linux-tools-common
+```
+
+## Development Workflow
+
+1. Clone the repository with submodules: `git clone --recursive ...`
+2. Build libbpf: `make libbpf-static`
+3. Build the project: `make build`
+4. Run tests: `make test`
+5. Run the binary: `sudo ./output/safeguard --config config/safeguard.yml`
+
+## IDE Configuration
+
+For Go development, the following tools are recommended:
+
+- `gopls` — Go language server
+- `golangci-lint` — Go linter
+- `goimports` — Import management
+
+Ensure your editor is configured to use the CGO flags when working with audit packages.
