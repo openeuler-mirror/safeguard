@@ -174,7 +174,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 func newAuditLog(event auditLog) log.RestrictedProcessLog {
 	auditEvent := log.AuditEventLog{
 		Module: MODULE,
-		//Action:     retToaction(event.Ret),
+		//Action:     retToAction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
 		Comm:       helpers.CommToString(event.Command),
