@@ -119,6 +119,19 @@ type LogLabels struct {
 	Labels map[string]string
 }
 
+// AuditSchemaVersion is the version of the audit event log schema
+// emitted by all audit modules. Bump this when the field set produced
+// by any module's Info() method changes (added, removed, renamed, or
+// retyped fields). SIEM consumers should pin to a known version and
+// reject/flag mismatches; future schema evolution should track this
+// constant so consumers can route events by version. The current
+// schema (v1.0) reflects the historical field set across network,
+// fileaccess, mount, and process modules, with all known
+// inconsistencies still present (audit #27 calls these out — e.g.
+// UID absent from network/mount/process output). A future v1.1
+// should reconcile those gaps in one coordinated bump.
+const AuditSchemaVersion = "1.0"
+
 type AuditEventLog struct {
 	Module     string
 	Action     string
@@ -169,11 +182,12 @@ func (l *RestrictedNetworkLog) Info() {
 
 func (l *RestrictedFileAccessLog) Info() {
 	Logger.WithFields(logrus.Fields{
-		"Module":   l.Module,
-		"Action":   l.Action,
-		"Hostname": l.Hostname,
-		"PID":      l.PID,
-		"UID":      l.UID,
+		"SchemaVersion": AuditSchemaVersion,
+		"Module":        l.Module,
+		"Action":        l.Action,
+		"Hostname":      l.Hostname,
+		"PID":           l.PID,
+		"UID":           l.UID,
 		"UName": func(UID uint32) string {
 			u, err := user.LookupId(strconv.FormatUint(uint64(UID), 10))
 			if err != nil {
