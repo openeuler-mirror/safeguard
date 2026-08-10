@@ -35,7 +35,7 @@ var (
 func NewApp(version string) *cli.App {
 	app := cli.NewApp()
 	app.Name = "safeguard"
-	app.Version = "0.0.10"
+	app.Version = version
 	app.Usage = "Linux host security audit and whitelist controller based on eBPF/LSM"
 	app.UsageText = `safeguard [global options] command [command options]
 

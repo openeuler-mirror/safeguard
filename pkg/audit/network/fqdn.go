@@ -84,7 +84,7 @@ func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, e
 	}
 
 	if len(res.Answer) == 0 {
-		return nil, errors.New(fmt.Sprintf("%s has not records(type %d)", host, recordType))
+		return nil, fmt.Errorf("%s has no records of type %d", host, recordType)
 	}
 
 	answer := DNSAnswer{Domain: host}
@@ -104,7 +104,7 @@ func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, e
 	}
 
 	if answer.Addresses == nil {
-		return nil, errors.New(fmt.Sprintf("%s has not records(type %d)", host, recordType))
+		return nil, fmt.Errorf("%s has no records of type %d", host, recordType)
 	}
 
 	return &answer, nil
@@ -140,7 +140,7 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		return answer.TTL, nil
 	case dns.TypeAAAA:
 		answer, err := mgr.ResolveAddressv6(domainName)
@@ -152,7 +152,7 @@ func (mgr *Manager) resolveAndUpdateAllowedFQDNList(domainName string, recordTyp
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		return answer.TTL, nil
 	}
 
@@ -171,7 +171,7 @@ func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (A) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		return answer.TTL, nil
 	case dns.TypeAAAA:
 		answer, err := mgr.ResolveAddressv6(domainName)
@@ -183,7 +183,7 @@ func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType
 			return 5, nil
 		}
 
-		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d\n", answer.Domain, answer.Addresses, answer.TTL))
+		log.Debug(fmt.Sprintf("%s (AAAA) is %#v, TTL is %d", answer.Domain, answer.Addresses, answer.TTL))
 		return answer.TTL, nil
 	}
 

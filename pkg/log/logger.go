@@ -167,18 +167,17 @@ type RestrictedProcessLog struct {
 
 func (l *RestrictedNetworkLog) Info() {
 	Logger.WithFields(logrus.Fields{
-		"SchemaVersion": AuditSchemaVersion,
-		"Module":        l.Module,
-		"Action":        l.Action,
-		"Hostname":      l.Hostname,
-		"PID":           l.PID,
-		"Comm":          l.Comm,
-		"ParentComm":    l.ParentComm,
-		"Addr":          l.Addr,
-		"Domain":        l.Domain,
-		"Port":          l.Port,
-		"Protocol":      l.Protocol,
-	}).Info("Traffic is trapped in the filter.")
+		"Module":     l.Module,
+		"Action":     l.Action,
+		"Hostname":   l.Hostname,
+		"PID":        l.PID,
+		"Comm":       l.Comm,
+		"ParentComm": l.ParentComm,
+		"Addr":       l.Addr,
+		"Domain":     l.Domain,
+		"Port":       l.Port,
+		"Protocol":   l.Protocol,
+	}).Info("Network policy event.")
 }
 
 func (l *RestrictedFileAccessLog) Info() {
@@ -217,8 +216,8 @@ func (l *RestrictedMountLog) Info() {
 
 func (l *RestrictedProcessLog) Info() {
 	Logger.WithFields(logrus.Fields{
-		"SchemaVersion": AuditSchemaVersion,
-		"Module":        l.Module,
+		"Module": l.Module,
+		// Action omitted for process lifecycle events (see process/audit.go).
 		//"Action":   l.Action,
 		"Hostname":   l.Hostname,
 		"PID":        l.PID,
