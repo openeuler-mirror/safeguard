@@ -396,6 +396,9 @@ func (m *Manager) setDeniedCIDRList() error {
 
 func (m *Manager) initDomainList() error {
 	for _, domain := range m.config.RestrictedNetworkConfig.Domain.Deny {
+		// A and AAAA must be queried independently: a domain that
+		// only has AAAA records (IPv6-only) would otherwise be
+		// skipped entirely when the A query failed.
 		answer, err := m.ResolveAddressv4(domain)
 		if err != nil {
 			log.Debug(fmt.Sprintf("%s (A) resolve failed. %s", domain, err))
