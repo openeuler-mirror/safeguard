@@ -164,7 +164,7 @@ func (l *RestrictedNetworkLog) Info() {
 		"Domain":     l.Domain,
 		"Port":       l.Port,
 		"Protocol":   l.Protocol,
-	}).Info("Traffic is trapped in the filter.")
+	}).Info("Network policy event.")
 }
 
 func (l *RestrictedFileAccessLog) Info() {
@@ -203,6 +203,7 @@ func (l *RestrictedMountLog) Info() {
 func (l *RestrictedProcessLog) Info() {
 	Logger.WithFields(logrus.Fields{
 		"Module": l.Module,
+		// Action omitted for process lifecycle events (see process/audit.go).
 		//"Action":   l.Action,
 		"Hostname":   l.Hostname,
 		"PID":        l.PID,
