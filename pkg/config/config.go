@@ -158,7 +158,7 @@ func DefaultConfig() *Config {
 func NewConfig(configPath string) (*Config, error) {
 	file, err := os.Open(configPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open configuration %q: %w", configPath, err)
 	}
 	defer file.Close()
 
@@ -167,19 +167,19 @@ func NewConfig(configPath string) (*Config, error) {
 
 	config := DefaultConfig()
 	if err := d.Decode(&config); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode configuration %q: %w", configPath, err)
 	}
 	var extra interface{}
 	if err := d.Decode(&extra); err != io.EOF {
 		if err != nil {
-			return nil, fmt.Errorf("decode trailing configuration document: %w", err)
+			return nil, fmt.Errorf("decode trailing configuration document in %q: %w", configPath, err)
 		}
-		return nil, errors.New("configuration must contain exactly one YAML document")
+		return nil, fmt.Errorf("configuration %q must contain exactly one YAML document", configPath)
 	}
 
 	err = config.Validate()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validate configuration %q: %w", configPath, err)
 	}
 
 	return config, nil

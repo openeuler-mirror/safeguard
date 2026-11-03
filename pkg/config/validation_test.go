@@ -254,3 +254,32 @@ func TestNewConfig_StrictModePreservesYAMLMerges(t *testing.T) {
 	assert.Equal(t, "monitor", cfg.RestrictedFileAccessConfig.Mode)
 	assert.Equal(t, []string{"/"}, cfg.RestrictedFileAccessConfig.Allow)
 }
+
+func TestNewConfig_ErrorsIdentifySourceAndStage(t *testing.T) {
+	for stage, content := range map[string]string{
+		"decode configuration":          "unknown_field: true\n",
+		"validate configuration":        "policy: typo\n",
+		"decode trailing configuration": "policy: blacklist\n---\n[broken\n",
+		"exactly one YAML document":     "policy: blacklist\n---\npolicy: whitelist\n",
+	} {
+		t.Run(stage, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "source.yaml")
+			require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+			cfg, err := NewConfig(path)
+			require.ErrorContains(t, err, stage)
+			assert.ErrorContains(t, err, path)
+			assert.Nil(t, cfg)
+		})
+	}
+}
+
+func TestNewConfig_OpenErrorPreservesCause(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing.yaml")
+	cfg, err := NewConfig(path)
+	require.ErrorIs(t, err, os.ErrNotExist)
+	assert.ErrorContains(t, err, "open configuration")
+	var pathErr *os.PathError
+	require.ErrorAs(t, err, &pathErr)
+	assert.Equal(t, path, pathErr.Path)
+	assert.Nil(t, cfg)
+}
