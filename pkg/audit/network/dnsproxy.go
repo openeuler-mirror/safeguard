@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"culinux/pkg/config"
@@ -92,7 +93,7 @@ func (this *DNSProxy) resolve(domainName string, queryType uint16) (*dns.Msg, er
 	m.SetQuestion(domainName, queryType)
 	m.RecursionDesired = true
 
-	res, _, err := this.client.Exchange(m, this.dnsConfig.Servers[0]+":"+"53")
+	res, _, err := this.client.Exchange(m, net.JoinHostPort(this.dnsConfig.Servers[0], "53"))
 	if err != nil {
 		return nil, err
 	}
