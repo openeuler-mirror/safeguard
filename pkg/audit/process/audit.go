@@ -120,10 +120,12 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		return err
 	}
 	_ = execLostChannel // unused
+	var consumers helpers.Consumers
+	consumers.Go(func() { helpers.DrainLost(lostChannel) })
 	helpers.ReportReady(ctx)
 
 	// 处理 tracepoint 事件
-	go func() {
+	consumers.Go(func() {
 		for {
 			eventBytes, open := helpers.NextEvent(eventChannel)
 			if !open {
@@ -141,10 +143,10 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 			auditLog := newAuditLog(event)
 			auditLog.Info()
 		}
-	}()
+	})
 
 	// 处理 LSM hook 执行审计事件
-	go func() {
+	consumers.Go(func() {
 		for {
 			eventBytes, open := helpers.NextEvent(execEventChannel)
 			if !open {
@@ -175,9 +177,11 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 				"ParentComm": helpers.CommToString(event.ParentComm),
 			}).Info("Process exec is trapped in the filter.")
 		}
-	}()
+	})
 
 	<-ctx.Done()
+	mgr.Stop()
+	consumers.Wait()
 	mgr.Close()
 	log.Info("Terminated the process audit.")
 
