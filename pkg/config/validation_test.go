@@ -479,3 +479,22 @@ func TestCIDRCapacityPerDirectionAndFamily(t *testing.T) {
 		}
 	}
 }
+
+func TestProcessMapCapacityUsesRepresentableUniqueNames(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.RestrictedProcessConfig.Enable = true
+	require.NoError(t, cfg.Validate())
+	names := make([]string, 1024)
+	for i := range names {
+		names[i] = fmt.Sprintf("proc%04d", i)
+	}
+	cfg.RestrictedProcessConfig.Allow = names
+	require.NoError(t, cfg.Validate())
+	cfg.RestrictedProcessConfig.Allow = append(append([]string{}, names...), names...)
+	require.NoError(t, cfg.Validate())
+	cfg.RestrictedProcessConfig.Allow = append(names, "overflow")
+	require.ErrorContains(t, cfg.Validate(), "process.allow")
+	require.ErrorContains(t, cfg.Validate(), "1024")
+	cfg.RestrictedProcessConfig.Enable = false
+	require.NoError(t, cfg.Validate())
+}
