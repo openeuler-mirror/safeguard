@@ -169,23 +169,17 @@ func (m *Manager) Close() {
 }
 
 func (m *Manager) Attach() error {
-	programs := []string{"socket_connect", "socket_bind"}
-	for _, progName := range programs {
-		prog, err := m.mod.GetProgram(progName)
-
+	return helpers.AttachAll([]string{"socket_connect", "socket_bind"}, func(name string) (helpers.Link, error) {
+		prog, err := m.mod.GetProgram(name)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		_, err = prog.AttachLSM()
-		if err != nil {
-			return err
+		link, err := prog.AttachLSM()
+		if err == nil {
+			log.Debug(fmt.Sprintf("%s attached.", name))
 		}
-
-		log.Debug(fmt.Sprintf("%s attached.", progName))
-	}
-
-	return nil
+		return link, err
+	})
 }
 
 func (m *Manager) setMode(table *libbpfgo.BPFMap, key []byte) []byte {

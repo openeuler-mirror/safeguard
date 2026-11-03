@@ -71,25 +71,17 @@ func (m *Manager) Close() {
 
 // Attach attaches the BPF LSM programs for file access restriction.
 func (m *Manager) Attach() error {
-	for _, prog_name := range []string{"restricted_file_open",
-		"restricted_path_unlink",
-		"restricted_file_truncate",
-		"restricted_path_rmdir",
-		"restricted_path_rename",
-		"restricted_file_receive"} { //, "restricted_mmap_file", "restricted_file_ioctl"} {
-		prog, err := m.mod.GetProgram(prog_name)
+	return helpers.AttachAll([]string{"restricted_file_open", "restricted_path_unlink", "restricted_file_truncate", "restricted_path_rmdir", "restricted_path_rename", "restricted_file_receive"}, func(name string) (helpers.Link, error) {
+		prog, err := m.mod.GetProgram(name)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		_, err = prog.AttachLSM()
-		if err != nil {
-			return err
+		link, err := prog.AttachLSM()
+		if err == nil {
+			log.Debug(fmt.Sprintf("%s attached.", name))
 		}
-
-		log.Debug(fmt.Sprintf("%s attached.", prog_name))
-	}
-	return nil
+		return link, err
+	})
 }
 
 func (m *Manager) SetConfigToMap() error {

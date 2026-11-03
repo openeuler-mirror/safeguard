@@ -98,23 +98,17 @@ func (m *Manager) Close() {
 
 // Attach attaches the BPF LSM programs for process restriction.
 func (m *Manager) Attach() error {
-	prog, err := m.mod.GetProgram(BPF_PROGRAM_FORK)
-	if err != nil {
-		return err
-	}
-
-	_, err = prog.AttachTracepoint("sched", "sched_process_fork")
-	if err != nil {
-		return err
-	}
-
-	prog, err = m.mod.GetProgram(BPF_PROGRAM_EXEC)
-	if err != nil {
-		return err
-	}
-
-	_, err = prog.AttachTracepoint("sched", "sched_process_exec")
-	if err != nil {
+	if err := helpers.AttachAll([]string{BPF_PROGRAM_FORK, BPF_PROGRAM_EXEC}, func(name string) (helpers.Link, error) {
+		prog, err := m.mod.GetProgram(name)
+		if err != nil {
+			return nil, err
+		}
+		point := "sched_process_fork"
+		if name == BPF_PROGRAM_EXEC {
+			point = "sched_process_exec"
+		}
+		return prog.AttachTracepoint("sched", point)
+	}); err != nil {
 		return err
 	}
 
