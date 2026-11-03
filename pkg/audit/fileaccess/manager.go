@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strings"
+	"sync"
 	"unsafe"
 
 	"culinux/pkg/audit/helpers"
@@ -28,14 +29,22 @@ const (
 
 // Manager handles file access audit events and BPF map operations for file access restriction.
 type Manager struct {
-	mod     *libbpfgo.Module
-	config  *config.Config
-	pb      helpers.Buffer
-	ownsPin bool
+	lifecycleMu sync.Mutex
+	stopped     bool
+	closed      bool
+	mod         *libbpfgo.Module
+	config      *config.Config
+	pb          helpers.Buffer
+	ownsPin     bool
 }
 
 // Start initializes the perf buffer for file access events and begins polling.
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed || m.stopped || m.pb != nil {
+		return fmt.Errorf("fileaccess buffer cannot be restarted")
+	}
 	pb, err := helpers.StartBuffer("fileopen_events", func() (helpers.Buffer, error) {
 		return m.mod.InitPerfBuf("fileopen_events", eventChannel, lostChannel, 1024)
 	})
@@ -50,11 +59,30 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 
 // Stop halts the perf buffer polling for file access events.
 func (m *Manager) Stop() {
-	m.pb.Stop()
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	m.stopLocked()
+}
+
+func (m *Manager) stopLocked() {
+	if m.stopped {
+		return
+	}
+	m.stopped = true
+	if m.pb != nil {
+		m.pb.Stop()
+	}
 }
 
 // Close unpins the BPF config map and releases the perf buffer.
 func (m *Manager) Close() {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed {
+		return
+	}
+	m.closed = true
+	m.stopLocked()
 	if m.ownsPin {
 		m.ownsPin = false
 		configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)

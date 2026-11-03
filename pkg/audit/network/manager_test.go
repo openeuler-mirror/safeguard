@@ -141,13 +141,13 @@ func loadFixtureConfig(path string) *config.Config {
 	return conf
 }
 
-func createManager(conf *config.Config, dnsResolver DNSResolver) Manager {
+func createManager(conf *config.Config, dnsResolver DNSResolver) *Manager {
 	mod, err := setupBPFProgram()
 	if err != nil {
 		panic(err)
 	}
 
-	mgr := Manager{
+	mgr := &Manager{
 		mod:         mod,
 		config:      conf,
 		dnsResolver: dnsResolver,

@@ -3,6 +3,7 @@ package process
 import (
 	"encoding/binary"
 	"fmt"
+	"sync"
 	"unsafe"
 
 	"culinux/pkg/audit/helpers"
@@ -46,14 +47,22 @@ const (
 )
 
 type Manager struct {
-	mod    *libbpfgo.Module
-	config *config.Config
-	pb     helpers.Buffer
-	rb     helpers.Buffer
+	lifecycleMu sync.Mutex
+	stopped     bool
+	closed      bool
+	mod         *libbpfgo.Module
+	config      *config.Config
+	pb          helpers.Buffer
+	rb          helpers.Buffer
 }
 
 // Start initializes the perf buffer for process events and begins polling.
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed || m.stopped || m.pb != nil {
+		return fmt.Errorf("process buffer cannot be restarted")
+	}
 	pb, err := helpers.StartBuffer("process_events", func() (helpers.Buffer, error) {
 		return m.mod.InitPerfBuf("process_events", eventChannel, lostChannel, 1024)
 	})
@@ -68,6 +77,11 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 
 // StartExecAudit 启动进程执行审计（ringbuf）
 func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint64) error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed || m.stopped || m.rb != nil {
+		return fmt.Errorf("process buffer cannot be restarted")
+	}
 	rb, err := helpers.StartBuffer("process_exec_events", func() (helpers.Buffer, error) {
 		return m.mod.InitRingBuf("process_exec_events", eventChannel)
 	})
@@ -82,7 +96,19 @@ func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint
 
 // Stop halts the perf buffer and ring buffer polling for process events.
 func (m *Manager) Stop() {
-	m.pb.Stop()
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	m.stopLocked()
+}
+
+func (m *Manager) stopLocked() {
+	if m.stopped {
+		return
+	}
+	m.stopped = true
+	if m.pb != nil {
+		m.pb.Stop()
+	}
 	if m.rb != nil {
 		m.rb.Stop()
 	}
@@ -90,7 +116,16 @@ func (m *Manager) Stop() {
 
 // Close releases the perf buffer and ring buffer resources.
 func (m *Manager) Close() {
-	m.pb.Close()
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed {
+		return
+	}
+	m.closed = true
+	m.stopLocked()
+	if m.pb != nil {
+		m.pb.Close()
+	}
 	if m.rb != nil {
 		m.rb.Close()
 	}
