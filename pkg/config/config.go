@@ -189,6 +189,26 @@ func (c *Config) Validate() error {
 	if c.Policy != "blacklist" && c.Policy != "whitelist" {
 		return fmt.Errorf("invalid policy %q: must be blacklist or whitelist", c.Policy)
 	}
+	for _, module := range []struct {
+		name         string
+		enabled      bool
+		mode, target string
+	}{
+		{"network", c.RestrictedNetworkConfig.Enable, c.RestrictedNetworkConfig.Mode, c.RestrictedNetworkConfig.Target},
+		{"files", c.RestrictedFileAccessConfig.Enable, c.RestrictedFileAccessConfig.Mode, c.RestrictedFileAccessConfig.Target},
+		{"mount", c.RestrictedMountConfig.Enable, c.RestrictedMountConfig.Mode, c.RestrictedMountConfig.Target},
+		{"process", c.RestrictedProcessConfig.Enable, c.RestrictedProcessConfig.Mode, c.RestrictedProcessConfig.Target},
+	} {
+		if !module.enabled {
+			continue
+		}
+		if module.mode != "monitor" && module.mode != "block" {
+			return fmt.Errorf("invalid %s.mode %q: must be monitor or block", module.name, module.mode)
+		}
+		if module.target != "host" && module.target != "container" {
+			return fmt.Errorf("invalid %s.target %q: must be host or container", module.name, module.target)
+		}
+	}
 
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
 		return errors.New("One or more dns_proxy.upstreams must be specified.")

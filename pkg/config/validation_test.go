@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -97,6 +98,35 @@ func TestNewConfig_ValidatesPolicy(t *testing.T) {
 		} else {
 			require.NoError(t, err)
 			assert.Equal(t, policy, cfg.Policy)
+		}
+	}
+}
+
+func TestNewConfig_ValidatesEnabledModuleSettings(t *testing.T) {
+	for _, module := range []string{"network", "files", "mount", "process"} {
+		for _, tc := range []struct {
+			mode, target     string
+			enabled, invalid bool
+		}{
+			{"monitor", "host", true, false},
+			{"block", "container", true, false},
+			{"blok", "host", true, true},
+			{"monitor", "containers", true, true},
+			{"unused", "unused", false, false},
+		} {
+			t.Run(module+"/"+tc.mode+"/"+tc.target, func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), "module.yaml")
+				content := fmt.Sprintf("%s:\n  enable: %t\n  mode: %s\n  target: %s\n", module, tc.enabled, tc.mode, tc.target)
+				require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+				cfg, err := NewConfig(path)
+				if tc.invalid {
+					require.ErrorContains(t, err, module+".")
+					assert.Nil(t, cfg)
+				} else {
+					require.NoError(t, err)
+					assert.NotNil(t, cfg)
+				}
+			})
 		}
 	}
 }
