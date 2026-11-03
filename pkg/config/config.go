@@ -212,6 +212,14 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	for _, limit := range []struct {
+		name  string
+		value int
+	}{{"max_size", c.Log.MaxSize}, {"max_age", c.Log.MaxAge}} {
+		if limit.value < 0 {
+			return fmt.Errorf("log.%s must not be negative", limit.name)
+		}
+	}
 	if c.RestrictedNetworkConfig.Enable {
 		if err := c.RestrictedNetworkConfig.validate(); err != nil {
 			return err

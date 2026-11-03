@@ -204,3 +204,23 @@ func TestNewConfig_RejectsEmptyDomainRules(t *testing.T) {
 		}
 	}
 }
+
+func TestNewConfig_ValidatesLogRotationLimits(t *testing.T) {
+	for _, field := range []string{"max_size", "max_age"} {
+		for _, value := range []int{-1, 0, 100} {
+			t.Run(fmt.Sprintf("%s/%d", field, value), func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), "log.yaml")
+				content := fmt.Sprintf("log:\n  %s: %d\n", field, value)
+				require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+				cfg, err := NewConfig(path)
+				if value < 0 {
+					require.ErrorContains(t, err, "log."+field)
+					assert.Nil(t, cfg)
+				} else {
+					require.NoError(t, err)
+					assert.NotNil(t, cfg)
+				}
+			})
+		}
+	}
+}
