@@ -264,6 +264,17 @@ func (c RestrictedNetworkConfig) validate() error {
 		name   string
 		values []string
 	}{
+		{"allow", c.Command.Allow}, {"deny", c.Command.Deny},
+	} {
+		if err := validateCommRules("network.command."+list.name, list.values); err != nil {
+			return err
+		}
+	}
+
+	for _, list := range []struct {
+		name   string
+		values []string
+	}{
 		{"allow", c.CIDR.Allow}, {"deny", c.CIDR.Deny},
 	} {
 		for i, value := range list.values {
