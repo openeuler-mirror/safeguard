@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -223,6 +224,18 @@ func (c *Config) Validate() error {
 }
 
 func (c RestrictedNetworkConfig) validate() error {
+	for _, list := range []struct {
+		name   string
+		values []string
+	}{
+		{"allow", c.CIDR.Allow}, {"deny", c.CIDR.Deny},
+	} {
+		for i, value := range list.values {
+			if _, _, err := net.ParseCIDR(value); err != nil {
+				return fmt.Errorf("network.cidr.%s[%d]: %w", list.name, i, err)
+			}
+		}
+	}
 	for _, list := range []struct {
 		name   string
 		values []uint
