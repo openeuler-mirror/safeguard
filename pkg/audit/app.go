@@ -23,7 +23,7 @@ var (
 	}
 )
 
-func NewApp(version string) *cli.App {
+func NewApp(version string, runtimeOptions ...AppOption) *cli.App {
 	app := cli.NewApp()
 	app.Name = "safeguard"
 	app.Version = "0.0.10"
@@ -75,6 +75,9 @@ EXAMPLES:
 		options := defaultRunOptions()
 		options.startupTimeout = c.Duration("startup-timeout")
 		options.shutdownTimeout = c.Duration("shutdown-timeout")
+		for _, option := range runtimeOptions {
+			option(&options)
+		}
 		return runTasksWithOptions(ctx, configuredTasks(conf), options)
 	}
 

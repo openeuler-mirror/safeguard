@@ -49,7 +49,7 @@ func configuredTasks(conf *config.Config) []auditTask {
 }
 
 type runOptions struct {
-	ready           func()
+	ready           func(context.Context) error
 	startupTimeout  time.Duration
 	shutdownTimeout time.Duration
 }
@@ -59,8 +59,9 @@ func runTasks(parent context.Context, tasks []auditTask) error {
 }
 
 func defaultRunOptions() runOptions {
-	return runOptions{startupTimeout: 30 * time.Second, shutdownTimeout: 10 * time.Second, ready: func() {
+	return runOptions{startupTimeout: 30 * time.Second, shutdownTimeout: 10 * time.Second, ready: func(context.Context) error {
 		log.Info("All configured audit modules started.")
+		return nil
 	}}
 }
 
@@ -90,7 +91,7 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 		name string
 		err  error
 	}
-	results := make(chan taskResult, len(tasks))
+	results := make(chan taskResult, len(tasks)+1)
 	waiting := make(map[string]bool, len(tasks))
 	ready := make(chan struct{}, len(tasks))
 	pending := len(tasks)
@@ -153,7 +154,17 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 				startup = nil
 			}
 			if pending == 0 && ctx.Err() == nil && options.ready != nil {
-				options.ready()
+				remaining++
+				waiting["readiness notification"] = true
+				go func() {
+					err, panicked := callAuditTask(ctx, options.ready)
+					if err != nil && (panicked || !(ctx.Err() != nil && errors.Is(err, ctx.Err()))) {
+						err = fmt.Errorf("readiness notification: %w", err)
+					} else {
+						err = nil
+					}
+					results <- taskResult{"readiness notification", err}
+				}()
 			}
 		case result := <-results:
 			err := result.err
