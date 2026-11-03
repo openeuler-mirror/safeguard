@@ -73,3 +73,18 @@ func TestResolverCancellation(t *testing.T) {
 		t.Fatal("cancellation did not interrupt exchange")
 	}
 }
+
+func TestResolverConfiguredTimeout(t *testing.T) {
+	for _, tc := range []struct {
+		seconds int
+		want    time.Duration
+	}{
+		{-1, 5 * time.Second}, {0, 5 * time.Second}, {2, 2 * time.Second}, {31, 30 * time.Second}, {int(^uint(0) >> 1), 30 * time.Second},
+	} {
+		r := &DefaultResolver{config: &dns.ClientConfig{Timeout: tc.seconds}, client: new(dns.Client)}
+		require.Equal(t, tc.want, r.queryClient().Timeout)
+		require.Zero(t, r.client.Timeout)
+		r.client.Timeout = 10 * time.Millisecond
+		require.Equal(t, 10*time.Millisecond, r.queryClient().Timeout)
+	}
+}
