@@ -228,6 +228,9 @@ func (c *Config) Validate() error {
 		}{
 			{"allow", c.RestrictedFileAccessConfig.Allow}, {"deny", c.RestrictedFileAccessConfig.Deny},
 		} {
+			if count := len(UniqueStrings(list.values)); count > 256 {
+				return fmt.Errorf("files.%s: %d unique paths exceed map capacity 256", list.name, count)
+			}
 			for i, value := range list.values {
 				if !strings.HasPrefix(value, "/") || strings.ContainsRune(value, 0) {
 					return fmt.Errorf("files.%s[%d]: path must be absolute and contain no NUL", list.name, i)
@@ -385,4 +388,17 @@ func validateCommRules(field string, values []string) error {
 		}
 	}
 	return nil
+}
+
+// UniqueStrings preserves first-seen order and does not modify the input slice.
+func UniqueStrings(values []string) []string {
+	result := make([]string, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, value := range values {
+		if !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	return result
 }

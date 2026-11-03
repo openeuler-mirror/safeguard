@@ -373,3 +373,32 @@ func TestNetworkCommandsMustFitKernelComm(t *testing.T) {
 		}
 	}
 }
+
+func TestFileMapCapacityCountsUniqueRules(t *testing.T) {
+	for _, list := range []string{"allow", "deny"} {
+		cfg := DefaultConfig()
+		cfg.RestrictedFileAccessConfig.Enable = true
+		values := make([]string, 256)
+		for i := range values {
+			values[i] = fmt.Sprintf("/path/%d", i)
+		}
+		set := func(paths []string) {
+			if list == "allow" {
+				cfg.RestrictedFileAccessConfig.Allow = paths
+			} else {
+				cfg.RestrictedFileAccessConfig.Deny = paths
+			}
+		}
+		set(values)
+		require.NoError(t, cfg.Validate())
+		set(append(append([]string{}, values...), values...))
+		require.NoError(t, cfg.Validate())
+		set(append(values, "/overflow"))
+		require.ErrorContains(t, cfg.Validate(), "files."+list)
+	}
+	input := []string{"/b", "/a", "/b"}
+	unique := UniqueStrings(input)
+	require.Equal(t, []string{"/b", "/a"}, unique)
+	unique[0] = "changed"
+	require.Equal(t, []string{"/b", "/a", "/b"}, input)
+}

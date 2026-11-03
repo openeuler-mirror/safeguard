@@ -137,14 +137,15 @@ func (m *Manager) setAllowedFileAccessMap() error {
 		return err
 	}
 
-	allowed_paths := m.config.RestrictedFileAccessConfig.Allow
+	allowed_paths := config.UniqueStrings(m.config.RestrictedFileAccessConfig.Allow)
 
 	for i, path := range allowed_paths {
 		if path == "" {
 			continue
 		}
-		key := uint8(i)
-		value := []byte(path)
+		key := uint32(i)
+		value := make([]byte, PATH_MAX)
+		copy(value, path)
 		err = map_allowed_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
 		if err != nil {
 			return err
@@ -160,14 +161,15 @@ func (m *Manager) setDeniedFileAccessMap() error {
 		return err
 	}
 
-	denied_paths := m.config.RestrictedFileAccessConfig.Deny
+	denied_paths := config.UniqueStrings(m.config.RestrictedFileAccessConfig.Deny)
 
 	for i, path := range denied_paths {
 		if path == "" {
 			continue
 		}
-		key := uint8(i)
-		value := []byte(path)
+		key := uint32(i)
+		value := make([]byte, PATH_MAX)
+		copy(value, path)
 
 		keyPtr := unsafe.Pointer(&key)
 		valuePtr := unsafe.Pointer(&value[0])
