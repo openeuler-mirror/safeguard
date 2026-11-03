@@ -145,3 +145,21 @@ func TestRunTasks_PreservesSimultaneousFailures(t *testing.T) {
 	require.ErrorContains(t, err, "first audit")
 	require.ErrorContains(t, err, "second audit")
 }
+
+func TestRunTasks_ExternalCancellationAndDeadlineAreDistinct(t *testing.T) {
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	expired, stop := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer stop()
+	task := auditTask{"unused", func(context.Context) error { t.Error("started after parent stopped"); return nil }}
+	require.NoError(t, runTasks(canceled, []auditTask{task}))
+	require.ErrorIs(t, runTasks(expired, []auditTask{task}), context.DeadlineExceeded)
+	ctx, done := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer done()
+	err := runTasks(ctx, []auditTask{{"peer", func(ctx context.Context) error {
+		helpers.ReportReady(ctx)
+		<-ctx.Done()
+		return ctx.Err()
+	}}})
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
