@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -127,4 +128,20 @@ func TestRunTasks_StartupFailureCleansAcquiredResourcesInReverse(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "prepare failed")
 	require.Equal(t, []int{2, 1}, order)
+}
+
+func TestRunTasks_PreservesSimultaneousFailures(t *testing.T) {
+	first := errors.New("first failure")
+	second := &os.PathError{Op: "open", Path: "missing", Err: os.ErrNotExist}
+	err := runTasks(context.Background(), []auditTask{
+		{"first", func(context.Context) error { return first }},
+		{"second", func(context.Context) error { return second }},
+	})
+	require.ErrorIs(t, err, first)
+	require.ErrorIs(t, err, os.ErrNotExist)
+	var pathError *os.PathError
+	require.ErrorAs(t, err, &pathError)
+	require.Same(t, second, pathError)
+	require.ErrorContains(t, err, "first audit")
+	require.ErrorContains(t, err, "second audit")
 }
