@@ -52,6 +52,7 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 	}
 
 	if err = mod.BPFLoadObject(); err != nil {
+		mod.Close()
 		return nil, err
 	}
 
@@ -68,7 +69,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mod, err := setupBPFProgram()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer mod.Close()
 
@@ -77,12 +78,13 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		config: conf,
 	}
 
-	mgr.SetConfigToMap()
-	if err != nil {
-		log.Fatal(err)
+	if err = mgr.SetConfigToMap(); err != nil {
+		return err
 	}
 
-	mgr.Attach()
+	if err := mgr.Attach(); err != nil {
+		return err
+	}
 
 	log.Info("Start the mount audit.")
 	eventChannel := make(chan []byte)
