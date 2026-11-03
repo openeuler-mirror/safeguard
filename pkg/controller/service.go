@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"time"
 
 	"culinux/pkg/controller/collector"
@@ -31,6 +32,13 @@ func NewService() Service {
 }
 
 func (s Service) Generate(options GenerateOptions) error {
+	if options.Mode != "monitor" && options.Mode != "block" {
+		return fmt.Errorf("invalid mode %q: must be monitor or block", options.Mode)
+	}
+	if options.OutputPath == "" {
+		return fmt.Errorf("output path must not be empty")
+	}
+
 	snapshot, err := s.Collector.Collect()
 	if err != nil {
 		return err
