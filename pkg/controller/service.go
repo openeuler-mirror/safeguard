@@ -58,26 +58,26 @@ func (s Service) Generate(options GenerateOptions) error {
 
 	snapshot, err := s.Collector.Collect()
 	if err != nil {
-		return err
+		return fmt.Errorf("collect host snapshot: %w", err)
 	}
 
 	whitelist := model.BuildWhitelist(snapshot, s.Now())
 
 	yamlBytes, err := render.MarshalConfigYAML(whitelist, options.Mode)
 	if err != nil {
-		return err
+		return fmt.Errorf("encode configuration: %w", err)
 	}
 	if err := render.WriteFile(options.OutputPath, yamlBytes); err != nil {
-		return err
+		return fmt.Errorf("write configuration %q: %w", options.OutputPath, err)
 	}
 
 	if options.ReportPath != "" {
 		reportBytes, err := render.MarshalReportJSON(whitelist)
 		if err != nil {
-			return err
+			return fmt.Errorf("encode report: %w", err)
 		}
 		if err := render.WriteFile(options.ReportPath, reportBytes); err != nil {
-			return err
+			return fmt.Errorf("write report %q: %w", options.ReportPath, err)
 		}
 	}
 
