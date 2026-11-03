@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -39,7 +40,7 @@ func toFqdn(domainName string) string {
 	return domainName + "."
 }
 
-func (r *DefaultResolver) exchange(message *dns.Msg) (*dns.Msg, error) {
+func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.Msg, error) {
 	failures := []string{}
 	host := ""
 	if len(message.Question) > 0 {
@@ -51,8 +52,11 @@ func (r *DefaultResolver) exchange(message *dns.Msg) (*dns.Msg, error) {
 		port = "53"
 	}
 	for _, server := range r.config.Servers {
-		res, _, err := r.client.Exchange(message, net.JoinHostPort(server, port))
+		res, err := exchangeDNSContext(ctx, r.client, message, net.JoinHostPort(server, port))
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			log.Debug(fmt.Sprintf("%s query to %s failed. %s", host, server, err))
 			failures = append(failures, fmt.Sprintf("%s: %v", server, err))
 			continue
@@ -68,10 +72,17 @@ func (r *DefaultResolver) exchange(message *dns.Msg) (*dns.Msg, error) {
 }
 
 func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, error) {
+	return r.ResolveContext(context.Background(), host, recordType)
+}
+
+func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recordType uint16) (*DNSAnswer, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	message := new(dns.Msg)
 	message.SetQuestion(toFqdn(host), recordType)
 	message.RecursionDesired = true
-	res, err := r.exchange(message)
+	res, err := r.exchange(ctx, message)
 
 	if err != nil {
 		log.Error(err)
@@ -233,4 +244,28 @@ func (mgr *Manager) AsyncResolve() {
 			}
 		}(deniedDomain)
 	}
+}
+
+// Closing the connection interrupts in-flight I/O even on context cancellation
+// without a deadline; the pinned DNS library only applies deadlines to I/O.
+func exchangeDNSContext(ctx context.Context, client *dns.Client, request *dns.Msg, address string) (*dns.Msg, error) {
+	conn, err := client.DialContext(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-done:
+		}
+	}()
+	response, _, err := client.ExchangeWithConn(request, conn)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return response, err
 }

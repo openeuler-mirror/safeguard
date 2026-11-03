@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -50,4 +51,25 @@ func TestResolverIndependentQueries(t *testing.T) {
 	}
 	workers.Wait()
 	require.Equal(t, "untouched.example.", r.message.Question[0].Name)
+}
+
+func TestResolverCancellation(t *testing.T) {
+	received := make(chan struct{}, 1)
+	r := localResolver(t, func(dns.ResponseWriter, *dns.Msg) { received <- struct{}{} })
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() { _, err := r.ResolveContext(ctx, "silent.example", dns.TypeA); result <- err }()
+	select {
+	case <-received:
+	case <-time.After(time.Second):
+		t.Fatal("query did not reach server")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("cancellation did not interrupt exchange")
+	}
 }
