@@ -129,13 +129,13 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mod, err := setupBPFProgram()
 	if err != nil {
-		return err
+		return helpers.During("network", "load", err)
 	}
 
 	defer helpers.Own(ctx, func() { mod.Close() })()
 	dnsConfig, err := dns.ClientConfigFromFile("/etc/resolv.conf")
 	if err != nil {
-		return err
+		return helpers.During("network", "dns-config", err)
 	}
 
 	mgr := Manager{
@@ -151,7 +151,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 
 	if err = mgr.SetConfigToMap(); err != nil {
-		return err
+		return helpers.During("network", "configure", err)
 	}
 
 	if mgr.config.EnableDNSProxy() {
@@ -170,13 +170,13 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	}
 
 	if err = mgr.Attach(); err != nil {
-		return err
+		return helpers.During("network", "attach", err)
 	}
 
 	log.Info("Start the network audit.")
 	eventsChannel := make(chan []byte)
 	if err := mgr.Start(eventsChannel); err != nil {
-		return err
+		return helpers.During("network", "buffer", err)
 	}
 	var consumers helpers.Consumers
 	helpers.ReportReady(ctx)
@@ -208,7 +208,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	mgr.Close()
 	log.Info("Terminated the network audit.")
 
-	return consumerErr
+	return helpers.During("network", "consume", consumerErr)
 }
 
 func newAuditLog(header eventHeader, body detectEvent) log.RestrictedNetworkLog {
