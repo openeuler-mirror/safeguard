@@ -7,6 +7,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
 	log "culinux/pkg/log"
 
@@ -61,7 +62,7 @@ const (
 type Manager struct {
 	mod         *libbpfgo.Module
 	config      *config.Config
-	rb          *libbpfgo.RingBuffer
+	rb          helpers.Buffer
 	dnsResolver DNSResolver
 	dnsCache    map[string]string
 }
@@ -146,13 +147,14 @@ func (m *Manager) SetConfigToMap() error {
 }
 
 func (m *Manager) Start(eventsChannel chan []byte) error {
-	rb, err := m.mod.InitRingBuf("audit_events", eventsChannel)
+	rb, err := helpers.StartBuffer("audit_events", func() (helpers.Buffer, error) {
+		return m.mod.InitRingBuf("audit_events", eventsChannel)
+	})
 
 	if err != nil {
 		return err
 	}
 
-	rb.Start()
 	m.rb = rb
 
 	return nil
