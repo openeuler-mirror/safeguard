@@ -568,3 +568,30 @@ func TestPathMatchingWidths(t *testing.T) {
 	cfg.RestrictedMountConfig.DenySourcePath = []string{strings.Repeat("a", 40) + "|" + strings.Repeat("b", 39)}
 	require.ErrorContains(t, cfg.Validate(), "mount.deny[0]")
 }
+
+func TestRotationArithmeticBounds(t *testing.T) {
+	if strconv.IntSize < 64 {
+		t.Skip("int64 megabyte boundary requires a 64-bit int")
+	}
+	for _, limit := range []struct {
+		field string
+		max   int64
+	}{
+		{"max_size", (1<<63 - 1) / (1024 * 1024)}, {"max_age", (1<<63 - 1) / (24 * 60 * 60 * 1000000000)},
+	} {
+		cfg := DefaultConfig()
+		set := func(value int64) {
+			if limit.field == "max_size" {
+				cfg.Log.MaxSize = int(value)
+			} else {
+				cfg.Log.MaxAge = int(value)
+			}
+		}
+		set(limit.max)
+		require.NoError(t, cfg.Validate())
+		set(limit.max + 1)
+		require.ErrorContains(t, cfg.Validate(), "log."+limit.field)
+		set(0)
+		require.NoError(t, cfg.Validate())
+	}
+}
