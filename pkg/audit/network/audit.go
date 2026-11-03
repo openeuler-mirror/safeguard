@@ -173,7 +173,10 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	log.Info("Start the network audit.")
 	eventsChannel := make(chan []byte)
-	mgr.Start(eventsChannel)
+	if err := mgr.Start(eventsChannel); err != nil {
+		return err
+	}
+	helpers.ReportReady(ctx)
 
 	go func() {
 		for {
