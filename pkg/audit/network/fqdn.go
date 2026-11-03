@@ -23,6 +23,9 @@ func (e *DNSResponseError) Error() string {
 	return fmt.Sprintf("DNS response for %s: code %d", e.Domain, e.Rcode)
 }
 
+// ErrDNSNoData denotes a successful DNS reply with no requested addresses.
+var ErrDNSNoData = errors.New("DNS response has no requested address records")
+
 type DNSAnswer struct {
 	Domain    string
 	Addresses []net.IP
@@ -107,7 +110,7 @@ func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recor
 	}
 
 	if len(res.Answer) == 0 {
-		return nil, errors.New(fmt.Sprintf("%s has not records(type %d)", host, recordType))
+		return nil, fmt.Errorf("%s type %d: %w", host, recordType, ErrDNSNoData)
 	}
 
 	answer := DNSAnswer{Domain: host}
@@ -127,7 +130,7 @@ func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recor
 	}
 
 	if answer.Addresses == nil {
-		return nil, errors.New(fmt.Sprintf("%s has not records(type %d)", host, recordType))
+		return nil, fmt.Errorf("%s type %d: %w", host, recordType, ErrDNSNoData)
 	}
 
 	return &answer, nil

@@ -142,3 +142,20 @@ func TestResolverResponseCodes(t *testing.T) {
 		require.Equal(t, "missing.example", responseError.Domain)
 	}
 }
+
+func TestResolverNoDataClassification(t *testing.T) {
+	for _, unrelated := range []bool{false, true} {
+		unrelated := unrelated
+		r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			if unrelated {
+				response.Answer = []dns.RR{&dns.AAAA{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET}, AAAA: net.ParseIP("2001:db8::1")}}
+			}
+			w.WriteMsg(response)
+		})
+		answer, err := r.Resolve("empty.example", dns.TypeA)
+		require.Nil(t, answer)
+		require.ErrorIs(t, err, ErrDNSNoData)
+	}
+}
