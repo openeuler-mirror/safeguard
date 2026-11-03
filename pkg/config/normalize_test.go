@@ -55,3 +55,24 @@ func TestShippedConfigurationsRemainLoadable(t *testing.T) {
 	}
 	require.Greater(t, count, 0)
 }
+
+func TestNormalizeLoadedIDs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ids.yaml")
+	source := []byte("network:\n  enable: true\n  uid: {allow: [9, 1, 9], deny: [4, 2, 4]}\n  gid: {allow: [8, 0, 8], deny: [7, 3, 7]}\n")
+	require.NoError(t, os.WriteFile(path, source, 0600))
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	require.Equal(t, []uint{1, 9}, cfg.UID.Allow)
+	require.Equal(t, []uint{2, 4}, cfg.UID.Deny)
+	require.Equal(t, []uint{0, 8}, cfg.GID.Allow)
+	require.Equal(t, []uint{3, 7}, cfg.GID.Deny)
+	after, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, source, after)
+}
+
+func TestNormalizeIDsPreservesSlice(t *testing.T) {
+	input := []uint{9, 1, 9}
+	require.Equal(t, []uint{1, 9}, NormalizeIDs(input))
+	require.Equal(t, []uint{9, 1, 9}, input)
+}

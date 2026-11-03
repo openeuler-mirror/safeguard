@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"sort"
 )
 
 // NormalizeCIDRs masks host bits, canonicalizes both address families and
@@ -22,4 +23,17 @@ func NormalizeCIDRs(values []string) ([]string, error) {
 		}
 	}
 	return normalized, nil
+}
+
+// NormalizeIDs sorts unique IDs in a copy, leaving the caller's slice untouched.
+func NormalizeIDs(values []uint) []uint {
+	sorted := append([]uint{}, values...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	result := sorted[:0]
+	for _, value := range sorted {
+		if len(result) == 0 || value != result[len(result)-1] {
+			result = append(result, value)
+		}
+	}
+	return result
 }
