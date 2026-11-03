@@ -1,7 +1,6 @@
 package audit
 
 import (
-	"context"
 	"errors"
 	"os"
 	"os/signal"
@@ -70,7 +69,7 @@ EXAMPLES:
 		log.SetLabel(conf.Log.Labels)
 		log.SetLevel(conf.Log.Level)
 
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+		ctx, cancel := signal.NotifyContext(c.Context, os.Interrupt)
 		defer cancel()
 
 		options := defaultRunOptions()

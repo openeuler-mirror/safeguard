@@ -65,6 +65,9 @@ func defaultRunOptions() runOptions {
 }
 
 func runTasksWithOptions(parent context.Context, tasks []auditTask, options runOptions) error {
+	if parent.Err() != nil {
+		return parentFailure(parent, nil)
+	}
 	if options.startupTimeout < 0 {
 		return fmt.Errorf("startup timeout must not be negative")
 	}
@@ -97,7 +100,7 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 		go func() {
 			taskContext := helpers.WithReadiness(ctx, func() { ready <- struct{}{} })
 			err := task.run(taskContext)
-			if err != nil && !(ctx.Err() != nil && errors.Is(err, context.Canceled)) {
+			if err != nil && !(ctx.Err() != nil && errors.Is(err, ctx.Err())) {
 				err = fmt.Errorf("%s audit: %w", task.name, err)
 			} else {
 				err = nil
@@ -118,6 +121,7 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 	for remaining > 0 {
 		select {
 		case <-stopping:
+			failure = parentFailure(parent, failure)
 			stopping = nil
 			startup = nil
 			shutdownTimer = time.NewTimer(options.shutdownTimeout)
@@ -162,6 +166,7 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 			}
 		}
 	}
+	failure = parentFailure(parent, failure)
 	cleaned := make(chan struct{})
 	go func() { cleanup(); close(cleaned) }()
 	if shutdown == nil {

@@ -1,7 +1,9 @@
 package audit
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -46,4 +48,12 @@ func joinFailure(previous, next error) error {
 		return append(list, next)
 	}
 	return auditErrors{previous, next}
+}
+
+func parentFailure(ctx context.Context, previous error) error {
+	err := ctx.Err()
+	if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(previous, err) {
+		return joinFailure(previous, fmt.Errorf("audit parent context: %w", err))
+	}
+	return previous
 }
