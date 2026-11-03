@@ -52,7 +52,7 @@ func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.
 		port = "53"
 	}
 	for _, server := range r.config.Servers {
-		res, err := exchangeDNSContext(ctx, r.client, message, net.JoinHostPort(server, port))
+		res, err := exchangeDNSContext(ctx, r.queryClient(), message, net.JoinHostPort(server, port))
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -268,4 +268,25 @@ func exchangeDNSContext(ctx context.Context, client *dns.Client, request *dns.Ms
 		return nil, ctx.Err()
 	}
 	return response, err
+}
+
+// Clone public settings without copying the DNS client's internal mutex.
+func (r *DefaultResolver) queryClient() *dns.Client {
+	source := r.client
+	timeout := source.Timeout
+	if timeout <= 0 {
+		seconds := r.config.Timeout
+		if seconds <= 0 {
+			seconds = 5
+		}
+		if seconds > 30 {
+			seconds = 30
+		}
+		timeout = time.Duration(seconds) * time.Second
+	}
+	return &dns.Client{
+		Net: source.Net, UDPSize: source.UDPSize, TLSConfig: source.TLSConfig, Dialer: source.Dialer,
+		Timeout: timeout, DialTimeout: source.DialTimeout, ReadTimeout: source.ReadTimeout, WriteTimeout: source.WriteTimeout,
+		TsigSecret: source.TsigSecret, TsigProvider: source.TsigProvider, SingleInflight: source.SingleInflight,
+	}
 }
