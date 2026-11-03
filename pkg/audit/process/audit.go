@@ -179,13 +179,13 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		}
 	})
 
-	<-ctx.Done()
+	consumers.Await(ctx)
 	mgr.Stop()
-	consumers.Wait()
+	consumerErr := consumers.Wait()
 	mgr.Close()
 	log.Info("Terminated the process audit.")
 
-	return nil
+	return consumerErr
 }
 
 func newAuditLog(event auditLog) log.RestrictedProcessLog {
