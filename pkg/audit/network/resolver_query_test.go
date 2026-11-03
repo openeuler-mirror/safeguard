@@ -88,3 +88,41 @@ func TestResolverConfiguredTimeout(t *testing.T) {
 		require.Equal(t, 10*time.Millisecond, r.queryClient().Timeout)
 	}
 }
+
+func TestResolverResponseIdentity(t *testing.T) {
+	for _, kind := range []string{"name", "type", "class", "missing", "opcode", "qr", "case", "escaped"} {
+		kind := kind
+		r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			response.Answer = []dns.RR{&dns.A{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET}, A: net.IPv4(192, 0, 2, 1)}}
+			switch kind {
+			case "name":
+				response.Question[0].Name = "other.example."
+			case "type":
+				response.Question[0].Qtype = dns.TypeAAAA
+			case "class":
+				response.Question[0].Qclass = dns.ClassCHAOS
+			case "missing":
+				response.Question = nil
+			case "opcode":
+				response.Opcode = dns.OpcodeStatus
+			case "qr":
+				response.Response = false
+			case "case":
+				response.Question[0].Name = "GOOD.EXAMPLE."
+			}
+			w.WriteMsg(response)
+		})
+		host := "good.example"
+		if kind == "escaped" {
+			host = `escaped\046name.example`
+		}
+		_, err := r.Resolve(host, dns.TypeA)
+		if kind == "case" || kind == "escaped" {
+			require.NoError(t, err, kind)
+		} else {
+			require.Error(t, err, kind)
+		}
+	}
+}
