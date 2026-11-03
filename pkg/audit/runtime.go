@@ -99,8 +99,8 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 		waiting[task.name] = true
 		go func() {
 			taskContext := helpers.WithReadiness(ctx, func() { ready <- struct{}{} })
-			err := task.run(taskContext)
-			if err != nil && !(ctx.Err() != nil && errors.Is(err, ctx.Err())) {
+			err, panicked := callAuditTask(taskContext, task.run)
+			if err != nil && (panicked || !(ctx.Err() != nil && errors.Is(err, ctx.Err()))) {
 				err = fmt.Errorf("%s audit: %w", task.name, err)
 			} else {
 				err = nil
@@ -182,4 +182,22 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 		}
 		return fmt.Errorf("audit cleanup timeout")
 	}
+}
+
+func callAuditTask(ctx context.Context, run func(context.Context) error) (err error, panicked bool) {
+	completed := false
+	defer func() {
+		if !completed {
+			value := recover()
+			panicked = true
+			if cause, ok := value.(error); ok {
+				err = fmt.Errorf("task panic: %w", cause)
+			} else {
+				err = fmt.Errorf("task panic: %v", value)
+			}
+		}
+	}()
+	err = run(ctx)
+	completed = true
+	return
 }
