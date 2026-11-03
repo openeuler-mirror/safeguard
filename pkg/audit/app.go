@@ -54,6 +54,16 @@ EXAMPLES:
 		if err != nil {
 			return err
 		}
+		options := defaultRunOptions()
+		options.startupTimeout = c.Duration("startup-timeout")
+		options.shutdownTimeout = c.Duration("shutdown-timeout")
+		for _, option := range runtimeOptions {
+			option(&options)
+		}
+		tasks := configuredTasks(conf)
+		if len(tasks) == 0 {
+			return runTasksWithOptions(c.Context, tasks, options)
+		}
 		if !utils.AmIRootUser() {
 			return errors.New("Must be run as root user")
 		}
@@ -72,13 +82,7 @@ EXAMPLES:
 		ctx, cancel := signal.NotifyContext(c.Context, os.Interrupt)
 		defer cancel()
 
-		options := defaultRunOptions()
-		options.startupTimeout = c.Duration("startup-timeout")
-		options.shutdownTimeout = c.Duration("shutdown-timeout")
-		for _, option := range runtimeOptions {
-			option(&options)
-		}
-		return runTasksWithOptions(ctx, configuredTasks(conf), options)
+		return runTasksWithOptions(ctx, tasks, options)
 	}
 
 	return app
