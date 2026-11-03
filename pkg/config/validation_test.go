@@ -36,3 +36,20 @@ func TestDefaultConfig_CIDRDefaults(t *testing.T) {
 	assert.Equal(t, []string{"0.0.0.0/0", "::/0"}, cfg.RestrictedNetworkConfig.CIDR.Allow)
 	assert.Equal(t, []string{}, cfg.RestrictedNetworkConfig.CIDR.Deny)
 }
+
+func TestNewConfig_RejectsNullDocument(t *testing.T) {
+	for _, content := range []string{"null\n", "~\n", "---\n"} {
+		t.Run(content, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "null.yaml")
+			require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+			cfg, err := NewConfig(path)
+			require.Error(t, err)
+			assert.Nil(t, cfg)
+		})
+	}
+}
+
+func TestValidate_RejectsNilConfig(t *testing.T) {
+	var cfg *Config
+	require.EqualError(t, cfg.Validate(), "configuration must not be null")
+}
