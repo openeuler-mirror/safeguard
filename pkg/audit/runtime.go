@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,8 +49,9 @@ func configuredTasks(conf *config.Config) []auditTask {
 }
 
 type runOptions struct {
-	ready          func()
-	startupTimeout time.Duration
+	ready           func()
+	startupTimeout  time.Duration
+	shutdownTimeout time.Duration
 }
 
 func runTasks(parent context.Context, tasks []auditTask) error {
@@ -56,7 +59,7 @@ func runTasks(parent context.Context, tasks []auditTask) error {
 }
 
 func defaultRunOptions() runOptions {
-	return runOptions{startupTimeout: 30 * time.Second, ready: func() {
+	return runOptions{startupTimeout: 30 * time.Second, shutdownTimeout: 10 * time.Second, ready: func() {
 		log.Info("All configured audit modules started.")
 	}}
 }
@@ -71,13 +74,25 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 		defer timer.Stop()
 		startup = timer.C
 	}
+	if options.shutdownTimeout == 0 {
+		options.shutdownTimeout = 10 * time.Second
+	}
+	if options.shutdownTimeout < 0 {
+		return fmt.Errorf("shutdown timeout must not be negative")
+	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	results := make(chan error, len(tasks))
+	type taskResult struct {
+		name string
+		err  error
+	}
+	results := make(chan taskResult, len(tasks))
+	waiting := make(map[string]bool, len(tasks))
 	ready := make(chan struct{}, len(tasks))
 	pending := len(tasks)
 	for _, task := range tasks {
 		task := task
+		waiting[task.name] = true
 		go func() {
 			taskContext := helpers.WithReadiness(ctx, func() { ready <- struct{}{} })
 			err := task.run(taskContext)
@@ -86,12 +101,36 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 			} else {
 				err = nil
 			}
-			results <- err
+			results <- taskResult{task.name, err}
 		}()
 	}
 	var failure error
+	stopping := ctx.Done()
+	var shutdown <-chan time.Time
+	var shutdownTimer *time.Timer
+	defer func() {
+		if shutdownTimer != nil {
+			shutdownTimer.Stop()
+		}
+	}()
 	for remaining := len(tasks); remaining > 0; {
 		select {
+		case <-stopping:
+			stopping = nil
+			startup = nil
+			shutdownTimer = time.NewTimer(options.shutdownTimeout)
+			shutdown = shutdownTimer.C
+		case <-shutdown:
+			var names []string
+			for name := range waiting {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			timeout := fmt.Errorf("audit shutdown timeout; still running: %s", strings.Join(names, ", "))
+			if failure != nil {
+				return fmt.Errorf("%w; %v", failure, timeout)
+			}
+			return timeout
 		case <-startup:
 			failure = fmt.Errorf("audit startup timeout after %s", options.startupTimeout)
 			startup = nil
@@ -104,7 +143,9 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 			if pending == 0 && ctx.Err() == nil && options.ready != nil {
 				options.ready()
 			}
-		case err := <-results:
+		case result := <-results:
+			err := result.err
+			delete(waiting, result.name)
 			remaining--
 			if err != nil && failure == nil {
 				failure = err
