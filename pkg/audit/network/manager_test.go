@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -142,7 +143,7 @@ func loadFixtureConfig(path string) *config.Config {
 }
 
 func createManager(conf *config.Config, dnsResolver DNSResolver) *Manager {
-	mod, err := setupBPFProgram()
+	mod, err := setupBPFProgram(context.Background())
 	if err != nil {
 		panic(err)
 	}

@@ -196,6 +196,9 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 }
 
 func callAuditTask(ctx context.Context, run func(context.Context) error) (err error, panicked bool) {
+	if ctx.Err() != nil {
+		return ctx.Err(), false
+	}
 	completed := false
 	defer func() {
 		if !completed {
