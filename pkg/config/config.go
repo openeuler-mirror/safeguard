@@ -253,6 +253,10 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("files.%s: %d unique paths exceed map capacity 256", list.name, count)
 			}
 			for i, value := range list.values {
+				// LOOP_NAME=80 requires the terminating NUL inside the comparison range.
+				if len(value) > 79 {
+					return fmt.Errorf("files.%s[%d]: encoded path exceeds 79 bytes", list.name, i)
+				}
 				paths := []string{value}
 				// Preserve the legacy kernel's leading-pipe deny encoding.
 				if list.name == "deny" && strings.HasPrefix(value, "|") {
@@ -271,6 +275,14 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("mount.deny: %d unique sources exceed map capacity 256", count)
 		}
 		for i, source := range c.RestrictedMountConfig.DenySourcePath {
+			if len(source) > 79 {
+				return fmt.Errorf("mount.deny[%d]: encoded source exceeds 79 bytes", i)
+			}
+			for _, part := range strings.Split(source, "|") {
+				if len(part) > 63 {
+					return fmt.Errorf("mount.deny[%d]: source exceeds DEV_LEN-1 (63 bytes)", i)
+				}
+			}
 			if strings.TrimSpace(source) == "" || strings.ContainsRune(source, 0) {
 				return fmt.Errorf("mount.deny[%d]: source must not be empty or contain NUL", i)
 			}

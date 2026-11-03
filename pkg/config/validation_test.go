@@ -536,3 +536,35 @@ func TestDomainWireBoundaries(t *testing.T) {
 		}
 	}
 }
+
+func TestPathMatchingWidths(t *testing.T) {
+	for _, field := range []string{"files.allow", "files.deny", "mount.deny"} {
+		limit := 79
+		if field == "mount.deny" {
+			limit = 63
+		}
+		for _, size := range []int{limit, limit + 1} {
+			cfg := DefaultConfig()
+			cfg.RestrictedFileAccessConfig.Enable = true
+			cfg.RestrictedMountConfig.Enable = true
+			value := "/" + strings.Repeat("p", size-1)
+			switch field {
+			case "files.allow":
+				cfg.RestrictedFileAccessConfig.Allow = []string{value}
+			case "files.deny":
+				cfg.RestrictedFileAccessConfig.Deny = []string{value}
+			case "mount.deny":
+				cfg.RestrictedMountConfig.DenySourcePath = []string{value}
+			}
+			if size == limit {
+				require.NoError(t, cfg.Validate())
+			} else {
+				require.ErrorContains(t, cfg.Validate(), field+"[0]")
+			}
+		}
+	}
+	cfg := DefaultConfig()
+	cfg.RestrictedMountConfig.Enable = true
+	cfg.RestrictedMountConfig.DenySourcePath = []string{strings.Repeat("a", 40) + "|" + strings.Repeat("b", 39)}
+	require.ErrorContains(t, cfg.Validate(), "mount.deny[0]")
+}
