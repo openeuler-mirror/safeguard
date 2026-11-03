@@ -74,8 +74,26 @@ func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.
 			failures = append(failures, fmt.Sprintf("%s: %v", server, err))
 			continue
 		}
-		if res == nil || !res.Response || res.Opcode != message.Opcode || len(res.Question) != 1 || !sameDNSQuestion(message.Question[0], res.Question[0]) {
+
+		if !validDNSReply(message, res) {
 			return nil, errors.New("DNS response identity mismatch")
+		}
+		if res.Truncated {
+			client := r.queryClient()
+			if client.Net != "" && !strings.HasPrefix(client.Net, "udp") {
+				return nil, errors.New("truncated TCP DNS response")
+			}
+			client.Net = strings.Replace(client.Net, "udp", "tcp", 1)
+			if client.Net == "" {
+				client.Net = "tcp"
+			}
+			res, err = exchangeDNSContext(ctx, client, message, net.JoinHostPort(server, port))
+			if err != nil {
+				return nil, err
+			}
+			if !validDNSReply(message, res) || res.Truncated {
+				return nil, errors.New("invalid or truncated TCP DNS response")
+			}
 		}
 		return res, nil
 	}
@@ -376,4 +394,8 @@ func responseChain(records []dns.RR, name string, recordType uint16) ([]dns.RR, 
 		name = target
 	}
 	return nil, ErrDNSAliasLimit
+}
+
+func validDNSReply(request, response *dns.Msg) bool {
+	return response != nil && response.Response && response.Opcode == request.Opcode && len(response.Question) == 1 && sameDNSQuestion(request.Question[0], response.Question[0])
 }

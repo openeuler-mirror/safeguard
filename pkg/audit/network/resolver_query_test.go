@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -217,5 +218,39 @@ func TestResolverAliasBounds(t *testing.T) {
 		case 17:
 			require.ErrorIs(t, err, ErrDNSAliasLimit)
 		}
+	}
+}
+
+func TestResolverTruncatedTCPRetry(t *testing.T) {
+	for _, truncated := range []bool{false, true} {
+		truncated := truncated
+		var queries int32
+		r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			response.Truncated = true
+			w.WriteMsg(response)
+		})
+		listener, err := net.Listen("tcp", net.JoinHostPort(r.config.Servers[0], r.config.Port))
+		require.NoError(t, err)
+		server := &dns.Server{Listener: listener, Handler: dns.HandlerFunc(func(w dns.ResponseWriter, q *dns.Msg) {
+			atomic.AddInt32(&queries, 1)
+			response := new(dns.Msg)
+			response.SetReply(q)
+			response.Truncated = truncated
+			rr, _ := dns.NewRR("tcp.example. 60 IN A 192.0.2.1")
+			response.Answer = []dns.RR{rr}
+			w.WriteMsg(response)
+		})}
+		go server.ActivateAndServe()
+		t.Cleanup(func() { server.Shutdown() })
+		answer, err := r.Resolve("tcp.example", dns.TypeA)
+		if truncated {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			require.Len(t, answer.Addresses, 1)
+		}
+		require.Equal(t, int32(1), atomic.LoadInt32(&queries))
 	}
 }
