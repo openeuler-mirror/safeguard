@@ -306,3 +306,18 @@ func TestFilePathsRejectUnrepresentableNames(t *testing.T) {
 		}
 	}
 }
+
+func TestMountSourceNames(t *testing.T) {
+	for _, source := range []string{"", " \t", "/dev/sda\x00suffix", "/dev/sda1", "tmpfs", "server:/export"} {
+		cfg := DefaultConfig()
+		cfg.RestrictedMountConfig.Enable = true
+		cfg.RestrictedMountConfig.DenySourcePath = []string{"/dev/valid", source}
+		if strings.TrimSpace(source) == "" || strings.ContainsRune(source, 0) {
+			require.ErrorContains(t, cfg.Validate(), "mount.deny[1]")
+		} else {
+			require.NoError(t, cfg.Validate())
+		}
+		cfg.RestrictedMountConfig.Enable = false
+		require.NoError(t, cfg.Validate())
+	}
+}

@@ -235,6 +235,13 @@ func (c *Config) Validate() error {
 			}
 		}
 	}
+	if c.RestrictedMountConfig.Enable {
+		for i, source := range c.RestrictedMountConfig.DenySourcePath {
+			if strings.TrimSpace(source) == "" || strings.ContainsRune(source, 0) {
+				return fmt.Errorf("mount.deny[%d]: source must not be empty or contain NUL", i)
+			}
+		}
+	}
 	if c.RestrictedNetworkConfig.Enable {
 		if err := c.RestrictedNetworkConfig.validate(); err != nil {
 			return err
