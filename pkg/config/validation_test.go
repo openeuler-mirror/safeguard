@@ -498,3 +498,15 @@ func TestProcessMapCapacityUsesRepresentableUniqueNames(t *testing.T) {
 	cfg.RestrictedProcessConfig.Enable = false
 	require.NoError(t, cfg.Validate())
 }
+
+func TestLegacyFileDenyEncodingRetainsPathValidation(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.RestrictedFileAccessConfig.Enable = true
+	cfg.RestrictedFileAccessConfig.Deny = []string{"|/home/1|/home/2|/test"}
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, "|/home/1|/home/2|/test", cfg.RestrictedFileAccessConfig.Deny[0])
+	for _, value := range []string{"|relative|/valid", "|/valid|relative", "|/valid|", "|/valid\x00suffix"} {
+		cfg.RestrictedFileAccessConfig.Deny = []string{value}
+		require.ErrorContains(t, cfg.Validate(), "files.deny[0]")
+	}
+}
