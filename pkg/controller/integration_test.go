@@ -8,6 +8,7 @@ import (
 
 	"culinux/pkg/config"
 	"culinux/pkg/controller/model"
+	"culinux/pkg/controller/render"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,11 +26,22 @@ func TestIntegration_GenerateToConfig(t *testing.T) {
 
 	// Use real service
 	service := NewService()
-	err := service.Generate(GenerateOptions{
+	snapshot, err := service.Collector.Collect()
+	require.NoError(t, err)
+	// Freeze real host data so validation and generation inspect the same snapshot.
+	service.Collector = fakeCollector{snapshot: snapshot}
+	_, validationErr := render.MarshalConfigYAML(model.BuildWhitelist(snapshot, service.Now()), "monitor")
+	err = service.Generate(GenerateOptions{
 		Mode:       "monitor",
 		OutputPath: outputPath,
 		ReportPath: reportPath,
 	})
+	if validationErr != nil {
+		require.ErrorContains(t, err, "encode configuration")
+		require.NoFileExists(t, outputPath)
+		require.NoFileExists(t, reportPath)
+		return
+	}
 	require.NoError(t, err)
 
 	// Verify output files exist
