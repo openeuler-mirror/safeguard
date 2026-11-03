@@ -55,19 +55,17 @@ func (m *Manager) Close() {
 
 // Attach attaches the BPF LSM programs for mount restriction.
 func (m *Manager) Attach() error {
-	for _, p := range BPF_PROGRAM_NAME {
-		prog, err := m.mod.GetProgram(p)
+	return helpers.AttachAll(BPF_PROGRAM_NAME, func(name string) (helpers.Link, error) {
+		prog, err := m.mod.GetProgram(name)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		_, err = prog.AttachLSM()
-		if err != nil {
-			return err
+		link, err := prog.AttachLSM()
+		if err == nil {
+			log.Debug(fmt.Sprintf("%s attached.", name))
 		}
-	}
-
-	log.Debug(fmt.Sprintf("%s attached.", BPF_PROGRAM_NAME))
-	return nil
+		return link, err
+	})
 }
 
 func (m *Manager) SetConfigToMap() error {
