@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
 	log "culinux/pkg/log"
 
@@ -29,18 +30,19 @@ const (
 type Manager struct {
 	mod     *libbpfgo.Module
 	config  *config.Config
-	pb      *libbpfgo.PerfBuffer
+	pb      helpers.Buffer
 	ownsPin bool
 }
 
 // Start initializes the perf buffer for file access events and begins polling.
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
-	pb, err := m.mod.InitPerfBuf("fileopen_events", eventChannel, lostChannel, 1024)
+	pb, err := helpers.StartBuffer("fileopen_events", func() (helpers.Buffer, error) {
+		return m.mod.InitPerfBuf("fileopen_events", eventChannel, lostChannel, 1024)
+	})
 	if err != nil {
 		return err
 	}
 
-	pb.Start()
 	m.pb = pb
 
 	return nil

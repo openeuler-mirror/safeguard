@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"unsafe"
 
+	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
 	log "culinux/pkg/log"
 
@@ -47,18 +48,19 @@ const (
 type Manager struct {
 	mod    *libbpfgo.Module
 	config *config.Config
-	pb     *libbpfgo.PerfBuffer
-	rb     *libbpfgo.RingBuffer
+	pb     helpers.Buffer
+	rb     helpers.Buffer
 }
 
 // Start initializes the perf buffer for process events and begins polling.
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
-	pb, err := m.mod.InitPerfBuf("process_events", eventChannel, lostChannel, 1024)
+	pb, err := helpers.StartBuffer("process_events", func() (helpers.Buffer, error) {
+		return m.mod.InitPerfBuf("process_events", eventChannel, lostChannel, 1024)
+	})
 	if err != nil {
 		return err
 	}
 
-	pb.Start()
 	m.pb = pb
 
 	return nil
@@ -66,12 +68,13 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 
 // StartExecAudit 启动进程执行审计（ringbuf）
 func (m *Manager) StartExecAudit(eventChannel chan []byte, lostChannel chan uint64) error {
-	rb, err := m.mod.InitRingBuf("process_exec_events", eventChannel)
+	rb, err := helpers.StartBuffer("process_exec_events", func() (helpers.Buffer, error) {
+		return m.mod.InitRingBuf("process_exec_events", eventChannel)
+	})
 	if err != nil {
 		return err
 	}
 
-	rb.Start()
 	m.rb = rb
 
 	return nil
