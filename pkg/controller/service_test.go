@@ -82,6 +82,7 @@ func TestServiceGenerate_ReturnsCollectorError(t *testing.T) {
 	})
 
 	require.ErrorIs(t, err, collectErr)
+	assert.ErrorContains(t, err, "collect host snapshot")
 	assert.NoFileExists(t, outputPath)
 }
 
@@ -177,4 +178,23 @@ func TestServiceGenerate_RejectsIdenticalMissingPaths(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "different files")
 	assert.NoFileExists(t, path)
+}
+
+func TestServiceGenerate_IdentifiesFailedOutput(t *testing.T) {
+	for _, reportFailure := range []bool{false, true} {
+		root := t.TempDir()
+		output, report := root, ""
+		stage, path := "write configuration", root
+		if reportFailure {
+			output, report = filepath.Join(root, "config.yaml"), root
+			stage = "write report"
+		}
+		service := Service{Collector: fakeCollector{}, Now: time.Now}
+		err := service.Generate(GenerateOptions{Mode: "monitor", OutputPath: output, ReportPath: report})
+		require.ErrorContains(t, err, stage)
+		assert.ErrorContains(t, err, path)
+		var pathErr *os.PathError
+		require.ErrorAs(t, err, &pathErr)
+		assert.Equal(t, path, pathErr.Path)
+	}
 }
