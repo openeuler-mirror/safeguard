@@ -249,6 +249,9 @@ func (c *Config) Validate() error {
 		}
 	}
 	if c.RestrictedProcessConfig.Enable {
+		if count := len(UniqueStrings(c.RestrictedProcessConfig.Allow)); count > 1024 {
+			return fmt.Errorf("process.allow: %d unique names exceed map capacity 1024", count)
+		}
 		if err := validateCommRules("process.allow", c.RestrictedProcessConfig.Allow); err != nil {
 			return err
 		}
