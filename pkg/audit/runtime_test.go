@@ -108,3 +108,23 @@ func TestRunTasks_ShutdownBudgetNamesStuckModule(t *testing.T) {
 		t.Fatal("shutdown exceeded its budget")
 	}
 }
+
+func TestRunTasks_StartupFailureCleansAcquiredResourcesInReverse(t *testing.T) {
+	acquired := make(chan struct{})
+	var order []int
+	err := runTasks(context.Background(), []auditTask{
+		{"first", func(ctx context.Context) error {
+			defer helpers.Own(ctx, func() { order = append(order, 1) })()
+			close(acquired)
+			<-ctx.Done()
+			return nil
+		}},
+		{"second", func(ctx context.Context) error {
+			<-acquired
+			defer helpers.Own(ctx, func() { order = append(order, 2) })()
+			return errors.New("prepare failed")
+		}},
+	})
+	require.ErrorContains(t, err, "prepare failed")
+	require.Equal(t, []int{2, 1}, order)
+}
