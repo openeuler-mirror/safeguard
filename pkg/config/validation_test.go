@@ -419,3 +419,34 @@ func TestMountMapCapacity(t *testing.T) {
 	cfg.RestrictedMountConfig.Enable = false
 	require.NoError(t, cfg.Validate())
 }
+
+func TestNetworkIDMapCapacitiesAreIndependent(t *testing.T) {
+	for _, field := range []string{"uid.allow", "uid.deny", "gid.allow", "gid.deny"} {
+		cfg := DefaultConfig()
+		cfg.RestrictedNetworkConfig.Enable = true
+		ids := make([]uint, 256)
+		for i := range ids {
+			ids[i] = uint(i)
+		}
+		cfg.RestrictedNetworkConfig.UID = UIDConfig{Allow: ids, Deny: ids}
+		cfg.RestrictedNetworkConfig.GID = GIDConfig{Allow: ids, Deny: ids}
+		require.NoError(t, cfg.Validate())
+		var target *[]uint
+		switch field {
+		case "uid.allow":
+			target = &cfg.RestrictedNetworkConfig.UID.Allow
+		case "uid.deny":
+			target = &cfg.RestrictedNetworkConfig.UID.Deny
+		case "gid.allow":
+			target = &cfg.RestrictedNetworkConfig.GID.Allow
+		case "gid.deny":
+			target = &cfg.RestrictedNetworkConfig.GID.Deny
+		}
+		*target = append(append([]uint{}, ids...), ids...)
+		require.NoError(t, cfg.Validate())
+		*target = append(*target, 256)
+		require.ErrorContains(t, cfg.Validate(), "network."+field)
+		cfg.RestrictedNetworkConfig.Enable = false
+		require.NoError(t, cfg.Validate())
+	}
+}

@@ -308,10 +308,15 @@ func (c RestrictedNetworkConfig) validate() error {
 		{"uid.allow", c.UID.Allow}, {"uid.deny", c.UID.Deny},
 		{"gid.allow", c.GID.Allow}, {"gid.deny", c.GID.Deny},
 	} {
+		unique := make(map[uint]struct{}, len(list.values))
 		for i, value := range list.values {
 			if uint64(value) > 1<<32-1 {
 				return fmt.Errorf("network.%s[%d]: %d exceeds uint32", list.name, i, value)
 			}
+			unique[value] = struct{}{}
+		}
+		if len(unique) > 256 {
+			return fmt.Errorf("network.%s: %d unique IDs exceed map capacity 256", list.name, len(unique))
 		}
 	}
 	return nil
