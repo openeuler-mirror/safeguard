@@ -42,6 +42,9 @@ func BuildConfig(whitelist model.WhitelistModel, mode string) config.Config {
 // MarshalConfigYAML serializes a WhitelistModel as a YAML configuration file.
 func MarshalConfigYAML(whitelist model.WhitelistModel, mode string) ([]byte, error) {
 	cfg := BuildConfig(whitelist, mode)
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
 	return yaml.Marshal(&cfg)
 }
 

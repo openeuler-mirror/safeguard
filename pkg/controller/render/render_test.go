@@ -138,3 +138,22 @@ func TestWriteFile_CreatesParentDirectories(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "{\"ok\":true}", string(data))
 }
+
+func TestMarshalConfigYAML_RejectsUnloadableConfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		name, mode, cidr, field string
+	}{
+		{"unknown mode", "blok", "127.0.0.1/32", "network.mode"},
+		{"empty mode", "", "127.0.0.1/32", "network.mode"},
+		{"invalid CIDR", "monitor", "not-a-cidr", "network.cidr.allow[0]"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			whitelist := model.WhitelistModel{
+				Network: model.NetworkWhitelist{CIDRAllow: []string{tc.cidr}},
+			}
+			data, err := MarshalConfigYAML(whitelist, tc.mode)
+			require.ErrorContains(t, err, tc.field)
+			assert.Nil(t, data)
+		})
+	}
+}
