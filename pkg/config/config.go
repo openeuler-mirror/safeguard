@@ -306,6 +306,16 @@ func (c *Config) Validate() error {
 			return err
 		}
 	}
+	if c.DNSProxyConfig.Enable {
+		if len(c.DNSProxyConfig.BindAddresses) == 0 {
+			return errors.New("dns_proxy.bind must contain at least one listener")
+		}
+		for i, address := range c.DNSProxyConfig.BindAddresses {
+			if strings.TrimSpace(address) == "" {
+				return fmt.Errorf("dns_proxy.bind[%d]: listener must not be empty", i)
+			}
+		}
+	}
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
 		return errors.New("One or more dns_proxy.upstreams must be specified.")
 	}

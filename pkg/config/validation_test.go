@@ -595,3 +595,21 @@ func TestRotationArithmeticBounds(t *testing.T) {
 		require.NoError(t, cfg.Validate())
 	}
 }
+
+func TestProxyRequiresNonemptyListeners(t *testing.T) {
+	for _, bind := range [][]string{nil, {}, {""}, {"127.0.0.1", " \t"}} {
+		cfg := DefaultConfig()
+		cfg.RestrictedNetworkConfig.Enable = true
+		cfg.DNSProxyConfig.Enable = true
+		cfg.DNSProxyConfig.Upstreams = []string{"1.1.1.1"}
+		cfg.DNSProxyConfig.BindAddresses = bind
+		require.ErrorContains(t, cfg.Validate(), "dns_proxy.bind")
+		cfg.DNSProxyConfig.Enable = false
+		require.NoError(t, cfg.Validate())
+	}
+	cfg := DefaultConfig()
+	cfg.RestrictedNetworkConfig.Enable = true
+	cfg.DNSProxyConfig.Enable = true
+	cfg.DNSProxyConfig.Upstreams = []string{"1.1.1.1"}
+	require.NoError(t, cfg.Validate())
+}
