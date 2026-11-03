@@ -126,3 +126,19 @@ func TestResolverResponseIdentity(t *testing.T) {
 		}
 	}
 }
+
+func TestResolverResponseCodes(t *testing.T) {
+	for _, code := range []int{dns.RcodeNameError, dns.RcodeServerFailure} {
+		code := code
+		r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetRcode(q, code)
+			w.WriteMsg(response)
+		})
+		_, err := r.Resolve("missing.example", dns.TypeA)
+		var responseError *DNSResponseError
+		require.ErrorAs(t, err, &responseError)
+		require.Equal(t, code, responseError.Rcode)
+		require.Equal(t, "missing.example", responseError.Domain)
+	}
+}

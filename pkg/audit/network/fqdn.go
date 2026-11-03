@@ -13,6 +13,16 @@ import (
 	"github.com/miekg/dns"
 )
 
+// DNSResponseError exposes response status without parsing a log message.
+type DNSResponseError struct {
+	Domain string
+	Rcode  int
+}
+
+func (e *DNSResponseError) Error() string {
+	return fmt.Sprintf("DNS response for %s: code %d", e.Domain, e.Rcode)
+}
+
 type DNSAnswer struct {
 	Domain    string
 	Addresses []net.IP
@@ -93,7 +103,7 @@ func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recor
 	}
 
 	if res.Rcode != dns.RcodeSuccess {
-		return nil, errors.New(fmt.Sprintf("Return code is %d\n", res.Rcode))
+		return nil, &DNSResponseError{Domain: host, Rcode: res.Rcode}
 	}
 
 	if len(res.Answer) == 0 {
