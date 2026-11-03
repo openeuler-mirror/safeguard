@@ -346,3 +346,30 @@ func TestProcessRulesMustFitKernelComm(t *testing.T) {
 	cfg.RestrictedProcessConfig.Allow = []string{"sh", "sh"}
 	require.NoError(t, cfg.Validate())
 }
+
+func TestNetworkCommandsMustFitKernelComm(t *testing.T) {
+	for _, list := range []string{"allow", "deny"} {
+		for _, tc := range []struct {
+			value string
+			valid bool
+		}{
+			{"", false}, {strings.Repeat("x", 15), true}, {strings.Repeat("x", 16), false},
+			{strings.Repeat("中", 5), true}, {strings.Repeat("中", 6), false}, {"sh\x00suffix", false},
+		} {
+			cfg := DefaultConfig()
+			cfg.RestrictedNetworkConfig.Enable = true
+			if list == "allow" {
+				cfg.RestrictedNetworkConfig.Command.Allow = []string{"sh", tc.value}
+			} else {
+				cfg.RestrictedNetworkConfig.Command.Deny = []string{"sh", tc.value}
+			}
+			if tc.valid {
+				require.NoError(t, cfg.Validate())
+			} else {
+				require.ErrorContains(t, cfg.Validate(), "network.command."+list+"[1]")
+			}
+			cfg.RestrictedNetworkConfig.Enable = false
+			require.NoError(t, cfg.Validate())
+		}
+	}
+}
