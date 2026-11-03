@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/miekg/dns"
 	"gopkg.in/yaml.v2"
 )
 
@@ -338,6 +339,14 @@ func (c RestrictedNetworkConfig) validate() error {
 		for i, value := range list.values {
 			if strings.TrimSpace(value) == "" {
 				return fmt.Errorf("network.domain.%s[%d]: domain must not be empty", list.name, i)
+			}
+			var wire [255]byte
+			size, err := dns.PackDomainName(dns.Fqdn(value), wire[:], 0, nil, false)
+			if err == nil && size > len(wire) {
+				err = dns.ErrLongDomain
+			}
+			if err != nil {
+				return fmt.Errorf("network.domain.%s[%d]: invalid DNS wire name: %w", list.name, i, err)
 			}
 		}
 	}
