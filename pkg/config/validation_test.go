@@ -510,3 +510,29 @@ func TestLegacyFileDenyEncodingRetainsPathValidation(t *testing.T) {
 		require.ErrorContains(t, cfg.Validate(), "files.deny[0]")
 	}
 }
+
+func TestDomainWireBoundaries(t *testing.T) {
+	maxName := strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 61)
+	for _, direction := range []string{"allow", "deny"} {
+		for _, tc := range []struct {
+			name  string
+			valid bool
+		}{
+			{strings.Repeat("a", 63) + ".com", true}, {strings.Repeat("a", 64) + ".com", false},
+			{maxName, true}, {maxName + "d", false}, {`a\046b.example`, true},
+		} {
+			cfg := DefaultConfig()
+			cfg.RestrictedNetworkConfig.Enable = true
+			if direction == "allow" {
+				cfg.Domain.Allow = []string{"valid.example", tc.name}
+			} else {
+				cfg.Domain.Deny = []string{"valid.example", tc.name}
+			}
+			if tc.valid {
+				require.NoError(t, cfg.Validate())
+			} else {
+				require.ErrorContains(t, cfg.Validate(), "network.domain."+direction+"[1]")
+			}
+		}
+	}
+}
