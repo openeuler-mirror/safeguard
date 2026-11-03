@@ -137,3 +137,44 @@ func TestServiceGenerate_RejectsInvalidOptionsBeforeCollection(t *testing.T) {
 		})
 	}
 }
+
+func TestServiceGenerate_RejectsOutputReportAliases(t *testing.T) {
+	root := t.TempDir()
+	output := filepath.Join(root, "config.yaml")
+	hardlink, symlink := filepath.Join(root, "hardlink"), filepath.Join(root, "symlink")
+	require.NoError(t, os.WriteFile(output, []byte("original"), 0o600))
+	require.NoError(t, os.Link(output, hardlink))
+	require.NoError(t, os.Symlink(output, symlink))
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	relative, err := filepath.Rel(cwd, output)
+	require.NoError(t, err)
+	for name, report := range map[string]string{
+		"identical":  output,
+		"normalized": root + "/unused/../config.yaml",
+		"relative":   relative,
+		"hardlink":   hardlink,
+		"symlink":    symlink,
+	} {
+		t.Run(name, func(t *testing.T) {
+			require.NoError(t, os.WriteFile(output, []byte("original"), 0o600))
+			service := Service{Collector: fakeCollector{}, Now: time.Now}
+			err := service.Generate(GenerateOptions{
+				Mode: "monitor", OutputPath: output, ReportPath: report,
+			})
+			assert.ErrorContains(t, err, "different files")
+			content, err := os.ReadFile(output)
+			require.NoError(t, err)
+			assert.Equal(t, "original", string(content))
+		})
+	}
+}
+
+func TestServiceGenerate_RejectsIdenticalMissingPaths(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing.yaml")
+	err := (Service{}).Generate(GenerateOptions{
+		Mode: "monitor", OutputPath: path, ReportPath: path,
+	})
+	require.ErrorContains(t, err, "different files")
+	assert.NoFileExists(t, path)
+}

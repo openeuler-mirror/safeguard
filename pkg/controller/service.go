@@ -2,6 +2,8 @@ package controller
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"culinux/pkg/controller/collector"
@@ -37,6 +39,21 @@ func (s Service) Generate(options GenerateOptions) error {
 	}
 	if options.OutputPath == "" {
 		return fmt.Errorf("output path must not be empty")
+	}
+	if options.ReportPath != "" {
+		output, err := filepath.Abs(options.OutputPath)
+		if err != nil {
+			return fmt.Errorf("resolve output path: %w", err)
+		}
+		report, err := filepath.Abs(options.ReportPath)
+		if err != nil {
+			return fmt.Errorf("resolve report path: %w", err)
+		}
+		outputInfo, outputErr := os.Stat(output)
+		reportInfo, reportErr := os.Stat(report)
+		if output == report || (outputErr == nil && reportErr == nil && os.SameFile(outputInfo, reportInfo)) {
+			return fmt.Errorf("output and report must refer to different files")
+		}
 	}
 
 	snapshot, err := s.Collector.Collect()
