@@ -46,8 +46,12 @@ func (r *DefaultResolver) exchange(message *dns.Msg) (*dns.Msg, error) {
 		host = message.Question[0].Name
 	}
 
+	port := r.config.Port
+	if port == "" {
+		port = "53"
+	}
 	for _, server := range r.config.Servers {
-		res, _, err := r.client.Exchange(message, net.JoinHostPort(server, "53"))
+		res, _, err := r.client.Exchange(message, net.JoinHostPort(server, port))
 		if err != nil {
 			log.Debug(fmt.Sprintf("%s query to %s failed. %s", host, server, err))
 			failures = append(failures, fmt.Sprintf("%s: %v", server, err))
@@ -64,12 +68,10 @@ func (r *DefaultResolver) exchange(message *dns.Msg) (*dns.Msg, error) {
 }
 
 func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, error) {
-	r.mux.Lock()
-	r.message.SetQuestion(toFqdn(host), recordType)
-	r.message.RecursionDesired = true
-
-	res, err := r.exchange(r.message)
-	r.mux.Unlock()
+	message := new(dns.Msg)
+	message.SetQuestion(toFqdn(host), recordType)
+	message.RecursionDesired = true
+	res, err := r.exchange(message)
 
 	if err != nil {
 		log.Error(err)
