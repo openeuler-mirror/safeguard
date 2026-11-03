@@ -53,3 +53,25 @@ func TestValidate_RejectsNilConfig(t *testing.T) {
 	var cfg *Config
 	require.EqualError(t, cfg.Validate(), "configuration must not be null")
 }
+
+func TestNewConfig_RejectsTrailingDocuments(t *testing.T) {
+	for _, suffix := range []string{
+		"---\npolicy: whitelist\n", "---\nnull\n", "---\n", "---\n[broken\n",
+	} {
+		t.Run(suffix, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "multiple.yaml")
+			require.NoError(t, os.WriteFile(path, []byte("policy: blacklist\n"+suffix), 0o600))
+			cfg, err := NewConfig(path)
+			require.Error(t, err)
+			assert.Nil(t, cfg)
+		})
+	}
+}
+
+func TestNewConfig_AcceptsTrailingComments(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "single.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("policy: whitelist\n# trailing comment\n"), 0o600))
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, "whitelist", cfg.Policy)
+}

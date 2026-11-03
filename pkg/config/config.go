@@ -2,6 +2,8 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -163,6 +165,13 @@ func NewConfig(configPath string) (*Config, error) {
 	config := DefaultConfig()
 	if err := d.Decode(&config); err != nil {
 		return nil, err
+	}
+	var extra interface{}
+	if err := d.Decode(&extra); err != io.EOF {
+		if err != nil {
+			return nil, fmt.Errorf("decode trailing configuration document: %w", err)
+		}
+		return nil, errors.New("configuration must contain exactly one YAML document")
 	}
 
 	err = config.Validate()
