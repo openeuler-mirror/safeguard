@@ -182,6 +182,20 @@ func NewConfig(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("validate configuration %q: %w", configPath, err)
 	}
 
+	if config.RestrictedNetworkConfig.Enable {
+		for _, list := range []struct {
+			name   string
+			values *[]string
+		}{
+			{"allow", &config.RestrictedNetworkConfig.CIDR.Allow}, {"deny", &config.RestrictedNetworkConfig.CIDR.Deny},
+		} {
+			normalized, err := NormalizeCIDRs(*list.values)
+			if err != nil {
+				return nil, fmt.Errorf("normalize configuration %q network.cidr.%s: %w", configPath, list.name, err)
+			}
+			*list.values = normalized
+		}
+	}
 	return config, nil
 }
 
@@ -232,8 +246,15 @@ func (c *Config) Validate() error {
 				return fmt.Errorf("files.%s: %d unique paths exceed map capacity 256", list.name, count)
 			}
 			for i, value := range list.values {
-				if !strings.HasPrefix(value, "/") || strings.ContainsRune(value, 0) {
-					return fmt.Errorf("files.%s[%d]: path must be absolute and contain no NUL", list.name, i)
+				paths := []string{value}
+				// Preserve the legacy kernel's leading-pipe deny encoding.
+				if list.name == "deny" && strings.HasPrefix(value, "|") {
+					paths = strings.Split(value[1:], "|")
+				}
+				for _, path := range paths {
+					if !strings.HasPrefix(path, "/") || strings.ContainsRune(path, 0) {
+						return fmt.Errorf("files.%s[%d]: path must be absolute and contain no NUL", list.name, i)
+					}
 				}
 			}
 		}
