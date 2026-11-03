@@ -163,3 +163,26 @@ func TestRunTasks_ExternalCancellationAndDeadlineAreDistinct(t *testing.T) {
 	}}})
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
+
+func TestRunTasks_PanicCancelsPeersAndReleasesResources(t *testing.T) {
+	cause := errors.New("panic cause")
+	started := make(chan struct{})
+	cleaned := false
+	err := runTasks(context.Background(), []auditTask{
+		{"peer", func(ctx context.Context) error { close(started); <-ctx.Done(); return nil }},
+		{"broken", func(ctx context.Context) error {
+			<-started
+			defer helpers.Own(ctx, func() { cleaned = true })()
+			panic(cause)
+		}},
+	})
+	require.ErrorIs(t, err, cause)
+	require.ErrorContains(t, err, "broken")
+	require.True(t, cleaned)
+}
+
+func TestCallAuditTask_PanicNilIsStillFailure(t *testing.T) {
+	err, panicked := callAuditTask(context.Background(), func(context.Context) error { panic(nil) })
+	require.Error(t, err)
+	require.True(t, panicked)
+}
