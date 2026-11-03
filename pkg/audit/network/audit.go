@@ -177,9 +177,10 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	if err := mgr.Start(eventsChannel); err != nil {
 		return err
 	}
+	var consumers helpers.Consumers
 	helpers.ReportReady(ctx)
 
-	go func() {
+	consumers.Go(func() {
 		for {
 			eventBytes, open := helpers.NextEvent(eventsChannel)
 			if !open {
@@ -198,9 +199,11 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 			auditLog := newAuditLog(header, body)
 			auditLog.Info()
 		}
-	}()
+	})
 
 	<-ctx.Done()
+	mgr.Stop()
+	consumers.Wait()
 	mgr.Close()
 	log.Info("Terminated the network audit.")
 
