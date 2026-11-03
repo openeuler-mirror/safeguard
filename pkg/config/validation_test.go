@@ -402,3 +402,20 @@ func TestFileMapCapacityCountsUniqueRules(t *testing.T) {
 	unique[0] = "changed"
 	require.Equal(t, []string{"/b", "/a", "/b"}, input)
 }
+
+func TestMountMapCapacity(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.RestrictedMountConfig.Enable = true
+	sources := make([]string, 256)
+	for i := range sources {
+		sources[i] = fmt.Sprintf("/dev/device-%d", i)
+	}
+	cfg.RestrictedMountConfig.DenySourcePath = sources
+	require.NoError(t, cfg.Validate())
+	cfg.RestrictedMountConfig.DenySourcePath = append(append([]string{}, sources...), sources...)
+	require.NoError(t, cfg.Validate())
+	cfg.RestrictedMountConfig.DenySourcePath = append(sources, "/dev/overflow")
+	require.ErrorContains(t, cfg.Validate(), "mount.deny")
+	cfg.RestrictedMountConfig.Enable = false
+	require.NoError(t, cfg.Validate())
+}
