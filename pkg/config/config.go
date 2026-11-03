@@ -183,6 +183,10 @@ func NewConfig(configPath string) (*Config, error) {
 	}
 
 	if config.RestrictedNetworkConfig.Enable {
+		config.UID.Allow = NormalizeIDs(config.UID.Allow)
+		config.UID.Deny = NormalizeIDs(config.UID.Deny)
+		config.GID.Allow = NormalizeIDs(config.GID.Allow)
+		config.GID.Deny = NormalizeIDs(config.GID.Deny)
 		for _, list := range []struct {
 			name   string
 			values *[]string
