@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
 
 	"github.com/stretchr/testify/require"
@@ -38,4 +40,41 @@ func TestConfiguredTasks_OnlyEnabledModules(t *testing.T) {
 	tasks := configuredTasks(conf)
 	require.Len(t, tasks, 1)
 	require.Equal(t, "network", tasks[0].name)
+}
+
+func TestRunTasks_ReadinessWaitsForEveryModule(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	fast, release, ready, done := make(chan struct{}), make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		done <- runTasksWithOptions(ctx, []auditTask{
+			{"fast", func(ctx context.Context) error {
+				helpers.ReportReady(ctx)
+				helpers.ReportReady(ctx)
+				close(fast)
+				<-ctx.Done()
+				return nil
+			}},
+			{"slow", func(ctx context.Context) error {
+				<-release
+				helpers.ReportReady(ctx)
+				<-ctx.Done()
+				return nil
+			}},
+		}, runOptions{ready: func() { close(ready) }})
+	}()
+	<-fast
+	select {
+	case <-ready:
+		t.Fatal("ready before slow module")
+	default:
+	}
+	close(release)
+	select {
+	case <-ready:
+	case <-time.After(time.Second):
+		t.Fatal("readiness not reported")
+	}
+	cancel()
+	require.NoError(t, <-done)
 }

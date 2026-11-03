@@ -89,8 +89,11 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	log.Info("Start the mount audit.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
-	mgr.Start(eventChannel, lostChannel)
+	if err := mgr.Start(eventChannel, lostChannel); err != nil {
+		return err
+	}
 
+	helpers.ReportReady(ctx)
 	go func() {
 		for {
 			eventBytes := <-eventChannel

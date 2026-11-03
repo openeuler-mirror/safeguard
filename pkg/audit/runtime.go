@@ -7,10 +7,12 @@ import (
 	"sync"
 
 	"culinux/pkg/audit/fileaccess"
+	"culinux/pkg/audit/helpers"
 	"culinux/pkg/audit/mount"
 	"culinux/pkg/audit/network"
 	"culinux/pkg/audit/process"
 	"culinux/pkg/config"
+	log "culinux/pkg/log"
 )
 
 type auditTask struct {
@@ -43,14 +45,25 @@ func configuredTasks(conf *config.Config) []auditTask {
 	return tasks
 }
 
+type runOptions struct{ ready func() }
+
 func runTasks(parent context.Context, tasks []auditTask) error {
+	return runTasksWithOptions(parent, tasks, runOptions{ready: func() {
+		log.Info("All configured audit modules started.")
+	}})
+}
+
+func runTasksWithOptions(parent context.Context, tasks []auditTask, options runOptions) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	results := make(chan error, len(tasks))
+	ready := make(chan struct{}, len(tasks))
+	pending := len(tasks)
 	for _, task := range tasks {
 		task := task
 		go func() {
-			err := task.run(ctx)
+			taskContext := helpers.WithReadiness(ctx, func() { ready <- struct{}{} })
+			err := task.run(taskContext)
 			if err != nil && !(ctx.Err() != nil && errors.Is(err, context.Canceled)) {
 				err = fmt.Errorf("%s audit: %w", task.name, err)
 			} else {
@@ -60,10 +73,19 @@ func runTasks(parent context.Context, tasks []auditTask) error {
 		}()
 	}
 	var failure error
-	for range tasks {
-		if err := <-results; err != nil && failure == nil {
-			failure = err
-			cancel()
+	for remaining := len(tasks); remaining > 0; {
+		select {
+		case <-ready:
+			pending--
+			if pending == 0 && ctx.Err() == nil && options.ready != nil {
+				options.ready()
+			}
+		case err := <-results:
+			remaining--
+			if err != nil && failure == nil {
+				failure = err
+				cancel()
+			}
 		}
 	}
 	return failure
