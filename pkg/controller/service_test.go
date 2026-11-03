@@ -198,3 +198,32 @@ func TestServiceGenerate_IdentifiesFailedOutput(t *testing.T) {
 		assert.Equal(t, path, pathErr.Path)
 	}
 }
+
+func TestServiceGenerate_ReportEncodingFailureDoesNotWriteFiles(t *testing.T) {
+	for _, existing := range []bool{false, true} {
+		root := t.TempDir()
+		output, report := filepath.Join(root, "nested", "config.yaml"), filepath.Join(root, "report.json")
+		if existing {
+			require.NoError(t, os.MkdirAll(filepath.Dir(output), 0o700))
+			require.NoError(t, os.WriteFile(output, []byte("original config"), 0o600))
+			require.NoError(t, os.WriteFile(report, []byte("original report"), 0o600))
+		}
+		service := Service{
+			Collector: fakeCollector{},
+			Now:       func() time.Time { return time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) },
+		}
+		err := service.Generate(GenerateOptions{Mode: "monitor", OutputPath: output, ReportPath: report})
+		require.ErrorContains(t, err, "encode report")
+		if existing {
+			for path, original := range map[string]string{output: "original config", report: "original report"} {
+				data, err := os.ReadFile(path)
+				require.NoError(t, err)
+				assert.Equal(t, original, string(data))
+			}
+		} else {
+			assert.NoFileExists(t, output)
+			assert.NoFileExists(t, report)
+			assert.NoDirExists(t, filepath.Dir(output))
+		}
+	}
+}
