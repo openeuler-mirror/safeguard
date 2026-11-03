@@ -224,3 +224,33 @@ func TestNewConfig_ValidatesLogRotationLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestNewConfig_RejectsUnknownAndDuplicateFields(t *testing.T) {
+	for name, content := range map[string]string{
+		"unknown root":             "netwrok: {enable: true}\n",
+		"unknown nested":           "network: {enbale: true}\n",
+		"unsupported process deny": "process: {deny: [sh]}\n",
+		"duplicate policy":         "policy: blacklist\npolicy: whitelist\n",
+		"duplicate module":         "network: {enable: true}\nnetwork: {enable: false}\n",
+		"duplicate nested":         "network:\n  mode: monitor\n  mode: block\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "strict.yaml")
+			require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+			cfg, err := NewConfig(path)
+			require.Error(t, err)
+			assert.Nil(t, cfg)
+		})
+	}
+}
+
+func TestNewConfig_StrictModePreservesYAMLMerges(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "merge.yaml")
+	content := "network: &settings\n  mode: monitor\n  target: host\nfiles:\n  <<: *settings\n  enable: true\n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	assert.True(t, cfg.RestrictedFileAccessConfig.Enable)
+	assert.Equal(t, "monitor", cfg.RestrictedFileAccessConfig.Mode)
+	assert.Equal(t, []string{"/"}, cfg.RestrictedFileAccessConfig.Allow)
+}
