@@ -450,3 +450,32 @@ func TestNetworkIDMapCapacitiesAreIndependent(t *testing.T) {
 		require.NoError(t, cfg.Validate())
 	}
 }
+
+func TestCIDRCapacityPerDirectionAndFamily(t *testing.T) {
+	prefixes := make([]string, 0, 512)
+	for i := 0; i < 256; i++ {
+		prefixes = append(prefixes, fmt.Sprintf("10.0.%d.0/24", i), fmt.Sprintf("2001:db8:%x::/48", i))
+	}
+	for _, direction := range []string{"allow", "deny"} {
+		for _, family := range []string{"IPv4", "IPv6"} {
+			cfg := DefaultConfig()
+			cfg.RestrictedNetworkConfig.Enable = true
+			cfg.RestrictedNetworkConfig.CIDR = CIDRConfig{Allow: prefixes, Deny: prefixes}
+			require.NoError(t, cfg.Validate())
+			target := &cfg.RestrictedNetworkConfig.CIDR.Allow
+			if direction == "deny" {
+				target = &cfg.RestrictedNetworkConfig.CIDR.Deny
+			}
+			*target = append(append([]string{}, prefixes...), "10.0.0.123/24", "2001:db8::123/48")
+			require.NoError(t, cfg.Validate())
+			overflow := "10.1.0.0/24"
+			if family == "IPv6" {
+				overflow = "2001:db8:100::/48"
+			}
+			*target = append(*target, overflow)
+			err := cfg.Validate()
+			require.ErrorContains(t, err, "network.cidr."+direction)
+			require.ErrorContains(t, err, family)
+		}
+	}
+}

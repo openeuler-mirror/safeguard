@@ -283,9 +283,19 @@ func (c RestrictedNetworkConfig) validate() error {
 	}{
 		{"allow", c.CIDR.Allow}, {"deny", c.CIDR.Deny},
 	} {
+		prefixes := map[string]map[string]bool{"IPv4": {}, "IPv6": {}}
 		for i, value := range list.values {
-			if _, _, err := net.ParseCIDR(value); err != nil {
+			_, prefix, err := net.ParseCIDR(value)
+			if err != nil {
 				return fmt.Errorf("network.cidr.%s[%d]: %w", list.name, i, err)
+			}
+			family := "IPv6"
+			if prefix.IP.To4() != nil {
+				family = "IPv4"
+			}
+			prefixes[family][prefix.String()] = true
+			if len(prefixes[family]) > 256 {
+				return fmt.Errorf("network.cidr.%s[%d]: %s map capacity 256 exceeded", list.name, i, family)
 			}
 		}
 	}
