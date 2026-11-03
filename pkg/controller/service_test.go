@@ -117,3 +117,23 @@ func TestServiceGenerate_SkipsReportWhenReportPathIsEmpty(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "demo-whitelist.yaml", entries[0].Name())
 }
+
+func TestServiceGenerate_RejectsInvalidOptionsBeforeCollection(t *testing.T) {
+	for _, tc := range []struct {
+		mode, output, field string
+	}{
+		{"blok", "config.yaml", "mode"},
+		{"", "config.yaml", "mode"},
+		{"monitor", "", "output"},
+	} {
+		t.Run(tc.field+"/"+tc.mode, func(t *testing.T) {
+			report := filepath.Join(t.TempDir(), "report.json")
+			// Nil dependencies ensure validation runs before collection.
+			err := (Service{}).Generate(GenerateOptions{
+				Mode: tc.mode, OutputPath: tc.output, ReportPath: report,
+			})
+			require.ErrorContains(t, err, tc.field)
+			assert.NoFileExists(t, report)
+		})
+	}
+}
