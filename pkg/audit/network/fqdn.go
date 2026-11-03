@@ -61,6 +61,9 @@ func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.
 			failures = append(failures, fmt.Sprintf("%s: %v", server, err))
 			continue
 		}
+		if res == nil || !res.Response || res.Opcode != message.Opcode || len(res.Question) != 1 || !sameDNSQuestion(message.Question[0], res.Question[0]) {
+			return nil, errors.New("DNS response identity mismatch")
+		}
 		return res, nil
 	}
 
@@ -289,4 +292,30 @@ func (r *DefaultResolver) queryClient() *dns.Client {
 		Timeout: timeout, DialTimeout: source.DialTimeout, ReadTimeout: source.ReadTimeout, WriteTimeout: source.WriteTimeout,
 		TsigSecret: source.TsigSecret, TsigProvider: source.TsigProvider, SingleInflight: source.SingleInflight,
 	}
+}
+
+func sameDNSQuestion(a, b dns.Question) bool {
+	if a.Qtype != b.Qtype || a.Qclass != b.Qclass {
+		return false
+	}
+	var x, y [255]byte
+	nx, ex := dns.PackDomainName(a.Name, x[:], 0, nil, false)
+	ny, ey := dns.PackDomainName(b.Name, y[:], 0, nil, false)
+	if ex != nil || ey != nil || nx != ny || nx > len(x) {
+		return false
+	}
+	// Compare decoded wire bytes with DNS's ASCII-only case folding.
+	for i := 0; i < nx; i++ {
+		c, d := x[i], y[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if d >= 'A' && d <= 'Z' {
+			d += 'a' - 'A'
+		}
+		if c != d {
+			return false
+		}
+	}
+	return true
 }
