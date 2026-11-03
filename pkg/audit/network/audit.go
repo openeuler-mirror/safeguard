@@ -181,7 +181,10 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	go func() {
 		for {
-			eventBytes := <-eventsChannel
+			eventBytes, open := helpers.NextEvent(eventsChannel)
+			if !open {
+				return
+			}
 			header, body, err := parseEvent(eventBytes)
 			if err != nil {
 				if err == io.EOF {
