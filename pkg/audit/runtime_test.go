@@ -62,7 +62,7 @@ func TestRunTasks_ReadinessWaitsForEveryModule(t *testing.T) {
 				<-ctx.Done()
 				return nil
 			}},
-		}, runOptions{ready: func() { close(ready) }})
+		}, runOptions{ready: func(context.Context) error { close(ready); return nil }})
 	}()
 	<-fast
 	select {
@@ -86,7 +86,7 @@ func TestRunTasks_StartupTimeoutCancelsInitialization(t *testing.T) {
 		<-ctx.Done()
 		close(stopped)
 		return ctx.Err()
-	}}}, runOptions{startupTimeout: 10 * time.Millisecond, ready: func() { t.Error("unexpected readiness") }})
+	}}}, runOptions{startupTimeout: 10 * time.Millisecond, ready: func(context.Context) error { t.Error("unexpected readiness"); return nil }})
 	require.ErrorContains(t, err, "startup timeout")
 	<-stopped
 }
@@ -185,4 +185,20 @@ func TestCallAuditTask_PanicNilIsStillFailure(t *testing.T) {
 	err, panicked := callAuditTask(context.Background(), func(context.Context) error { panic(nil) })
 	require.Error(t, err)
 	require.True(t, panicked)
+}
+
+func TestRunTasks_NotificationFailureStopsReadyWorkers(t *testing.T) {
+	cause := errors.New("service manager unavailable")
+	stopped := false
+	options := defaultRunOptions()
+	WithReadyNotification(func(context.Context) error { return cause })(&options)
+	err := runTasksWithOptions(context.Background(), []auditTask{{"peer", func(ctx context.Context) error {
+		helpers.ReportReady(ctx)
+		<-ctx.Done()
+		stopped = true
+		return nil
+	}}}, options)
+	require.ErrorIs(t, err, cause)
+	require.ErrorContains(t, err, "readiness notification")
+	require.True(t, stopped)
 }
