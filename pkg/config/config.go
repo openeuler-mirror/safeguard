@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -211,6 +212,14 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	for _, limit := range []struct {
+		name  string
+		value int
+	}{{"max_size", c.Log.MaxSize}, {"max_age", c.Log.MaxAge}} {
+		if limit.value < 0 {
+			return fmt.Errorf("log.%s must not be negative", limit.name)
+		}
+	}
 	if c.RestrictedNetworkConfig.Enable {
 		if err := c.RestrictedNetworkConfig.validate(); err != nil {
 			return err
@@ -233,6 +242,18 @@ func (c RestrictedNetworkConfig) validate() error {
 		for i, value := range list.values {
 			if _, _, err := net.ParseCIDR(value); err != nil {
 				return fmt.Errorf("network.cidr.%s[%d]: %w", list.name, i, err)
+			}
+		}
+	}
+	for _, list := range []struct {
+		name   string
+		values []string
+	}{
+		{"allow", c.Domain.Allow}, {"deny", c.Domain.Deny},
+	} {
+		for i, value := range list.values {
+			if strings.TrimSpace(value) == "" {
+				return fmt.Errorf("network.domain.%s[%d]: domain must not be empty", list.name, i)
 			}
 		}
 	}
