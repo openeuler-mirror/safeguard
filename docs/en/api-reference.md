@@ -1,5 +1,27 @@
 # API Reference
 
+## Audit runtime lifecycle
+
+```shell
+sudo safeguard --config /etc/safeguard/safeguard.yaml --startup-timeout 30s --shutdown-timeout 10s
+# After all enabled audit event buffers start: All configured audit modules started.
+# Ctrl-C (SIGINT), followed by successful shutdown: exit 0.
+safeguard --config /missing/safeguard.yaml
+# Configuration failure: exit 1; no BPF module is loaded.
+```
+
+- `--startup-timeout` defaults to `30s`; `0` disables the startup deadline. Negative values are rejected.
+- `--shutdown-timeout` defaults to `10s`; `0` selects that default. Negative values are rejected.
+- A startup failure or consumer panic cancels peer audit tasks. Startup/parent deadlines and shutdown timeouts return an error (CLI exit 1).
+- An explicit context cancellation or SIGINT returns success if cleanup completes without another error. SIGTERM has no custom handler.
+- If all modules are disabled, validated configuration exits successfully before root, LSM, or logging setup; no readiness notification is sent.
+- Readiness covers enabled modules' synchronous load, map, attach, and event-buffer initialization. It does not verify asynchronous DNS binding/resolution.
+- Shutdown stops producers and waits for handlers already processing events before releasing modules. It does not guarantee delivery of records still inside libbpf queues.
+- Cancellation is cooperative between startup operations. Go callbacks and C/kernel calls already in progress cannot be forcibly interrupted; the shutdown budget bounds coordinator waiting.
+- DNS background workers retain their existing separate lifecycle; these guarantees cover coordinated audit tasks and their event consumers.
+
+Embedding applications may use `audit.NewApp(version, audit.WithReadyNotification(func(context.Context) error))`. A notification error/panic cancels audit tasks; a blocked notification is subject to the shutdown budget. `helpers.StageError` supports `errors.As` for module/stage diagnostics and preserves the underlying cause via `errors.Is`.
+
 ## Controller Package
 
 ### CLI
