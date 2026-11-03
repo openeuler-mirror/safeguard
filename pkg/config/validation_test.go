@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,6 +126,31 @@ func TestNewConfig_ValidatesEnabledModuleSettings(t *testing.T) {
 				} else {
 					require.NoError(t, err)
 					assert.NotNil(t, cfg)
+				}
+			})
+		}
+	}
+}
+
+func TestNewConfig_RejectsNetworkIDOverflow(t *testing.T) {
+	if strconv.IntSize < 64 {
+		t.Skip("YAML uint decoding already rejects these values on 32-bit hosts")
+	}
+	for _, kind := range []string{"uid", "gid"} {
+		for _, list := range []string{"allow", "deny"} {
+			t.Run(kind+"/"+list, func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), "ids.yaml")
+				for _, value := range []string{"4294967295", "4294967296", "18446744073709551615"} {
+					content := fmt.Sprintf("network:\n  enable: true\n  %s:\n    %s: [%s]\n", kind, list, value)
+					require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+					cfg, err := NewConfig(path)
+					if value == "4294967295" {
+						require.NoError(t, err)
+						assert.NotNil(t, cfg)
+					} else {
+						require.ErrorContains(t, err, "network."+kind+"."+list+"[0]")
+						assert.Nil(t, cfg)
+					}
 				}
 			})
 		}

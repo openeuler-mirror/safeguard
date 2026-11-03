@@ -210,10 +210,32 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.RestrictedNetworkConfig.Enable {
+		if err := c.RestrictedNetworkConfig.validate(); err != nil {
+			return err
+		}
+	}
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
 		return errors.New("One or more dns_proxy.upstreams must be specified.")
 	}
 
+	return nil
+}
+
+func (c RestrictedNetworkConfig) validate() error {
+	for _, list := range []struct {
+		name   string
+		values []uint
+	}{
+		{"uid.allow", c.UID.Allow}, {"uid.deny", c.UID.Deny},
+		{"gid.allow", c.GID.Allow}, {"gid.deny", c.GID.Deny},
+	} {
+		for i, value := range list.values {
+			if uint64(value) > 1<<32-1 {
+				return fmt.Errorf("network.%s[%d]: %d exceeds uint32", list.name, i, value)
+			}
+		}
+	}
 	return nil
 }
 
