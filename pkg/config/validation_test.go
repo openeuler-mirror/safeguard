@@ -156,3 +156,31 @@ func TestNewConfig_RejectsNetworkIDOverflow(t *testing.T) {
 		}
 	}
 }
+
+func TestNewConfig_ValidatesNetworkCIDRs(t *testing.T) {
+	for _, list := range []string{"allow", "deny"} {
+		for _, tc := range []struct {
+			cidr             string
+			enabled, invalid bool
+		}{
+			{"0.0.0.0/0", true, false}, {"2001:db8::/32", true, false},
+			{"192.0.2.1/33", true, true}, {"2001:db8::/129", true, true},
+			{"", true, true}, {"not-a-cidr", true, true},
+			{"unused", false, false},
+		} {
+			t.Run(list+"/"+tc.cidr, func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), "cidr.yaml")
+				content := fmt.Sprintf("network:\n  enable: %t\n  cidr:\n    %s: [127.0.0.1/32, %q]\n", tc.enabled, list, tc.cidr)
+				require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+				cfg, err := NewConfig(path)
+				if tc.invalid {
+					require.ErrorContains(t, err, "network.cidr."+list+"[1]")
+					assert.Nil(t, cfg)
+				} else {
+					require.NoError(t, err)
+					assert.NotNil(t, cfg)
+				}
+			})
+		}
+	}
+}
