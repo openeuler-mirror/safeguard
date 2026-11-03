@@ -78,3 +78,14 @@ func TestRunTasks_ReadinessWaitsForEveryModule(t *testing.T) {
 	cancel()
 	require.NoError(t, <-done)
 }
+
+func TestRunTasks_StartupTimeoutCancelsInitialization(t *testing.T) {
+	stopped := make(chan struct{})
+	err := runTasksWithOptions(context.Background(), []auditTask{{"blocked", func(ctx context.Context) error {
+		<-ctx.Done()
+		close(stopped)
+		return ctx.Err()
+	}}}, runOptions{startupTimeout: 10 * time.Millisecond, ready: func() { t.Error("unexpected readiness") }})
+	require.ErrorContains(t, err, "startup timeout")
+	<-stopped
+}
