@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/miekg/dns"
 	"gopkg.in/yaml.v2"
@@ -235,11 +236,15 @@ func (c *Config) Validate() error {
 	}
 
 	for _, limit := range []struct {
-		name  string
-		value int
-	}{{"max_size", c.Log.MaxSize}, {"max_age", c.Log.MaxAge}} {
+		name    string
+		value   int
+		maximum int64
+	}{{"max_size", c.Log.MaxSize, (1<<63 - 1) / (1024 * 1024)}, {"max_age", c.Log.MaxAge, (1<<63 - 1) / int64(24*time.Hour)}} {
 		if limit.value < 0 {
 			return fmt.Errorf("log.%s must not be negative", limit.name)
+		}
+		if int64(limit.value) > limit.maximum {
+			return fmt.Errorf("log.%s exceeds arithmetic limit %d", limit.name, limit.maximum)
 		}
 	}
 	if c.RestrictedFileAccessConfig.Enable {
