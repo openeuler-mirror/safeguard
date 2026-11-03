@@ -70,7 +70,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mod, err := setupBPFProgram()
 	if err != nil {
-		return err
+		return helpers.During("fileaccess", "load", err)
 	}
 
 	mgr := Manager{
@@ -81,18 +81,18 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 
 	if err = mgr.SetConfigToMap(); err != nil {
-		return err
+		return helpers.During("fileaccess", "configure", err)
 	}
 
 	if err := mgr.Attach(); err != nil {
-		return err
+		return helpers.During("fileaccess", "attach", err)
 	}
 
 	log.Info("Start the fileaccess audit.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
 	if err := mgr.Start(eventChannel, lostChannel); err != nil {
-		return err
+		return helpers.During("fileaccess", "buffer", err)
 	}
 
 	var consumers helpers.Consumers
@@ -124,7 +124,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	mgr.Close()
 	log.Info("Terminated the fileaccess audit.")
 
-	return consumerErr
+	return helpers.During("fileaccess", "consume", consumerErr)
 }
 
 func newAuditLog(event auditLog) log.RestrictedFileAccessLog {

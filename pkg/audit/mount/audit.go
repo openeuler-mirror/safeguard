@@ -69,7 +69,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 	mod, err := setupBPFProgram()
 	if err != nil {
-		return err
+		return helpers.During("mount", "load", err)
 	}
 
 	mgr := Manager{
@@ -80,18 +80,18 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 
 
 	if err = mgr.SetConfigToMap(); err != nil {
-		return err
+		return helpers.During("mount", "configure", err)
 	}
 
 	if err := mgr.Attach(); err != nil {
-		return err
+		return helpers.During("mount", "attach", err)
 	}
 
 	log.Info("Start the mount audit.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
 	if err := mgr.Start(eventChannel, lostChannel); err != nil {
-		return err
+		return helpers.During("mount", "buffer", err)
 	}
 
 	var consumers helpers.Consumers
@@ -123,7 +123,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	mgr.Close()
 	log.Info("Terminated the mount audit.")
 
-	return consumerErr
+	return helpers.During("mount", "consume", consumerErr)
 }
 
 func newAuditLog(event auditLog) log.RestrictedMountLog {
