@@ -136,17 +136,21 @@ func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recor
 		return nil, err
 	}
 	answer := DNSAnswer{Domain: host}
+	if len(records) > 0 {
+		answer.TTL = records[0].Header().Ttl
+	}
 	for _, rr := range records {
+		if rr.Header().Ttl < answer.TTL {
+			answer.TTL = rr.Header().Ttl
+		}
 		switch recordType {
 		case dns.TypeA:
 			if record, ok := rr.(*dns.A); ok {
 				answer.Addresses = append(answer.Addresses, record.A)
-				answer.TTL = record.Hdr.Ttl
 			}
 		case dns.TypeAAAA:
 			if record, ok := rr.(*dns.AAAA); ok {
 				answer.Addresses = append(answer.Addresses, record.AAAA)
-				answer.TTL = record.Hdr.Ttl
 			}
 		}
 	}
@@ -246,7 +250,7 @@ func (mgr *Manager) AsyncResolve() {
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(time.Duration(ttl) * time.Second)
+				time.Sleep(refreshDelay(ttl))
 			}
 		}(allowedDomain)
 
@@ -256,7 +260,7 @@ func (mgr *Manager) AsyncResolve() {
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(time.Duration(ttl) * time.Second)
+				time.Sleep(refreshDelay(ttl))
 			}
 		}(allowedDomain)
 	}
@@ -268,7 +272,7 @@ func (mgr *Manager) AsyncResolve() {
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(time.Duration(ttl) * time.Second)
+				time.Sleep(refreshDelay(ttl))
 			}
 		}(deniedDomain)
 
@@ -278,7 +282,7 @@ func (mgr *Manager) AsyncResolve() {
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(time.Duration(ttl) * time.Second)
+				time.Sleep(refreshDelay(ttl))
 			}
 		}(deniedDomain)
 	}
@@ -398,4 +402,12 @@ func responseChain(records []dns.RR, name string, recordType uint16) ([]dns.RR, 
 
 func validDNSReply(request, response *dns.Msg) bool {
 	return response != nil && response.Response && response.Opcode == request.Opcode && len(response.Question) == 1 && sameDNSQuestion(request.Question[0], response.Question[0])
+}
+
+// Preserve zero in DNS answers, but never let a zero TTL spin refresh workers.
+func refreshDelay(ttl uint32) time.Duration {
+	if ttl == 0 {
+		return time.Second
+	}
+	return time.Duration(ttl) * time.Second
 }

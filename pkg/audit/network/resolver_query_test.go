@@ -254,3 +254,33 @@ func TestResolverTruncatedTCPRetry(t *testing.T) {
 		require.Equal(t, int32(1), atomic.LoadInt32(&queries))
 	}
 }
+
+func TestResolverMinimumRelevantTTL(t *testing.T) {
+	for _, tc := range []struct {
+		ttl     uint32
+		reverse bool
+	}{{30, false}, {30, true}, {0, false}, {0, true}} {
+		tc := tc
+		r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			texts := []string{fmt.Sprintf("ttl.example. %d IN CNAME target.example.", tc.ttl), "target.example. 90 IN A 192.0.2.1", "target.example. 60 IN A 192.0.2.2", "unrelated.example. 1 IN A 203.0.113.1"}
+			for _, text := range texts {
+				rr, _ := dns.NewRR(text)
+				response.Answer = append(response.Answer, rr)
+			}
+			if tc.reverse {
+				for i, j := 0, len(response.Answer)-1; i < j; i, j = i+1, j-1 {
+					response.Answer[i], response.Answer[j] = response.Answer[j], response.Answer[i]
+				}
+			}
+			w.WriteMsg(response)
+		})
+		answer, err := r.Resolve("ttl.example", dns.TypeA)
+		require.NoError(t, err)
+		require.Equal(t, tc.ttl, answer.TTL)
+		require.Len(t, answer.Addresses, 2)
+	}
+	require.Equal(t, time.Second, refreshDelay(0))
+	require.Equal(t, 2*time.Second, refreshDelay(2))
+}
