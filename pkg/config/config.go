@@ -163,6 +163,7 @@ func NewConfig(configPath string) (*Config, error) {
 	defer file.Close()
 
 	d := yaml.NewDecoder(file)
+	d.SetStrict(true)
 
 	config := DefaultConfig()
 	if err := d.Decode(&config); err != nil {
