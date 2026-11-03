@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"strings"
 
 	"culinux/pkg/config"
 	log "culinux/pkg/log"
@@ -66,14 +67,14 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		updateDNSCache(fqdn, dnsAnswer)
 
 		for _, allowedDomain := range this.manager.config.Domain.Allow {
-			if toFqdn(allowedDomain) == fqdn {
+			if strings.EqualFold(toFqdn(allowedDomain), fqdn) {
 				this.manager.updateAllowedFQDNist(dnsAnswer)
 				break
 			}
 		}
 
 		for _, deniedDomain := range this.manager.config.Domain.Deny {
-			if toFqdn(deniedDomain) == fqdn {
+			if strings.EqualFold(toFqdn(deniedDomain), fqdn) {
 				this.manager.updateDeniedFQDNList(dnsAnswer)
 				break
 			}

@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strings"
+
+	"github.com/miekg/dns"
 )
 
 // NormalizeCIDRs masks host bits, canonicalizes both address families and
@@ -36,4 +39,13 @@ func NormalizeIDs(values []uint) []uint {
 		}
 	}
 	return result
+}
+
+// NormalizeDomains uses case-insensitive, absolute DNS names for exact matching.
+func NormalizeDomains(values []string) []string {
+	names := make([]string, len(values))
+	for i, value := range values {
+		names[i] = strings.ToLower(dns.Fqdn(value))
+	}
+	return UniqueStrings(names)
 }

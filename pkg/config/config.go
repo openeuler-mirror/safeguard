@@ -183,6 +183,8 @@ func NewConfig(configPath string) (*Config, error) {
 	}
 
 	if config.RestrictedNetworkConfig.Enable {
+		config.Domain.Allow = NormalizeDomains(config.Domain.Allow)
+		config.Domain.Deny = NormalizeDomains(config.Domain.Deny)
 		config.UID.Allow = NormalizeIDs(config.UID.Allow)
 		config.UID.Deny = NormalizeIDs(config.UID.Deny)
 		config.GID.Allow = NormalizeIDs(config.GID.Allow)

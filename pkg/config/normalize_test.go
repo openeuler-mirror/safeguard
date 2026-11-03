@@ -76,3 +76,12 @@ func TestNormalizeIDsPreservesSlice(t *testing.T) {
 	require.Equal(t, []uint{1, 9}, NormalizeIDs(input))
 	require.Equal(t, []uint{9, 1, 9}, input)
 }
+
+func TestNormalizeLoadedDomains(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "domains.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("network:\n  enable: true\n  domain:\n    allow: [Example.COM, example.com.]\n    deny: [Blocked.ORG, blocked.org.]\n"), 0600))
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	require.Equal(t, []string{"example.com."}, cfg.Domain.Allow)
+	require.Equal(t, []string{"blocked.org."}, cfg.Domain.Deny)
+}
