@@ -90,6 +90,9 @@ func readProcNetCIDRs(paths []string) ([]string, []string) {
 				result = append(result, cidr)
 			}
 		}
+		if err := scanner.Err(); err != nil {
+			warnings = append(warnings, fmt.Sprintf("%s scan failed: %v", path, err))
+		}
 		file.Close()
 	}
 
