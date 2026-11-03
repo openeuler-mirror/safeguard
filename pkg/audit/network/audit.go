@@ -132,6 +132,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		return err
 	}
 
+	defer helpers.Own(ctx, func() { mod.Close() })()
 	dnsConfig, err := dns.ClientConfigFromFile("/etc/resolv.conf")
 	if err != nil {
 		return err
@@ -146,7 +147,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 			message: new(dns.Msg),
 		},
 	}
-	defer helpers.Own(ctx, func() { mod.Close() })()
+	defer helpers.Own(ctx, func() { mgr.Close() })()
 
 
 	if err = mgr.SetConfigToMap(); err != nil {

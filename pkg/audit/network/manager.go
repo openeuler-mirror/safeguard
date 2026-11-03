@@ -60,6 +60,9 @@ const (
 
 // Manager manages network audit events and BPF map operations for network restriction.
 type Manager struct {
+	lifecycleMu sync.Mutex
+	stopped     bool
+	closed      bool
 	mod         *libbpfgo.Module
 	config      *config.Config
 	rb          helpers.Buffer
@@ -147,6 +150,11 @@ func (m *Manager) SetConfigToMap() error {
 }
 
 func (m *Manager) Start(eventsChannel chan []byte) error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed || m.stopped || m.rb != nil {
+		return fmt.Errorf("network buffer cannot be restarted")
+	}
 	rb, err := helpers.StartBuffer("audit_events", func() (helpers.Buffer, error) {
 		return m.mod.InitRingBuf("audit_events", eventsChannel)
 	})
@@ -161,11 +169,32 @@ func (m *Manager) Start(eventsChannel chan []byte) error {
 }
 
 func (m *Manager) Stop() {
-	m.rb.Stop()
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	m.stopLocked()
+}
+
+func (m *Manager) stopLocked() {
+	if m.stopped {
+		return
+	}
+	m.stopped = true
+	if m.rb != nil {
+		m.rb.Stop()
+	}
 }
 
 func (m *Manager) Close() {
-	m.rb.Close()
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed {
+		return
+	}
+	m.closed = true
+	m.stopLocked()
+	if m.rb != nil {
+		m.rb.Close()
+	}
 }
 
 func (m *Manager) Attach() error {

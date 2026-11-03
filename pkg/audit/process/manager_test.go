@@ -19,13 +19,13 @@ func Test_Attach(t *testing.T) {
 	})
 }
 
-func createManager(conf *config.Config) Manager {
+func createManager(conf *config.Config) *Manager {
 	mod, err := setupBPFProgram()
 	if err != nil {
 		panic(err)
 	}
 
-	mgr := Manager{
+	mgr := &Manager{
 		mod:    mod,
 		config: conf,
 	}

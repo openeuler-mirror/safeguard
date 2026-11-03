@@ -3,6 +3,7 @@ package mount
 import (
 	"encoding/binary"
 	"fmt"
+	"sync"
 	"unsafe"
 
 	"culinux/pkg/audit/helpers"
@@ -24,13 +25,21 @@ const (
 
 // Manager handles mount audit events and BPF map operations for mount restriction.
 type Manager struct {
-	mod    *libbpfgo.Module
-	config *config.Config
-	pb     helpers.Buffer
+	lifecycleMu sync.Mutex
+	stopped     bool
+	closed      bool
+	mod         *libbpfgo.Module
+	config      *config.Config
+	pb          helpers.Buffer
 }
 
 // Start initializes the perf buffer for mount events and begins polling.
 func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error {
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed || m.stopped || m.pb != nil {
+		return fmt.Errorf("mount buffer cannot be restarted")
+	}
 	pb, err := helpers.StartBuffer("mount_events", func() (helpers.Buffer, error) {
 		return m.mod.InitPerfBuf("mount_events", eventChannel, lostChannel, 1024)
 	})
@@ -45,12 +54,33 @@ func (m *Manager) Start(eventChannel chan []byte, lostChannel chan uint64) error
 
 // Stop halts the perf buffer polling for mount events.
 func (m *Manager) Stop() {
-	m.pb.Stop()
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	m.stopLocked()
+}
+
+func (m *Manager) stopLocked() {
+	if m.stopped {
+		return
+	}
+	m.stopped = true
+	if m.pb != nil {
+		m.pb.Stop()
+	}
 }
 
 // Close releases the perf buffer resources.
 func (m *Manager) Close() {
-	m.pb.Close()
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+	if m.closed {
+		return
+	}
+	m.closed = true
+	m.stopLocked()
+	if m.pb != nil {
+		m.pb.Close()
+	}
 }
 
 // Attach attaches the BPF LSM programs for mount restriction.

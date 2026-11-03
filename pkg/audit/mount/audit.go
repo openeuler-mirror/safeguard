@@ -76,7 +76,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		mod:    mod,
 		config: conf,
 	}
-	defer helpers.Own(ctx, func() { mod.Close() })()
+	defer helpers.Own(ctx, func() { mgr.Close(); mod.Close() })()
 
 
 	if err = mgr.SetConfigToMap(); err != nil {
