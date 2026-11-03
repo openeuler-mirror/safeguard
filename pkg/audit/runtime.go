@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"culinux/pkg/audit/fileaccess"
 	"culinux/pkg/audit/helpers"
@@ -45,15 +46,31 @@ func configuredTasks(conf *config.Config) []auditTask {
 	return tasks
 }
 
-type runOptions struct{ ready func() }
+type runOptions struct {
+	ready          func()
+	startupTimeout time.Duration
+}
 
 func runTasks(parent context.Context, tasks []auditTask) error {
-	return runTasksWithOptions(parent, tasks, runOptions{ready: func() {
+	return runTasksWithOptions(parent, tasks, defaultRunOptions())
+}
+
+func defaultRunOptions() runOptions {
+	return runOptions{startupTimeout: 30 * time.Second, ready: func() {
 		log.Info("All configured audit modules started.")
-	}})
+	}}
 }
 
 func runTasksWithOptions(parent context.Context, tasks []auditTask, options runOptions) error {
+	if options.startupTimeout < 0 {
+		return fmt.Errorf("startup timeout must not be negative")
+	}
+	var startup <-chan time.Time
+	if options.startupTimeout > 0 {
+		timer := time.NewTimer(options.startupTimeout)
+		defer timer.Stop()
+		startup = timer.C
+	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	results := make(chan error, len(tasks))
@@ -75,8 +92,15 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 	var failure error
 	for remaining := len(tasks); remaining > 0; {
 		select {
+		case <-startup:
+			failure = fmt.Errorf("audit startup timeout after %s", options.startupTimeout)
+			startup = nil
+			cancel()
 		case <-ready:
 			pending--
+			if pending == 0 {
+				startup = nil
+			}
 			if pending == 0 && ctx.Err() == nil && options.ready != nil {
 				options.ready()
 			}
@@ -84,6 +108,7 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 			remaining--
 			if err != nil && failure == nil {
 				failure = err
+				startup = nil
 				cancel()
 			}
 		}

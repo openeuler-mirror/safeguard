@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"time"
 
 	"culinux/pkg/config"
 	"culinux/pkg/controller"
@@ -44,7 +45,7 @@ EXAMPLES:
    safeguard controller generate --mode monitor --output whitelist.yaml`
 	app.Commands = []*cli.Command{controller.NewCommand()}
 
-	flags := []cli.Flag{&configFlag}
+	flags := []cli.Flag{&configFlag, &cli.DurationFlag{Name: "startup-timeout", Value: 30 * time.Second, Usage: "Maximum cooperative startup time (0 disables)"}}
 
 	app.Flags = flags
 
@@ -72,7 +73,9 @@ EXAMPLES:
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()
 
-		return runTasks(ctx, configuredTasks(conf))
+		options := defaultRunOptions()
+		options.startupTimeout = c.Duration("startup-timeout")
+		return runTasksWithOptions(ctx, configuredTasks(conf), options)
 	}
 
 	return app
