@@ -6,6 +6,7 @@ import (
 	"culinux/pkg/config"
 
 	"github.com/urfave/cli/v2"
+	"gopkg.in/yaml.v2"
 )
 
 func NewCommand() *cli.Command {
@@ -61,13 +62,22 @@ EXAMPLES:
 				Usage: "Validate a configuration file without loading BPF",
 				Flags: []cli.Flag{&cli.StringFlag{
 					Name: "config", Required: true, Usage: "Input YAML configuration file",
-				}},
+				}, &cli.BoolFlag{Name: "normalized", Usage: "Print effective normalized YAML without modifying the input"}},
 				Action: func(c *cli.Context) error {
 					path := c.String("config")
-					if _, err := config.NewConfig(path); err != nil {
+					conf, err := config.NewConfig(path)
+					if err != nil {
 						return err
 					}
-					_, err := fmt.Fprintf(c.App.Writer, "Configuration is valid: %s\n", path)
+					if c.Bool("normalized") {
+						data, err := yaml.Marshal(conf)
+						if err != nil {
+							return err
+						}
+						_, err = c.App.Writer.Write(data)
+						return err
+					}
+					_, err = fmt.Fprintf(c.App.Writer, "Configuration is valid: %s\n", path)
 					return err
 				},
 			},
