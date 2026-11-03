@@ -629,3 +629,23 @@ func TestProxyRequiresNetworkModule(t *testing.T) {
 		}
 	}
 }
+
+func TestProxyUpstreamShapes(t *testing.T) {
+	for _, tc := range []struct {
+		server string
+		valid  bool
+	}{
+		{"1.1.1.1", true}, {"2001:db8::1", true}, {"dns.example.org", true},
+		{"", false}, {"1.1.1.1:5353", false}, {"dns.example.org:53", false}, {"[::1]:53", false}, {"bad host", false}, {"https://dns.example", false},
+	} {
+		cfg := DefaultConfig()
+		cfg.RestrictedNetworkConfig.Enable = true
+		cfg.DNSProxyConfig.Enable = true
+		cfg.DNSProxyConfig.Upstreams = []string{tc.server}
+		if tc.valid {
+			require.NoError(t, cfg.Validate())
+		} else {
+			require.ErrorContains(t, cfg.Validate(), "dns_proxy.upstreams[0]")
+		}
+	}
+}

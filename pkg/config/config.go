@@ -316,6 +316,17 @@ func (c *Config) Validate() error {
 			}
 		}
 	}
+	if c.DNSProxyConfig.Enable {
+		for i, server := range c.DNSProxyConfig.Upstreams {
+			if net.ParseIP(server) != nil {
+				continue
+			}
+			_, valid := dns.IsDomainName(server)
+			if server == "" || !valid || strings.ContainsAny(server, ":/[] \t\r\n\x00\\") {
+				return fmt.Errorf("dns_proxy.upstreams[%d]: expected IP or hostname without port (uses 53)", i)
+			}
+		}
+	}
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
 		return errors.New("One or more dns_proxy.upstreams must be specified.")
 	}
