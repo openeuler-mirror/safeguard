@@ -89,3 +89,22 @@ func TestRunTasks_StartupTimeoutCancelsInitialization(t *testing.T) {
 	require.ErrorContains(t, err, "startup timeout")
 	<-stopped
 }
+
+func TestRunTasks_ShutdownBudgetNamesStuckModule(t *testing.T) {
+	cause := errors.New("initialization failed")
+	started, release, returned := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	defer close(release)
+	go func() {
+		returned <- runTasksWithOptions(context.Background(), []auditTask{
+			{"stuck", func(context.Context) error { close(started); <-release; return nil }},
+			{"failing", func(context.Context) error { <-started; return cause }},
+		}, runOptions{shutdownTimeout: 10 * time.Millisecond})
+	}()
+	select {
+	case err := <-returned:
+		require.ErrorContains(t, err, "still running: stuck")
+		require.ErrorIs(t, err, cause)
+	case <-time.After(time.Second):
+		t.Fatal("shutdown exceeded its budget")
+	}
+}

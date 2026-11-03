@@ -45,7 +45,7 @@ EXAMPLES:
    safeguard controller generate --mode monitor --output whitelist.yaml`
 	app.Commands = []*cli.Command{controller.NewCommand()}
 
-	flags := []cli.Flag{&configFlag, &cli.DurationFlag{Name: "startup-timeout", Value: 30 * time.Second, Usage: "Maximum cooperative startup time (0 disables)"}}
+	flags := []cli.Flag{&configFlag, &cli.DurationFlag{Name: "startup-timeout", Value: 30 * time.Second, Usage: "Maximum cooperative startup time (0 disables)"}, &cli.DurationFlag{Name: "shutdown-timeout", Value: 10 * time.Second, Usage: "Maximum shutdown waiting time"}}
 
 	app.Flags = flags
 
@@ -75,6 +75,7 @@ EXAMPLES:
 
 		options := defaultRunOptions()
 		options.startupTimeout = c.Duration("startup-timeout")
+		options.shutdownTimeout = c.Duration("shutdown-timeout")
 		return runTasksWithOptions(ctx, configuredTasks(conf), options)
 	}
 
