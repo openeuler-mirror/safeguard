@@ -5,12 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
-	"sync"
 
-	"culinux/pkg/audit/fileaccess"
-	"culinux/pkg/audit/mount"
-	"culinux/pkg/audit/network"
-	"culinux/pkg/audit/process"
 	"culinux/pkg/config"
 	"culinux/pkg/controller"
 	log "culinux/pkg/log"
@@ -77,17 +72,7 @@ EXAMPLES:
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer cancel()
 
-		var wg sync.WaitGroup
-		wg.Add(4)
-
-		go fileaccess.RunAudit(ctx, &wg, conf)
-		go network.RunAudit(ctx, &wg, conf)
-		go process.RunAudit(ctx, &wg, conf)
-		go mount.RunAudit(ctx, &wg, conf)
-
-		wg.Wait()
-		log.Info("Terminate all audit.")
-		return nil
+		return runTasks(ctx, configuredTasks(conf))
 	}
 
 	return app
