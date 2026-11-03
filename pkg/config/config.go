@@ -319,6 +319,9 @@ func (c *Config) Validate() error {
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
 		return errors.New("One or more dns_proxy.upstreams must be specified.")
 	}
+	if c.DNSProxyConfig.Enable && !c.RestrictedNetworkConfig.Enable {
+		return errors.New("dns_proxy.enable requires network.enable: proxy rules use network maps")
+	}
 
 	return nil
 }
