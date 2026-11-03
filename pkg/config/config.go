@@ -242,6 +242,11 @@ func (c *Config) Validate() error {
 			}
 		}
 	}
+	if c.RestrictedProcessConfig.Enable {
+		if err := validateCommRules("process.allow", c.RestrictedProcessConfig.Allow); err != nil {
+			return err
+		}
+	}
 	if c.RestrictedNetworkConfig.Enable {
 		if err := c.RestrictedNetworkConfig.validate(); err != nil {
 			return err
@@ -359,4 +364,14 @@ func (c *Config) IsOnlyContainer(target string) bool {
 	default:
 		return false
 	}
+}
+
+// Kernel comm keys contain at most 15 bytes plus a terminating NUL.
+func validateCommRules(field string, values []string) error {
+	for i, value := range values {
+		if len(value) == 0 || len(value) > 15 || strings.ContainsRune(value, 0) {
+			return fmt.Errorf("%s[%d]: name must contain 1–15 bytes and no NUL (got %d bytes)", field, i, len(value))
+		}
+	}
+	return nil
 }

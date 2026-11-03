@@ -321,3 +321,28 @@ func TestMountSourceNames(t *testing.T) {
 		require.NoError(t, cfg.Validate())
 	}
 }
+
+func TestProcessRulesMustFitKernelComm(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		valid bool
+	}{
+		{"", false}, {strings.Repeat("a", 15), true}, {strings.Repeat("a", 16), false},
+		{strings.Repeat("中", 5), true}, {strings.Repeat("中", 6), false}, {"sh\x00suffix", false},
+	} {
+		cfg := DefaultConfig()
+		cfg.RestrictedProcessConfig.Enable = true
+		cfg.RestrictedProcessConfig.Allow = []string{"sh", tc.value}
+		if tc.valid {
+			require.NoError(t, cfg.Validate())
+		} else {
+			require.ErrorContains(t, cfg.Validate(), "process.allow[1]")
+		}
+		cfg.RestrictedProcessConfig.Enable = false
+		require.NoError(t, cfg.Validate())
+	}
+	cfg := DefaultConfig()
+	cfg.RestrictedProcessConfig.Enable = true
+	cfg.RestrictedProcessConfig.Allow = []string{"sh", "sh"}
+	require.NoError(t, cfg.Validate())
+}
