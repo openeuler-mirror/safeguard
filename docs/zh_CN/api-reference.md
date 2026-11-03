@@ -1,5 +1,27 @@
 # API 参考
 
+## 审计运行生命周期
+
+```shell
+sudo safeguard --config /etc/safeguard/safeguard.yaml --startup-timeout 30s --shutdown-timeout 10s
+# 所有启用模块的事件缓冲区启动后：All configured audit modules started.
+# Ctrl-C（SIGINT）且正常完成退出：退出码 0。
+safeguard --config /missing/safeguard.yaml
+# 配置读取失败：退出码 1；不会加载 BPF module。
+```
+
+- `--startup-timeout` 默认 `30s`；`0` 关闭启动期限，负值报错。
+- `--shutdown-timeout` 默认 `10s`；`0` 使用该默认值，负值报错。
+- 启动失败或事件消费者 panic 会取消其他审计任务；启动/父上下文期限及退出超时返回错误，CLI 退出码为 1。
+- 显式取消上下文或 SIGINT，在没有其他错误且清理完成时成功退出；SIGTERM 没有自定义处理器。
+- 全部模块禁用时，配置校验成功后即退出，不执行 root、LSM、日志初始化，也不发送就绪通知。
+- 就绪表示启用模块已完成同步加载、写 map、附加 hook 和初始化事件缓冲区；不代表异步 DNS 绑定或解析已成功。
+- 退出先停止生产者，等待已在处理的事件完成，再释放 module；不保证 libbpf 内部尚未交付的记录全部送达。
+- 取消在启动操作之间协作生效，无法强制打断已执行的 Go 回调或 C/内核调用；退出预算限制协调器等待时间。
+- DNS 后台任务仍沿用独立生命周期；上述保证覆盖协调器管理的审计任务及其事件消费者。
+
+嵌入调用可使用 `audit.NewApp(version, audit.WithReadyNotification(func(context.Context) error))`。通知错误或 panic 会取消审计任务，通知阻塞也受退出预算约束。通过 `errors.As` 提取 `helpers.StageError` 可识别模块和阶段，通过 `errors.Is` 保留底层错误判断。
+
 ## Controller 包
 
 ### Service
