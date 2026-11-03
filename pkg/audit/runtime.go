@@ -136,7 +136,7 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 			}(remaining)
 			timeout := fmt.Errorf("audit shutdown timeout; still running: %s", strings.Join(names, ", "))
 			if failure != nil {
-				return fmt.Errorf("%w; %v", failure, timeout)
+				return joinFailure(failure, timeout)
 			}
 			return timeout
 		case <-startup:
@@ -155,8 +155,8 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 			err := result.err
 			delete(waiting, result.name)
 			remaining--
-			if err != nil && failure == nil {
-				failure = err
+			if err != nil {
+				failure = joinFailure(failure, err)
 				startup = nil
 				cancel()
 			}
@@ -173,7 +173,7 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 		return failure
 	case <-shutdown:
 		if failure != nil {
-			return fmt.Errorf("%w; audit cleanup timeout", failure)
+			return joinFailure(failure, fmt.Errorf("audit cleanup timeout"))
 		}
 		return fmt.Errorf("audit cleanup timeout")
 	}
