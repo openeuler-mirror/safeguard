@@ -26,11 +26,11 @@ func readPasswdAccounts(path string) ([]model.Account, []uint, []uint, error) {
 		if len(fields) < 7 {
 			continue
 		}
-		uid64, err := strconv.ParseUint(fields[2], 10, 64)
+		uid64, err := strconv.ParseUint(fields[2], 10, 32)
 		if err != nil {
 			continue
 		}
-		gid64, err := strconv.ParseUint(fields[3], 10, 64)
+		gid64, err := strconv.ParseUint(fields[3], 10, 32)
 		if err != nil {
 			continue
 		}
