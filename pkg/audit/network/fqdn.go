@@ -113,8 +113,12 @@ func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recor
 		return nil, fmt.Errorf("%s type %d: %w", host, recordType, ErrDNSNoData)
 	}
 
+	records, err := responseChain(res.Answer, toFqdn(host), recordType)
+	if err != nil {
+		return nil, err
+	}
 	answer := DNSAnswer{Domain: host}
-	for _, rr := range res.Answer {
+	for _, rr := range records {
 		switch recordType {
 		case dns.TypeA:
 			if record, ok := rr.(*dns.A); ok {
@@ -311,9 +315,13 @@ func sameDNSQuestion(a, b dns.Question) bool {
 	if a.Qtype != b.Qtype || a.Qclass != b.Qclass {
 		return false
 	}
+	return sameDNSName(a.Name, b.Name)
+}
+
+func sameDNSName(a, b string) bool {
 	var x, y [255]byte
-	nx, ex := dns.PackDomainName(a.Name, x[:], 0, nil, false)
-	ny, ey := dns.PackDomainName(b.Name, y[:], 0, nil, false)
+	nx, ex := dns.PackDomainName(a, x[:], 0, nil, false)
+	ny, ey := dns.PackDomainName(b, y[:], 0, nil, false)
 	if ex != nil || ey != nil || nx != ny || nx > len(x) {
 		return false
 	}
@@ -331,4 +339,31 @@ func sameDNSQuestion(a, b dns.Question) bool {
 		}
 	}
 	return true
+}
+
+// Only follow aliases carried in this response; never start implicit queries.
+func responseChain(records []dns.RR, name string, recordType uint16) ([]dns.RR, error) {
+	var relevant []dns.RR
+	for hops := 0; hops <= 16; hops++ {
+		target := ""
+		for _, rr := range records {
+			if rr.Header().Class != dns.ClassINET || !sameDNSName(name, rr.Header().Name) {
+				continue
+			}
+			if alias, ok := rr.(*dns.CNAME); ok {
+				if target != "" && !sameDNSName(target, alias.Target) {
+					return nil, errors.New("conflicting CNAME targets")
+				}
+				target = alias.Target
+				relevant = append(relevant, rr)
+			} else if rr.Header().Rrtype == recordType {
+				relevant = append(relevant, rr)
+			}
+		}
+		if target == "" {
+			return relevant, nil
+		}
+		name = target
+	}
+	return nil, errors.New("CNAME chain exceeds 16 hops")
 }

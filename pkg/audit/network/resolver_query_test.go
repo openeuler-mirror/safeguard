@@ -159,3 +159,28 @@ func TestResolverNoDataClassification(t *testing.T) {
 		require.ErrorIs(t, err, ErrDNSNoData)
 	}
 }
+
+func TestResolverFiltersResponseOwners(t *testing.T) {
+	r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+		response := new(dns.Msg)
+		response.SetReply(q)
+		for _, text := range []string{
+			"unrelated.example. 1 IN A 203.0.113.9",
+			"target.example. 60 CH A 203.0.113.8",
+			"alias.example. 60 IN CNAME target.example.",
+			"target.example. 60 IN A 192.0.2.1",
+		} {
+			rr, err := dns.NewRR(text)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			response.Answer = append(response.Answer, rr)
+		}
+		w.WriteMsg(response)
+	})
+	answer, err := r.Resolve("alias.example", dns.TypeA)
+	require.NoError(t, err)
+	require.Equal(t, "alias.example", answer.Domain)
+	require.Equal(t, []net.IP{net.ParseIP("192.0.2.1").To4()}, answer.Addresses)
+}
