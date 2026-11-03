@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
@@ -233,6 +234,18 @@ func (c RestrictedNetworkConfig) validate() error {
 		for i, value := range list.values {
 			if _, _, err := net.ParseCIDR(value); err != nil {
 				return fmt.Errorf("network.cidr.%s[%d]: %w", list.name, i, err)
+			}
+		}
+	}
+	for _, list := range []struct {
+		name   string
+		values []string
+	}{
+		{"allow", c.Domain.Allow}, {"deny", c.Domain.Deny},
+	} {
+		for i, value := range list.values {
+			if strings.TrimSpace(value) == "" {
+				return fmt.Errorf("network.domain.%s[%d]: domain must not be empty", list.name, i)
 			}
 		}
 	}

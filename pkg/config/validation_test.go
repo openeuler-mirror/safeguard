@@ -184,3 +184,23 @@ func TestNewConfig_ValidatesNetworkCIDRs(t *testing.T) {
 		}
 	}
 }
+
+func TestNewConfig_RejectsEmptyDomainRules(t *testing.T) {
+	for _, list := range []string{"allow", "deny"} {
+		for _, domain := range []string{"", " \t", "example.com", "EXAMPLE.com."} {
+			t.Run(list+"/"+domain, func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), "domain.yaml")
+				content := fmt.Sprintf("network:\n  enable: true\n  domain:\n    %s: [example.org, %q]\n", list, domain)
+				require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+				cfg, err := NewConfig(path)
+				if domain == "" || domain == " \t" {
+					require.ErrorContains(t, err, "network.domain."+list+"[1]")
+					assert.Nil(t, cfg)
+				} else {
+					require.NoError(t, err)
+					assert.NotNil(t, cfg)
+				}
+			})
+		}
+	}
+}
