@@ -1,5 +1,25 @@
 # Configuration
 
+## Validation limits and normalized output
+
+```sh
+safeguard controller validate --config safeguard.yaml --normalized > normalized.yaml
+diff -u safeguard.yaml normalized.yaml
+```
+
+The command prints the effective YAML without changing its input or loading BPF. Use a different output file. A diff exit status of 1 means differences were found. Enabled network rules normalize CIDR host bits, sort/deduplicate IDs, and lowercase/deduplicate absolute domain names.
+
+| Rule | Accepted limit |
+| --- | --- |
+| Process/network command | 1–15 bytes, no NUL; process map: 1024 unique names |
+| File path / encoded mount list | 79 bytes, matching the kernel comparison range; each mount source: 63 bytes |
+| File/mount/UID/GID map | 256 unique entries per map; CIDR: 256 per direction and IP family |
+| DNS domain | 63 bytes per decoded label, 255 bytes on the wire including root |
+| DNS proxy | Network module enabled, nonempty bind/upstream lists; upstream IP/hostname without port, fixed port 53 |
+| Log rotation | Nonnegative; max_size ≤ 8796093022207 MB, max_age ≤ 106751 days (int64 arithmetic limits) |
+
+Legacy leading-pipe file deny encoding remains accepted when every component is absolute and the complete encoding fits the limit. Disabled rule sections are not normalized; unknown YAML fields are still rejected.
+
 safeguard's configuration file is a YAML file containing top-level configuration sections. Each restriction section is a YAML map with its own `enable`, `mode`, `target`, and rule fields.
 
 ## Current configuration options

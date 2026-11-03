@@ -1,5 +1,25 @@
 # 配置说明
 
+## 校验边界与规范化输出
+
+```sh
+safeguard controller validate --config safeguard.yaml --normalized > normalized.yaml
+diff -u safeguard.yaml normalized.yaml
+```
+
+命令输出有效配置的 YAML，不修改输入文件、不加载 BPF；输出文件必须使用其他路径。diff 退出码1表示存在差异。启用的网络规则会掩码CIDR主机位、排序去重身份列表，并将域名转为小写绝对名称后去重。
+
+| 规则 | 接受范围 |
+| --- | --- |
+| 进程/网络command | 1–15字节且无NUL；进程map最多1024个唯一名称 |
+| 文件路径/挂载编码列表 | 最多79字节，与内核比较范围一致；挂载每个源最多63字节 |
+| 文件/挂载/UID/GID map | 每表256个唯一项；CIDR按方向、IP族分别最多256项 |
+| DNS域名 | 解码后每标签63字节，含根终止符的wire格式最多255字节 |
+| DNS代理 | 网络模块启用，bind/upstream非空；上游使用不带端口的IP/主机名，固定53端口 |
+| 日志轮转 | 非负；max_size最多8796093022207 MB，max_age最多106751天（int64运算上限） |
+
+旧版以竖线开头的文件deny编码仍可使用，但每段必须为绝对路径且完整编码不能超长。禁用的规则段不做规范化，未知YAML字段仍会被拒绝。
+
 safeguard 的配置文件是 YAML 格式，包含顶层配置节。每个限制模块是一个 YAML 映射，具有各自的 `enable`、`mode`、`target` 和规则字段。
 
 ## 当前配置项
