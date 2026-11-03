@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -282,4 +283,26 @@ func TestNewConfig_OpenErrorPreservesCause(t *testing.T) {
 	require.ErrorAs(t, err, &pathErr)
 	assert.Equal(t, path, pathErr.Path)
 	assert.Nil(t, cfg)
+}
+
+func TestFilePathsRejectUnrepresentableNames(t *testing.T) {
+	for _, list := range []string{"allow", "deny"} {
+		for _, value := range []string{"", "relative/path", "/valid\x00suffix", "/", "/tmp/中文"} {
+			cfg := DefaultConfig()
+			cfg.RestrictedFileAccessConfig.Enable = true
+			if list == "allow" {
+				cfg.RestrictedFileAccessConfig.Allow = []string{"/valid", value}
+			} else {
+				cfg.RestrictedFileAccessConfig.Deny = []string{"/valid", value}
+			}
+			err := cfg.Validate()
+			if !strings.HasPrefix(value, "/") || strings.ContainsRune(value, 0) {
+				require.ErrorContains(t, err, "files."+list+"[1]")
+			} else {
+				require.NoError(t, err)
+			}
+			cfg.RestrictedFileAccessConfig.Enable = false
+			require.NoError(t, cfg.Validate())
+		}
+	}
 }

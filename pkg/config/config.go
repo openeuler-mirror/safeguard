@@ -98,7 +98,7 @@ type LogConfig struct {
 
 // Config is the top-level safeguard configuration structure.
 type Config struct {
-	Policy                      string `yaml:"policy"` // blacklist 或 whitelist
+	Policy                     string `yaml:"policy"` // blacklist 或 whitelist
 	RestrictedNetworkConfig    `yaml:"network"`
 	RestrictedFileAccessConfig `yaml:"files"`
 	RestrictedMountConfig      `yaml:"mount"`
@@ -219,6 +219,20 @@ func (c *Config) Validate() error {
 	}{{"max_size", c.Log.MaxSize}, {"max_age", c.Log.MaxAge}} {
 		if limit.value < 0 {
 			return fmt.Errorf("log.%s must not be negative", limit.name)
+		}
+	}
+	if c.RestrictedFileAccessConfig.Enable {
+		for _, list := range []struct {
+			name   string
+			values []string
+		}{
+			{"allow", c.RestrictedFileAccessConfig.Allow}, {"deny", c.RestrictedFileAccessConfig.Deny},
+		} {
+			for i, value := range list.values {
+				if !strings.HasPrefix(value, "/") || strings.ContainsRune(value, 0) {
+					return fmt.Errorf("files.%s[%d]: path must be absolute and contain no NUL", list.name, i)
+				}
+			}
 		}
 	}
 	if c.RestrictedNetworkConfig.Enable {
