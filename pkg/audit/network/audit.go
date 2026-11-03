@@ -101,9 +101,15 @@ const (
 	BPF_OBJECT_NAME = "restricted-network"
 )
 
-func setupBPFProgram() (*libbpfgo.Module, error) {
+func setupBPFProgram(ctx context.Context) (*libbpfgo.Module, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	bytecode, err := bpf.EmbedFS.ReadFile("bytecode/restricted-network.bpf.o")
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	mod, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_NAME)
@@ -111,6 +117,10 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 		return nil, err
 	}
 
+	if err := ctx.Err(); err != nil {
+		mod.Close()
+		return nil, err
+	}
 	if err = mod.BPFLoadObject(); err != nil {
 		mod.Close()
 		return nil, err
@@ -127,7 +137,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		return nil
 	}
 
-	mod, err := setupBPFProgram()
+	mod, err := setupBPFProgram(ctx)
 	if err != nil {
 		return helpers.During("network", "load", err)
 	}
@@ -149,11 +159,13 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	}
 	defer helpers.Own(ctx, func() { mgr.Close() })()
 
-
-	if err = mgr.SetConfigToMap(); err != nil {
-		return helpers.During("network", "configure", err)
+	if err := helpers.StartStage(ctx, "network", "configure", mgr.SetConfigToMap); err != nil {
+		return err
 	}
 
+	if err := ctx.Err(); err != nil {
+		return helpers.During("network", "dns-start", err)
+	}
 	if mgr.config.EnableDNSProxy() {
 		for _, bindAddress := range mgr.config.DNSProxyConfig.BindAddresses {
 			go func(bindAddress string) {
@@ -169,14 +181,14 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		mgr.AsyncResolve()
 	}
 
-	if err = mgr.Attach(); err != nil {
-		return helpers.During("network", "attach", err)
+	if err := helpers.StartStage(ctx, "network", "attach", mgr.Attach); err != nil {
+		return err
 	}
 
 	log.Info("Start the network audit.")
 	eventsChannel := make(chan []byte)
-	if err := mgr.Start(eventsChannel); err != nil {
-		return helpers.During("network", "buffer", err)
+	if err := helpers.StartStage(ctx, "network", "buffer", func() error { return mgr.Start(eventsChannel) }); err != nil {
+		return err
 	}
 	var consumers helpers.Consumers
 	helpers.ReportReady(ctx)

@@ -42,9 +42,15 @@ type auditLog struct {
 	Path          [PATH_MAX]byte
 }
 
-func setupBPFProgram() (*libbpfgo.Module, error) {
+func setupBPFProgram(ctx context.Context) (*libbpfgo.Module, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	bytecode, err := bpf.EmbedFS.ReadFile("bytecode/restricted-file.bpf.o")
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	mod, err := libbpfgo.NewModuleFromBuffer(bytecode, BPF_OBJECT_NAME)
@@ -52,6 +58,10 @@ func setupBPFProgram() (*libbpfgo.Module, error) {
 		return nil, err
 	}
 
+	if err := ctx.Err(); err != nil {
+		mod.Close()
+		return nil, err
+	}
 	if err = mod.BPFLoadObject(); err != nil {
 		mod.Close()
 		return nil, err
@@ -68,7 +78,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		return nil
 	}
 
-	mod, err := setupBPFProgram()
+	mod, err := setupBPFProgram(ctx)
 	if err != nil {
 		return helpers.During("fileaccess", "load", err)
 	}
@@ -79,20 +89,19 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	}
 	defer helpers.Own(ctx, func() { mgr.Close(); mod.Close() })()
 
-
-	if err = mgr.SetConfigToMap(); err != nil {
-		return helpers.During("fileaccess", "configure", err)
+	if err := helpers.StartStage(ctx, "fileaccess", "configure", mgr.SetConfigToMap); err != nil {
+		return err
 	}
 
-	if err := mgr.Attach(); err != nil {
-		return helpers.During("fileaccess", "attach", err)
+	if err := helpers.StartStage(ctx, "fileaccess", "attach", mgr.Attach); err != nil {
+		return err
 	}
 
 	log.Info("Start the fileaccess audit.")
 	eventChannel := make(chan []byte)
 	lostChannel := make(chan uint64)
-	if err := mgr.Start(eventChannel, lostChannel); err != nil {
-		return helpers.During("fileaccess", "buffer", err)
+	if err := helpers.StartStage(ctx, "fileaccess", "buffer", func() error { return mgr.Start(eventChannel, lostChannel) }); err != nil {
+		return err
 	}
 
 	var consumers helpers.Consumers

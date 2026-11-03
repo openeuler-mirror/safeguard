@@ -15,6 +15,9 @@ func WithReadiness(ctx context.Context, ready func()) context.Context {
 
 // ReportReady marks completion of the module's synchronous startup steps.
 func ReportReady(ctx context.Context) {
+	if ctx.Err() != nil {
+		return
+	}
 	if ready, ok := ctx.Value(readinessKey{}).(func()); ok {
 		ready()
 	}

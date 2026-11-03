@@ -2,6 +2,7 @@ package mount
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"unsafe"
 
@@ -87,7 +88,7 @@ func Test_setModeAndTarget(t *testing.T) {
 }
 
 func createManager(conf *config.Config) *Manager {
-	mod, err := setupBPFProgram()
+	mod, err := setupBPFProgram(context.Background())
 	if err != nil {
 		panic(err)
 	}

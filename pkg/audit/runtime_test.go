@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -131,11 +132,13 @@ func TestRunTasks_StartupFailureCleansAcquiredResourcesInReverse(t *testing.T) {
 }
 
 func TestRunTasks_PreservesSimultaneousFailures(t *testing.T) {
+	var started sync.WaitGroup
+	started.Add(2)
 	first := errors.New("first failure")
 	second := &os.PathError{Op: "open", Path: "missing", Err: os.ErrNotExist}
 	err := runTasks(context.Background(), []auditTask{
-		{"first", func(context.Context) error { return first }},
-		{"second", func(context.Context) error { return second }},
+		{"first", func(context.Context) error { started.Done(); started.Wait(); return first }},
+		{"second", func(context.Context) error { started.Done(); started.Wait(); return second }},
 	})
 	require.ErrorIs(t, err, first)
 	require.ErrorIs(t, err, os.ErrNotExist)

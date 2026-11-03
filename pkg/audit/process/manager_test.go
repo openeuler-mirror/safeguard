@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"testing"
 
 	"culinux/pkg/config"
@@ -20,7 +21,7 @@ func Test_Attach(t *testing.T) {
 }
 
 func createManager(conf *config.Config) *Manager {
-	mod, err := setupBPFProgram()
+	mod, err := setupBPFProgram(context.Background())
 	if err != nil {
 		panic(err)
 	}
