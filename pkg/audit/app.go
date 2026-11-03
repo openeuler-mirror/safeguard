@@ -57,8 +57,7 @@ EXAMPLES:
 		path := c.String("config")
 		conf, err := config.NewConfig(path)
 		if err != nil {
-			log.Error(err)
-			return nil
+			return err
 		}
 		if !utils.AmIRootUser() {
 			return errors.New("Must be run as root user")
