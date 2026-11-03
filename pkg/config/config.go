@@ -186,6 +186,9 @@ func (c *Config) Validate() error {
 	if c == nil {
 		return errors.New("configuration must not be null")
 	}
+	if c.Policy != "blacklist" && c.Policy != "whitelist" {
+		return fmt.Errorf("invalid policy %q: must be blacklist or whitelist", c.Policy)
+	}
 
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
 		return errors.New("One or more dns_proxy.upstreams must be specified.")
