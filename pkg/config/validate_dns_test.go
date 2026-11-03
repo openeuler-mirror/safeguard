@@ -14,6 +14,7 @@ func TestConfig_Validate_DNSProxyEnabledWithUpstreams(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.DNSProxyConfig.Enable = true
 	cfg.DNSProxyConfig.Upstreams = []string{"8.8.8.8"}
+ cfg.RestrictedNetworkConfig.Enable = true
 	err := cfg.Validate()
 	assert.NoError(t, err)
 }

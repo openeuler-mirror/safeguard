@@ -613,3 +613,19 @@ func TestProxyRequiresNonemptyListeners(t *testing.T) {
 	cfg.DNSProxyConfig.Upstreams = []string{"1.1.1.1"}
 	require.NoError(t, cfg.Validate())
 }
+
+func TestProxyRequiresNetworkModule(t *testing.T) {
+	for _, network := range []bool{false, true} {
+		for _, proxy := range []bool{false, true} {
+			cfg := DefaultConfig()
+			cfg.RestrictedNetworkConfig.Enable = network
+			cfg.DNSProxyConfig.Enable = proxy
+			cfg.DNSProxyConfig.Upstreams = []string{"1.1.1.1"}
+			if proxy && !network {
+				require.ErrorContains(t, cfg.Validate(), "dns_proxy.enable")
+			} else {
+				require.NoError(t, cfg.Validate())
+			}
+		}
+	}
+}

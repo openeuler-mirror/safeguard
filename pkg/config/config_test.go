@@ -160,7 +160,9 @@ func TestNewConfig_LoadsDNSProxyAndLogSettings(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "settings.yaml")
 
-	content := []byte(`dns_proxy:
+	content := []byte(`network:
+  enable: true
+dns_proxy:
   enable: true
   upstreams:
     - 1.1.1.1
@@ -194,7 +196,9 @@ func TestNewConfig_RequiresDNSProxyUpstreams(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "dns-proxy.yaml")
 
-	content := []byte(`dns_proxy:
+	content := []byte(`network:
+  enable: true
+dns_proxy:
   enable: true
 `)
 	require.NoError(t, os.WriteFile(path, content, 0o644))
