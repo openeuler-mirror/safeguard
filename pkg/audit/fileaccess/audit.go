@@ -98,7 +98,10 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	helpers.ReportReady(ctx)
 	go func() {
 		for {
-			eventBytes := <-eventChannel
+			eventBytes, open := helpers.NextEvent(eventChannel)
+			if !open {
+				return
+			}
 			event, err := parseEvent(eventBytes)
 			if err != nil {
 				if err == io.EOF {

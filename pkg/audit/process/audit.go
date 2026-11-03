@@ -125,7 +125,10 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	// 处理 tracepoint 事件
 	go func() {
 		for {
-			eventBytes := <-eventChannel
+			eventBytes, open := helpers.NextEvent(eventChannel)
+			if !open {
+				return
+			}
 			event, err := parseEvent(eventBytes)
 			if err != nil {
 				if err == io.EOF {
@@ -143,7 +146,10 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	// 处理 LSM hook 执行审计事件
 	go func() {
 		for {
-			eventBytes := <-execEventChannel
+			eventBytes, open := helpers.NextEvent(execEventChannel)
+			if !open {
+				return
+			}
 			event, err := parseExecEvent(eventBytes)
 			if err != nil {
 				if err == io.EOF {
