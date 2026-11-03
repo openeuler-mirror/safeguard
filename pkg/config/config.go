@@ -239,6 +239,9 @@ func (c *Config) Validate() error {
 		}
 	}
 	if c.RestrictedMountConfig.Enable {
+		if count := len(UniqueStrings(c.RestrictedMountConfig.DenySourcePath)); count > 256 {
+			return fmt.Errorf("mount.deny: %d unique sources exceed map capacity 256", count)
+		}
 		for i, source := range c.RestrictedMountConfig.DenySourcePath {
 			if strings.TrimSpace(source) == "" || strings.ContainsRune(source, 0) {
 				return fmt.Errorf("mount.deny[%d]: source must not be empty or contain NUL", i)

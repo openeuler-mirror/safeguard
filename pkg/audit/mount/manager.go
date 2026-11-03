@@ -109,10 +109,11 @@ func (m *Manager) SetConfigToMap() error {
 		return err
 	}
 
-	denied_source_paths := m.config.RestrictedMountConfig.DenySourcePath
+	denied_source_paths := config.UniqueStrings(m.config.RestrictedMountConfig.DenySourcePath)
 	for i, path := range denied_source_paths {
-		key := uint8(i)
-		value := []byte(path)
+		key := uint32(i)
+		value := make([]byte, PATH_MAX)
+		copy(value, path)
 		err = map_denied_source_paths.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
 		if err != nil {
 			return err
