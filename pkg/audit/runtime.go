@@ -82,6 +82,7 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
+	ctx, cleanup := helpers.WithCleanup(ctx)
 	type taskResult struct {
 		name string
 		err  error
@@ -113,7 +114,8 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 			shutdownTimer.Stop()
 		}
 	}()
-	for remaining := len(tasks); remaining > 0; {
+	remaining := len(tasks)
+	for remaining > 0 {
 		select {
 		case <-stopping:
 			stopping = nil
@@ -126,6 +128,12 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 				names = append(names, name)
 			}
 			sort.Strings(names)
+			go func(left int) {
+				for i := 0; i < left; i++ {
+					<-results
+				}
+				cleanup()
+			}(remaining)
 			timeout := fmt.Errorf("audit shutdown timeout; still running: %s", strings.Join(names, ", "))
 			if failure != nil {
 				return fmt.Errorf("%w; %v", failure, timeout)
@@ -154,5 +162,19 @@ func runTasksWithOptions(parent context.Context, tasks []auditTask, options runO
 			}
 		}
 	}
-	return failure
+	cleaned := make(chan struct{})
+	go func() { cleanup(); close(cleaned) }()
+	if shutdown == nil {
+		shutdownTimer = time.NewTimer(options.shutdownTimeout)
+		shutdown = shutdownTimer.C
+	}
+	select {
+	case <-cleaned:
+		return failure
+	case <-shutdown:
+		if failure != nil {
+			return fmt.Errorf("%w; audit cleanup timeout", failure)
+		}
+		return fmt.Errorf("audit cleanup timeout")
+	}
 }

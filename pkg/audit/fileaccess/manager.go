@@ -27,9 +27,10 @@ const (
 
 // Manager handles file access audit events and BPF map operations for file access restriction.
 type Manager struct {
-	mod    *libbpfgo.Module
-	config *config.Config
-	pb     *libbpfgo.PerfBuffer
+	mod     *libbpfgo.Module
+	config  *config.Config
+	pb      *libbpfgo.PerfBuffer
+	ownsPin bool
 }
 
 // Start initializes the perf buffer for file access events and begins polling.
@@ -52,10 +53,13 @@ func (m *Manager) Stop() {
 
 // Close unpins the BPF config map and releases the perf buffer.
 func (m *Manager) Close() {
-	configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
-	if err == nil {
-		if err := configMap.Unpin(FILEACCESS_PIN); err != nil {
-			log.Debug(fmt.Sprintf("failed to unpin file_config: %v", err))
+	if m.ownsPin {
+		m.ownsPin = false
+		configMap, err := m.mod.GetMap(FILEACCESS_CONFIG)
+		if err == nil {
+			if err := configMap.Unpin(FILEACCESS_PIN); err != nil {
+				log.Debug(fmt.Sprintf("failed to unpin file_config: %v", err))
+			}
 		}
 	}
 	if m.pb != nil {
@@ -215,5 +219,6 @@ func (m *Manager) setModeAndTarget() error {
 		}
 	}
 
+	m.ownsPin = true
 	return nil
 }
