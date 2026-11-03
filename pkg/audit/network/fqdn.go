@@ -341,10 +341,20 @@ func sameDNSName(a, b string) bool {
 	return true
 }
 
+var ErrDNSAliasCycle = errors.New("DNS alias cycle")
+var ErrDNSAliasLimit = errors.New("DNS alias chain exceeds 16 hops")
+
 // Only follow aliases carried in this response; never start implicit queries.
 func responseChain(records []dns.RR, name string, recordType uint16) ([]dns.RR, error) {
 	var relevant []dns.RR
+	var seen []string
 	for hops := 0; hops <= 16; hops++ {
+		for _, previous := range seen {
+			if sameDNSName(previous, name) {
+				return nil, ErrDNSAliasCycle
+			}
+		}
+		seen = append(seen, name)
 		target := ""
 		for _, rr := range records {
 			if rr.Header().Class != dns.ClassINET || !sameDNSName(name, rr.Header().Name) {
@@ -365,5 +375,5 @@ func responseChain(records []dns.RR, name string, recordType uint16) ([]dns.RR, 
 		}
 		name = target
 	}
-	return nil, errors.New("CNAME chain exceeds 16 hops")
+	return nil, ErrDNSAliasLimit
 }

@@ -184,3 +184,38 @@ func TestResolverFiltersResponseOwners(t *testing.T) {
 	require.Equal(t, "alias.example", answer.Domain)
 	require.Equal(t, []net.IP{net.ParseIP("192.0.2.1").To4()}, answer.Addresses)
 }
+
+func TestResolverAliasBounds(t *testing.T) {
+	for _, count := range []int{2, 16, 17} {
+		count := count
+		r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			for i := 0; i < count; i++ {
+				target := fmt.Sprintf("n%d.example.", i+1)
+				if count == 2 && i == 1 {
+					target = "N0.EXAMPLE."
+				}
+				rr, err := dns.NewRR(fmt.Sprintf("n%d.example. 60 IN CNAME %s", i, target))
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				response.Answer = append(response.Answer, rr)
+			}
+			rr, _ := dns.NewRR(fmt.Sprintf("n%d.example. 60 IN A 192.0.2.1", count))
+			response.Answer = append(response.Answer, rr)
+			w.WriteMsg(response)
+		})
+		r.client.UDPSize = 4096
+		_, err := r.Resolve("n0.example", dns.TypeA)
+		switch count {
+		case 2:
+			require.ErrorIs(t, err, ErrDNSAliasCycle)
+		case 16:
+			require.NoError(t, err)
+		case 17:
+			require.ErrorIs(t, err, ErrDNSAliasLimit)
+		}
+	}
+}
