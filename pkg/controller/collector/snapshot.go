@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"fmt"
 	"os"
 
 	"culinux/pkg/controller/model"
@@ -37,22 +38,22 @@ func NewSnapshotCollector() SnapshotCollector {
 func (c SnapshotCollector) Collect() (model.HostSnapshot, error) {
 	hostname, err := c.HostnameFn()
 	if err != nil {
-		return model.HostSnapshot{}, err
+		return model.HostSnapshot{}, fmt.Errorf("collect hostname: %w", err)
 	}
 
 	accounts, accountUIDs, accountGIDs, err := readPasswdAccounts(c.PasswdPath)
 	if err != nil {
-		return model.HostSnapshot{}, err
+		return model.HostSnapshot{}, fmt.Errorf("read passwd %q: %w", c.PasswdPath, err)
 	}
 
 	processes, processUIDs, processGIDs, executablePaths, err := readProcProcesses(c.ProcRoot)
 	if err != nil {
-		return model.HostSnapshot{}, err
+		return model.HostSnapshot{}, fmt.Errorf("read processes %q: %w", c.ProcRoot, err)
 	}
 
 	interfaceCIDRs, err := c.InterfaceCIDRsFn()
 	if err != nil {
-		return model.HostSnapshot{}, err
+		return model.HostSnapshot{}, fmt.Errorf("collect interfaces: %w", err)
 	}
 
 	procNetCIDRs, warnings := readProcNetCIDRs(c.ProcNetPaths)

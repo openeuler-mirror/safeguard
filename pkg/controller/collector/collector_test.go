@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -115,4 +116,37 @@ func TestParseStatusIDs_ReturnsZeroForMissingFields(t *testing.T) {
 	uid, gid := parseStatusIDs("Name:\tbash\n")
 	assert.Equal(t, uint(0), uid)
 	assert.Equal(t, uint(0), gid)
+}
+
+func TestSnapshotCollector_IdentifiesFailedStage(t *testing.T) {
+	for _, stage := range []string{"hostname", "passwd", "processes", "interfaces"} {
+		t.Run(stage, func(t *testing.T) {
+			root := t.TempDir()
+			passwd := filepath.Join(root, "passwd")
+			require.NoError(t, os.WriteFile(passwd, nil, 0o600))
+			injected := errors.New("injected failure")
+			collector := SnapshotCollector{
+				PasswdPath: passwd, ProcRoot: root,
+				HostnameFn:       func() (string, error) { return "host", nil },
+				InterfaceCIDRsFn: func() ([]string, error) { return nil, nil },
+			}
+			expected := injected
+			switch stage {
+			case "hostname":
+				collector.HostnameFn = func() (string, error) { return "", injected }
+			case "passwd":
+				collector.PasswdPath = filepath.Join(root, "missing-passwd")
+				expected = os.ErrNotExist
+			case "processes":
+				collector.ProcRoot = filepath.Join(root, "missing-proc")
+				expected = os.ErrNotExist
+			case "interfaces":
+				collector.InterfaceCIDRsFn = func() ([]string, error) { return nil, injected }
+			}
+			snapshot, err := collector.Collect()
+			require.ErrorIs(t, err, expected)
+			assert.ErrorContains(t, err, stage)
+			assert.Empty(t, snapshot)
+		})
+	}
 }
