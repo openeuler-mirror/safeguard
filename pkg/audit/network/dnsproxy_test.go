@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
+	"time"
 )
 
 func TestDNSZeroTTLCache(t *testing.T) {
@@ -89,5 +90,31 @@ func TestDNSProxyFlags(t *testing.T) {
 		require.True(t, writer.msg.RecursionAvailable)
 		require.Equal(t, rd, writer.msg.RecursionDesired)
 		require.Equal(t, request.Question, writer.msg.Question)
+	}
+}
+
+func TestDNSProxyRcode(t *testing.T) {
+	for _, code := range []int{dns.RcodeNameError, dns.RcodeServerFailure, -1} {
+		code := code
+		resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			if code < 0 {
+				return
+			}
+			response := new(dns.Msg)
+			response.SetRcode(q, code)
+			w.WriteMsg(response)
+		})
+		resolver.client.Timeout = 10 * time.Millisecond
+		proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: config.DefaultConfig(), dnsCache: newDNSCache()}}
+		request := new(dns.Msg)
+		request.SetQuestion("rcode.example.", dns.TypeA)
+		writer := new(proxyCapture)
+		proxy.ServeDNS(writer, request)
+		expected := code
+		if code < 0 {
+			expected = dns.RcodeServerFailure
+		}
+		require.Equal(t, expected, writer.msg.Rcode)
+		require.Empty(t, writer.msg.Answer)
 	}
 }
