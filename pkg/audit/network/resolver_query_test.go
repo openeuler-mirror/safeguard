@@ -284,3 +284,13 @@ func TestResolverMinimumRelevantTTL(t *testing.T) {
 	require.Equal(t, time.Second, refreshDelay(0))
 	require.Equal(t, 2*time.Second, refreshDelay(2))
 }
+
+func TestResolverSharedUpstreamBudget(t *testing.T) {
+	var queries int32
+	r := localResolver(t, func(dns.ResponseWriter, *dns.Msg) { atomic.AddInt32(&queries, 1) })
+	r.config.Servers = []string{"127.0.0.1", "127.0.0.1", "127.0.0.1"}
+	r.client.Timeout = 30 * time.Millisecond
+	_, err := r.Resolve("silent.example", dns.TypeA)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Equal(t, int32(1), atomic.LoadInt32(&queries))
+}

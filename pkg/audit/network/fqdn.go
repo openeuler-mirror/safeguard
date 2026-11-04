@@ -113,6 +113,8 @@ func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recor
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
+	ctx, cancel := context.WithTimeout(ctx, r.queryClient().Timeout)
+	defer cancel()
 	message := new(dns.Msg)
 	message.SetQuestion(toFqdn(host), recordType)
 	message.RecursionDesired = true
