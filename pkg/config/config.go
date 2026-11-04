@@ -343,6 +343,16 @@ func (c *Config) Validate() error {
 			}
 		}
 	}
+	if c.DNSProxyConfig.Enable {
+		for i, server := range c.DNSProxyConfig.Upstreams {
+			for _, bind := range c.DNSProxyConfig.BindAddresses {
+				ip := net.ParseIP(server)
+				if dnsListenerKey(server) == dnsListenerKey(bind) || bind == "0.0.0.0" && ip != nil && ip.To4() != nil && ip.IsLoopback() {
+					return fmt.Errorf("dns_proxy.upstreams[%d]: upstream points to proxy listener", i)
+				}
+			}
+		}
+	}
 	if c.DNSProxyConfig.Enable && len(c.DNSProxyConfig.Upstreams) == 0 {
 		return errors.New("One or more dns_proxy.upstreams must be specified.")
 	}
