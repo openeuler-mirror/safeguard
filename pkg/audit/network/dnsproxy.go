@@ -62,12 +62,12 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg.SetReply(r)
 	if r.Opcode != dns.OpcodeQuery {
 		msg.SetRcode(r, dns.RcodeNotImplemented)
-		w.WriteMsg(&msg)
+		writeDNSResponse(w, &msg)
 		return
 	}
 	if len(r.Question) != 1 {
 		msg.SetRcode(r, dns.RcodeFormatError)
-		w.WriteMsg(&msg)
+		writeDNSResponse(w, &msg)
 		return
 	}
 
@@ -84,7 +84,7 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 		if res.Rcode != dns.RcodeSuccess {
 			msg.Rcode = res.Rcode
-			w.WriteMsg(&msg)
+			writeDNSResponse(w, &msg)
 			return
 		}
 		msg.Answer = append(msg.Answer, res.Answer...)
@@ -111,7 +111,7 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		log.Debug(fmt.Sprintf("Current DNS cache entries: %d", this.manager.dnsCache.Len()))
 	}
 
-	w.WriteMsg(&msg)
+	writeDNSResponse(w, &msg)
 }
 
 func (this *DNSProxy) resolve(domainName string, queryType uint16) (*dns.Msg, error) {
@@ -150,4 +150,10 @@ func (mgr *Manager) StartDNSServer(bindAddress string) error {
 	}
 
 	return nil
+}
+
+func writeDNSResponse(w dns.ResponseWriter, msg *dns.Msg) {
+	if err := w.WriteMsg(msg); err != nil {
+		log.Error(fmt.Errorf("write DNS response: %w", err))
+	}
 }

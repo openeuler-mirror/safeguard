@@ -1,10 +1,14 @@
 package network
 
 import (
+	"bytes"
 	"culinux/pkg/config"
+	log "culinux/pkg/log"
+	"errors"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -148,4 +152,33 @@ func TestDNSProxyFallback(t *testing.T) {
 	require.Equal(t, dns.RcodeSuccess, writer.msg.Rcode)
 	require.Len(t, writer.msg.Answer, 1)
 	require.Equal(t, "fallback.example.", proxy.manager.dnsCache.Lookup("192.0.2.42"))
+}
+
+type failingProxyWriter struct{ proxyCapture }
+
+func (w *failingProxyWriter) WriteMsg(m *dns.Msg) error {
+	w.proxyCapture.WriteMsg(m)
+	return errors.New("injected response write failure")
+}
+
+func TestDNSProxyWriteError(t *testing.T) {
+	var logs bytes.Buffer
+	old := log.Logger.Logger.Out
+	log.Logger.Logger.SetOutput(&logs)
+	t.Cleanup(func() { log.Logger.Logger.SetOutput(old) })
+	resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+		response := new(dns.Msg)
+		response.SetReply(q)
+		w.WriteMsg(response)
+	})
+	proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: config.DefaultConfig(), dnsCache: newDNSCache()}}
+	for _, opcode := range []int{dns.OpcodeUpdate, dns.OpcodeQuery} {
+		q := new(dns.Msg)
+		q.SetQuestion("write.example.", dns.TypeA)
+		q.Opcode = opcode
+		writer := new(failingProxyWriter)
+		proxy.ServeDNS(writer, q)
+		require.NotNil(t, writer.msg)
+	}
+	require.Equal(t, 2, strings.Count(logs.String(), "injected response write failure"))
 }
