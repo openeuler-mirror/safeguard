@@ -24,6 +24,9 @@ type DNSProxy struct {
 
 func dnsResponseToDNSAnswer(response *dns.Msg) *DNSAnswer {
 	dnsAnswer := DNSAnswer{}
+	if len(response.Question) == 1 {
+		dnsAnswer.QueryType = response.Question[0].Qtype
+	}
 	for _, answer := range response.Answer {
 		switch answer.Header().Rrtype {
 		case dns.TypeA:
@@ -51,12 +54,7 @@ func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer, caches ...*dnsNameCache) 
 	if len(caches) > 0 {
 		cache = caches[0]
 	}
-	if dnsAnswer.TTL == 0 {
-		return
-	}
-	for _, address := range dnsAnswer.Addresses {
-		cache.Store(address.String(), fqdn, dnsAnswer.TTL)
-	}
+	cache.Replace(fqdn, dnsAnswer.QueryType, dnsAnswer.Addresses, dnsAnswer.TTL)
 }
 
 func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {

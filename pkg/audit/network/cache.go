@@ -1,10 +1,13 @@
 package network
 
 import (
+	"net"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/miekg/dns"
 )
 
 type dnsNameEntry map[string]time.Time
@@ -26,6 +29,10 @@ func (c *dnsNameCache) Store(addr, domain string, ttl uint32) {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.storeLocked(addr, domain, ttl)
+}
+
+func (c *dnsNameCache) storeLocked(addr, domain string, ttl uint32) {
 	if ttl == 0 {
 		return
 	}
@@ -85,4 +92,36 @@ func (c *dnsNameCache) Len() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return len(c.entries)
+}
+
+// Replace atomically updates one domain's reverse references, preserving peers.
+func (c *dnsNameCache) Replace(domain string, qtype uint16, addresses []net.IP, ttl uint32) {
+	if c == nil || qtype != 0 && qtype != dns.TypeA && qtype != dns.TypeAAAA {
+		return
+	}
+	wanted := make(map[string]bool, len(addresses))
+	for _, ip := range addresses {
+		wanted[ip.String()] = true
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for addr, names := range c.entries {
+		if qtype == dns.TypeA && net.ParseIP(addr).To4() == nil || qtype == dns.TypeAAAA && net.ParseIP(addr).To4() != nil {
+			continue
+		}
+		if !wanted[addr] || ttl == 0 {
+			delete(names, domain)
+		}
+		if len(names) == 0 {
+			delete(c.entries, addr)
+		}
+	}
+	keys := make([]string, 0, len(wanted))
+	for addr := range wanted {
+		keys = append(keys, addr)
+	}
+	sort.Strings(keys)
+	for _, addr := range keys {
+		c.storeLocked(addr, domain, ttl)
+	}
 }
