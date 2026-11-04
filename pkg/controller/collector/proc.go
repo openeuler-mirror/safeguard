@@ -24,8 +24,8 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 		if !entry.IsDir() {
 			continue
 		}
-		pid, err := strconv.Atoi(entry.Name())
-		if err != nil {
+		pid, err := strconv.ParseUint(entry.Name(), 10, 22)
+		if err != nil || pid == 0 || strconv.FormatUint(pid, 10) != entry.Name() {
 			continue
 		}
 
@@ -46,7 +46,7 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 		executable, _ := os.Readlink(filepath.Join(base, "exe"))
 
 		processes = append(processes, model.RunningProcess{
-			PID:        pid,
+			PID:        int(pid),
 			Command:    strings.TrimSpace(string(commandBytes)),
 			Executable: executable,
 			UID:        uid,
