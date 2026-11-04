@@ -149,8 +149,9 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	}
 
 	mgr := Manager{
-		mod:    mod,
-		config: conf,
+		dnsContext: ctx,
+		mod:        mod,
+		config:     conf,
 		dnsResolver: &DefaultResolver{
 			config:  dnsConfig,
 			client:  new(dns.Client),

@@ -172,7 +172,7 @@ func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recor
 }
 
 func (mgr *Manager) ResolveAddressv4(domain string) (*DNSAnswer, error) {
-	answer, err := mgr.dnsResolver.Resolve(domain, dns.TypeA)
+	answer, err := mgr.resolveAddress(domain, dns.TypeA)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (mgr *Manager) ResolveAddressv4(domain string) (*DNSAnswer, error) {
 }
 
 func (mgr *Manager) ResolveAddressv6(domain string) (*DNSAnswer, error) {
-	answer, err := mgr.dnsResolver.Resolve(domain, dns.TypeAAAA)
+	answer, err := mgr.resolveAddress(domain, dns.TypeAAAA)
 	if err != nil {
 		return nil, err
 	}
@@ -423,4 +423,13 @@ func refreshDelay(ttl uint32) time.Duration {
 		return time.Second
 	}
 	return time.Duration(ttl) * time.Second
+}
+
+func (mgr *Manager) resolveAddress(domain string, kind uint16) (*DNSAnswer, error) {
+	if resolver, ok := mgr.dnsResolver.(interface {
+		ResolveContext(context.Context, string, uint16) (*DNSAnswer, error)
+	}); ok && mgr.dnsContext != nil {
+		return resolver.ResolveContext(mgr.dnsContext, domain, kind)
+	}
+	return mgr.dnsResolver.Resolve(domain, kind)
 }

@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
@@ -66,6 +67,7 @@ type Manager struct {
 	mod         *libbpfgo.Module
 	config      *config.Config
 	rb          helpers.Buffer
+	dnsContext  context.Context
 	dnsResolver DNSResolver
 	dnsCache    map[string]string
 }
