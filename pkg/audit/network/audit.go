@@ -210,7 +210,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 				continue
 			}
 
-			auditLog := newAuditLog(header, body)
+			auditLog := newAuditLog(header, body, mgr.dnsCache)
 			auditLog.Info()
 		}
 	})
@@ -224,7 +224,11 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	return helpers.During("network", "consume", consumerErr)
 }
 
-func newAuditLog(header eventHeader, body detectEvent) log.RestrictedNetworkLog {
+func newAuditLog(header eventHeader, body detectEvent, caches ...*dnsNameCache) log.RestrictedNetworkLog {
+	cache := dnsCache
+	if len(caches) > 0 {
+		cache = caches[0]
+	}
 	var (
 		addr     string
 		port     uint16
@@ -255,7 +259,7 @@ func newAuditLog(header eventHeader, body detectEvent) log.RestrictedNetworkLog 
 	networkLog := log.RestrictedNetworkLog{
 		AuditEventLog: auditEvent,
 		Addr:          addr,
-		Domain:        dnsCache.Lookup(addr),
+		Domain:        cache.Lookup(addr),
 		Port:          port,
 		Protocol:      sockTypeToProtocolName(socktype),
 	}
