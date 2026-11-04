@@ -227,3 +227,16 @@ func TestDNSProxyRelevantAddressesAliasCycle(t *testing.T) {
 	require.Equal(t, dns.RcodeServerFailure, writer.msg.Rcode)
 	require.Zero(t, cache.Len())
 }
+
+func TestDNSProxyQuestionClass(t *testing.T) {
+	for _, class := range []uint16{dns.ClassCHAOS, dns.ClassNONE, dns.ClassANY} {
+		request := new(dns.Msg)
+		request.SetQuestion("class.example.", dns.TypeA)
+		request.Question[0].Qclass = class
+		writer := new(proxyCapture)
+		require.NotPanics(t, func() { new(DNSProxy).ServeDNS(writer, request) })
+		require.NotNil(t, writer.msg)
+		require.Equal(t, dns.RcodeNotImplemented, writer.msg.Rcode)
+		require.Equal(t, request.Question, writer.msg.Question)
+	}
+}
