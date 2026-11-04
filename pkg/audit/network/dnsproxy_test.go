@@ -1,6 +1,7 @@
 package network
 
 import (
+	"culinux/pkg/config"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 	"net"
@@ -61,5 +62,32 @@ func TestDNSProxyOpcode(t *testing.T) {
 		writer := new(proxyCapture)
 		require.NotPanics(t, func() { new(DNSProxy).ServeDNS(writer, request) })
 		require.Equal(t, dns.RcodeNotImplemented, writer.msg.Rcode)
+	}
+}
+
+func TestDNSProxyFlags(t *testing.T) {
+	for _, rd := range []bool{false, true} {
+		forwarded := make(chan struct{}, 1)
+		resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			forwarded <- struct{}{}
+			response := new(dns.Msg)
+			response.SetReply(q)
+			w.WriteMsg(response)
+		})
+		proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: config.DefaultConfig(), dnsCache: newDNSCache()}}
+		request := new(dns.Msg)
+		request.SetQuestion("flags.example.", dns.TypeA)
+		request.RecursionDesired = rd
+		writer := new(proxyCapture)
+		proxy.ServeDNS(writer, request)
+		select {
+		case <-forwarded:
+		default:
+			t.Fatal("request was not forwarded")
+		}
+		require.False(t, writer.msg.Authoritative)
+		require.True(t, writer.msg.RecursionAvailable)
+		require.Equal(t, rd, writer.msg.RecursionDesired)
+		require.Equal(t, request.Question, writer.msg.Question)
 	}
 }

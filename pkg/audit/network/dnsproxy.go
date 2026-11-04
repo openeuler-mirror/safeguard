@@ -71,7 +71,8 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	msg.Authoritative = true
+	msg.Authoritative = false
+	msg.RecursionAvailable = true
 	for i, q := range r.Question {
 		fqdn := msg.Question[i].Name
 		res, err := this.resolve(fqdn, q.Qtype)
@@ -112,7 +113,11 @@ func (this *DNSProxy) resolve(domainName string, queryType uint16) (*dns.Msg, er
 	m.SetQuestion(domainName, queryType)
 	m.RecursionDesired = true
 
-	res, _, err := this.client.Exchange(m, net.JoinHostPort(this.dnsConfig.Servers[0], "53"))
+	port := this.dnsConfig.Port
+	if port == "" {
+		port = "53"
+	}
+	res, _, err := this.client.Exchange(m, net.JoinHostPort(this.dnsConfig.Servers[0], port))
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +128,7 @@ func (this *DNSProxy) resolve(domainName string, queryType uint16) (*dns.Msg, er
 func createDNSConfig(dnsProxyConfig config.DNSProxyConfig) (*dns.ClientConfig, error) {
 	dnsConfig := &dns.ClientConfig{
 		Servers: dnsProxyConfig.Upstreams,
+		Port:    "53",
 	}
 
 	return dnsConfig, nil
