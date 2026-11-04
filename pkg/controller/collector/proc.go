@@ -44,6 +44,9 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 		}
 		uid, gid := parseStatusIDs(string(statusBytes))
 		executable, _ := os.Readlink(filepath.Join(base, "exe"))
+		if strings.HasSuffix(executable, " (deleted)") {
+			executable = ""
+		}
 
 		processes = append(processes, model.RunningProcess{
 			PID:        int(pid),
