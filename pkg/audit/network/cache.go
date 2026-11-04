@@ -44,11 +44,25 @@ func (c *dnsNameCache) storeLocked(addr, domain string, ttl uint32) {
 		return
 	}
 	if _, exists := c.entries[addr]; !exists && len(c.entries) >= c.limit {
-		victim := ""
-		for candidate := range c.entries {
+		victim, expired := "", ""
+		now := c.now()
+		for candidate, names := range c.entries {
 			if victim == "" || candidate < victim {
 				victim = candidate
 			}
+			live := false
+			for _, deadline := range names {
+				if now.Before(deadline) {
+					live = true
+					break
+				}
+			}
+			if !live && (expired == "" || candidate < expired) {
+				expired = candidate
+			}
+		}
+		if expired != "" {
+			victim = expired
 		}
 		delete(c.entries, victim)
 	}
