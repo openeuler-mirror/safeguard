@@ -476,6 +476,9 @@ func (m *Manager) initDomainList() error {
 }
 
 func (m *Manager) updateAllowedFQDNist(answer *DNSAnswer) error {
+	if m.dnsContext != nil && m.dnsContext.Err() != nil {
+		return m.dnsContext.Err()
+	}
 	allowedAddresses, err := domainNameToBPFMapKey(answer.Domain, answer.Addresses)
 	if err != nil {
 		return err
@@ -497,6 +500,9 @@ func (m *Manager) updateAllowedFQDNist(answer *DNSAnswer) error {
 }
 
 func (m *Manager) updateDeniedFQDNList(answer *DNSAnswer) error {
+	if m.dnsContext != nil && m.dnsContext.Err() != nil {
+		return m.dnsContext.Err()
+	}
 	deniedAddresses, err := domainNameToBPFMapKey(answer.Domain, answer.Addresses)
 	if err != nil {
 		return err
