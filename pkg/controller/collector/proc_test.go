@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,4 +30,24 @@ func TestReadProcProcesses_SkipsMissingCommFile(t *testing.T) {
 	processes, _, _, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	assert.Empty(t, processes)
+}
+
+func TestReadProcProcessesInvalidIdentity(t *testing.T) {
+	root := t.TempDir()
+	statuses := []string{
+		"Uid: 0\nGid: 0\n", "Uid: 4294967295\nGid: 1\n",
+		"Name: test\n", "Uid: bad\nGid: 2\n", "Uid: 3\nGid: 4294967296\n",
+		"Uid: 4\nUid: 5\nGid: 6\n", "Uid: 4294967296\nGid: 0\n",
+	}
+	for i, status := range statuses {
+		dir := filepath.Join(root, fmt.Sprint(i+1))
+		require.NoError(t, os.Mkdir(dir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte(status), 0644))
+	}
+	processes, uids, gids, _, err := readProcProcesses(root)
+	require.NoError(t, err)
+	require.Len(t, processes, 2)
+	require.Equal(t, []uint{0, 4294967295}, uids)
+	require.Equal(t, []uint{0, 1}, gids)
 }
