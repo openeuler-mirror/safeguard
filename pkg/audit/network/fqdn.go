@@ -245,44 +245,48 @@ func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType
 func (mgr *Manager) AsyncResolve() {
 	for _, allowedDomain := range mgr.config.RestrictedNetworkConfig.Domain.Allow {
 		go func(domainName string) {
+			var retry refreshRetry
 			for {
 				ttl, err := mgr.resolveAndUpdateAllowedFQDNList(domainName, dns.TypeA)
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(refreshDelay(ttl))
+				time.Sleep(retry.next(ttl, err))
 			}
 		}(allowedDomain)
 
 		go func(domainName string) {
+			var retry refreshRetry
 			for {
 				ttl, err := mgr.resolveAndUpdateAllowedFQDNList(domainName, dns.TypeAAAA)
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(refreshDelay(ttl))
+				time.Sleep(retry.next(ttl, err))
 			}
 		}(allowedDomain)
 	}
 
 	for _, deniedDomain := range mgr.config.RestrictedNetworkConfig.Domain.Deny {
 		go func(domainName string) {
+			var retry refreshRetry
 			for {
 				ttl, err := mgr.resolveAndUpdateDeniedFQDNList(domainName, dns.TypeA)
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(refreshDelay(ttl))
+				time.Sleep(retry.next(ttl, err))
 			}
 		}(deniedDomain)
 
 		go func(domainName string) {
+			var retry refreshRetry
 			for {
 				ttl, err := mgr.resolveAndUpdateDeniedFQDNList(domainName, dns.TypeAAAA)
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(refreshDelay(ttl))
+				time.Sleep(retry.next(ttl, err))
 			}
 		}(deniedDomain)
 	}
