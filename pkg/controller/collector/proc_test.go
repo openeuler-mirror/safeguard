@@ -83,3 +83,21 @@ func TestReadProcProcessesDeletedExecutable(t *testing.T) {
 	require.Equal(t, "app", processes[0].Command)
 	require.Equal(t, []string{"/usr/bin/live"}, paths)
 }
+
+func TestReadProcProcessesCommandWhitespace(t *testing.T) {
+	root := t.TempDir()
+	commands := []string{" app \n", "\tworker\t\n", "no-newline"}
+	expected := []string{" app ", "\tworker\t", "no-newline"}
+	for i, command := range commands {
+		dir := filepath.Join(root, fmt.Sprint(i+1))
+		require.NoError(t, os.Mkdir(dir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte(command), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
+	}
+	processes, _, _, _, err := readProcProcesses(root)
+	require.NoError(t, err)
+	require.Len(t, processes, len(expected))
+	for i, want := range expected {
+		require.Equal(t, want, processes[i].Command)
+	}
+}
