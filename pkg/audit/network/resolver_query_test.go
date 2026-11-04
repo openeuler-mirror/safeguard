@@ -294,3 +294,30 @@ func TestResolverSharedUpstreamBudget(t *testing.T) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	require.Equal(t, int32(1), atomic.LoadInt32(&queries))
 }
+
+func TestResolverRetryableResponseCodes(t *testing.T) {
+	for _, code := range []int{dns.RcodeServerFailure, dns.RcodeRefused, dns.RcodeNameError} {
+		code := code
+		var queries int32
+		r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			if atomic.AddInt32(&queries, 1) == 1 {
+				response.Rcode = code
+			} else {
+				rr, _ := dns.NewRR("fallback.example. 60 IN A 192.0.2.1")
+				response.Answer = []dns.RR{rr}
+			}
+			w.WriteMsg(response)
+		})
+		r.config.Servers = []string{"127.0.0.1", "127.0.0.1"}
+		_, err := r.Resolve("fallback.example", dns.TypeA)
+		if code == dns.RcodeNameError {
+			require.Error(t, err)
+			require.Equal(t, int32(1), atomic.LoadInt32(&queries))
+		} else {
+			require.NoError(t, err)
+			require.Equal(t, int32(2), atomic.LoadInt32(&queries))
+		}
+	}
+}
