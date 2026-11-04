@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
@@ -21,4 +22,15 @@ func TestDNSRefreshErrors(t *testing.T) {
 			require.ErrorIs(t, err, cause)
 		}
 	}
+}
+
+func TestDNSRefreshBackoff(t *testing.T) {
+	var retry refreshRetry
+	cause := errors.New("temporary")
+	for _, seconds := range []int{5, 10, 20, 40, 60, 60, 60} {
+		require.Equal(t, time.Duration(seconds)*time.Second, retry.next(1, cause))
+	}
+	require.Equal(t, 2*time.Second, retry.next(2, nil))
+	require.Equal(t, 5*time.Second, retry.next(1, cause))
+	require.Equal(t, time.Second, retry.next(0, nil))
 }
