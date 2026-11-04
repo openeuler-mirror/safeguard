@@ -88,6 +88,7 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			continue
 		}
 
+		msg.Ns = append(msg.Ns, res.Ns...)
 		if res.Rcode != dns.RcodeSuccess {
 			msg.Rcode = res.Rcode
 			writeDNSResponse(w, &msg)
