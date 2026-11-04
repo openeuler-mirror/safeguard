@@ -29,12 +29,16 @@ func dnsResponseToDNSAnswer(response *dns.Msg) *DNSAnswer {
 		case dns.TypeA:
 			if record, ok := answer.(*dns.A); ok {
 				dnsAnswer.Addresses = append(dnsAnswer.Addresses, record.A)
-				dnsAnswer.TTL = record.Hdr.Ttl
+				if len(dnsAnswer.Addresses) == 1 || record.Hdr.Ttl < dnsAnswer.TTL {
+					dnsAnswer.TTL = record.Hdr.Ttl
+				}
 			}
 		case dns.TypeAAAA:
 			if record, ok := answer.(*dns.AAAA); ok {
 				dnsAnswer.Addresses = append(dnsAnswer.Addresses, record.AAAA)
-				dnsAnswer.TTL = record.Hdr.Ttl
+				if len(dnsAnswer.Addresses) == 1 || record.Hdr.Ttl < dnsAnswer.TTL {
+					dnsAnswer.TTL = record.Hdr.Ttl
+				}
 			}
 		}
 	}
@@ -43,6 +47,9 @@ func dnsResponseToDNSAnswer(response *dns.Msg) *DNSAnswer {
 }
 
 func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer) {
+	if dnsAnswer.TTL == 0 {
+		return
+	}
 	for _, address := range dnsAnswer.Addresses {
 		dnsCache[address.String()] = fqdn
 	}
