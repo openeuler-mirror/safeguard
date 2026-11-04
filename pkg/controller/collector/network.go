@@ -3,6 +3,7 @@ package collector
 import (
 	"bufio"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -75,6 +76,7 @@ func readProcNetCIDRs(paths []string) ([]string, []string) {
 		}
 
 		scanner := bufio.NewScanner(file)
+		malformed := 0
 		first := true
 		for scanner.Scan() {
 			if first {
@@ -83,12 +85,18 @@ func readProcNetCIDRs(paths []string) ([]string, []string) {
 			}
 			fields := strings.Fields(scanner.Text())
 			if len(fields) < 3 {
+				malformed++
 				continue
 			}
 			cidr, err := remoteAddressToCIDR(fields[2])
 			if err == nil {
 				result = append(result, cidr)
+			} else if !errors.Is(err, errUnspecifiedRemote) {
+				malformed++
 			}
+		}
+		if malformed > 0 {
+			warnings = append(warnings, fmt.Sprintf("%s: %d malformed network records", path, malformed))
 		}
 		if err := scanner.Err(); err != nil {
 			warnings = append(warnings, fmt.Sprintf("%s scan failed: %v", path, err))
@@ -98,6 +106,8 @@ func readProcNetCIDRs(paths []string) ([]string, []string) {
 
 	return result, warnings
 }
+
+var errUnspecifiedRemote = errors.New("unspecified remote address")
 
 // remoteAddressToCIDR parses a hex-encoded remote address from /proc/net into a CIDR string.
 func remoteAddressToCIDR(raw string) (string, error) {
@@ -121,7 +131,7 @@ func remoteAddressToCIDR(raw string) (string, error) {
 		ip := net.IP{decoded[3], decoded[2], decoded[1], decoded[0]}
 		cidr, ok := ipAddressToCIDR(ip)
 		if !ok {
-			return "", fmt.Errorf("unsupported unspecified address: %s", raw)
+			return "", fmt.Errorf("%w: %s", errUnspecifiedRemote, raw)
 		}
 		return cidr, nil
 	}
@@ -133,7 +143,7 @@ func remoteAddressToCIDR(raw string) (string, error) {
 		ip := net.IP(decoded)
 		cidr, ok := ipAddressToCIDR(ip)
 		if !ok {
-			return "", fmt.Errorf("unsupported unspecified address: %s", raw)
+			return "", fmt.Errorf("%w: %s", errUnspecifiedRemote, raw)
 		}
 		return cidr, nil
 	}

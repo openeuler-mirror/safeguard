@@ -60,3 +60,15 @@ func TestRemoteAddressPortValidation(t *testing.T) {
 	cidrs, _ := readProcNetCIDRs([]string{path})
 	require.Equal(t, []string{"10.0.0.2/32"}, cidrs)
 }
+
+func TestReadProcNetMalformedWarning(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "tcp")
+	data := "header\n0: ignored 00000000:0000\n1: ignored 0100007F:0035\nshort\n3: ignored 0100007F:ZZZZ\n"
+	require.NoError(t, os.WriteFile(path, []byte(data), 0600))
+	cidrs, warnings := readProcNetCIDRs([]string{path})
+	require.Equal(t, []string{"127.0.0.1/32"}, cidrs)
+	require.Len(t, warnings, 1)
+	require.Contains(t, warnings[0], path)
+	require.Contains(t, warnings[0], "2 malformed")
+}
