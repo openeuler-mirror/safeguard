@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -31,11 +32,11 @@ func TestDNSRefreshBackoff(t *testing.T) {
 	var retry refreshRetry
 	cause := errors.New("temporary")
 	for _, seconds := range []int{5, 10, 20, 40, 60, 60, 60} {
-		require.Equal(t, time.Duration(seconds)*time.Second, retry.next(1, cause))
+		require.Equal(t, time.Duration(seconds)*time.Second, retry.base(1, cause))
 	}
-	require.Equal(t, 2*time.Second, retry.next(2, nil))
-	require.Equal(t, 5*time.Second, retry.next(1, cause))
-	require.Equal(t, time.Second, retry.next(0, nil))
+	require.Equal(t, 2*time.Second, retry.base(2, nil))
+	require.Equal(t, 5*time.Second, retry.base(1, cause))
+	require.Equal(t, time.Second, retry.base(0, nil))
 }
 
 type contextualRefresh struct {
@@ -91,4 +92,22 @@ func TestDNSRefreshStop(t *testing.T) {
 		require.ErrorIs(t, mgr.dnsContext.Err(), context.Canceled)
 		mgr.AsyncResolve() // A stopped manager cannot restart refresh workers.
 	}
+}
+
+func TestDNSRefreshJitter(t *testing.T) {
+	left := refreshRetry{rng: rand.New(rand.NewSource(7))}
+	right := refreshRetry{rng: rand.New(rand.NewSource(7))}
+	seen := make(map[time.Duration]bool)
+	for i := 0; i < 10; i++ {
+		delay := left.next(50, nil)
+		seen[delay] = true
+		require.Equal(t, delay, right.next(50, nil))
+		require.GreaterOrEqual(t, delay, 40*time.Second)
+		require.LessOrEqual(t, delay, 50*time.Second)
+	}
+	require.Greater(t, len(seen), 1)
+	require.Equal(t, time.Second, left.next(0, nil))
+	delay := left.next(1, errors.New("temporary"))
+	require.GreaterOrEqual(t, delay, 4*time.Second)
+	require.LessOrEqual(t, delay, 5*time.Second)
 }
