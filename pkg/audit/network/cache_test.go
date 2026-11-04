@@ -55,3 +55,17 @@ func TestDNSCacheExpiry(t *testing.T) {
 	cache.Store("192.0.2.1", "zero.example.", 0)
 	require.Empty(t, cache.Lookup("192.0.2.1"))
 }
+
+func TestDNSCacheBound(t *testing.T) {
+	cache := newDNSCache()
+	cache.limit = 2
+	cache.Store("192.0.2.2", "two.example.", 60)
+	cache.Store("192.0.2.1", "one.example.", 60)
+	cache.Store("192.0.2.2", "updated.example.", 60)
+	require.Equal(t, 2, cache.Len())
+	require.NotEmpty(t, cache.Lookup("192.0.2.1"))
+	cache.Store("192.0.2.3", "three.example.", 60)
+	require.Equal(t, 2, cache.Len())
+	require.Empty(t, cache.Lookup("192.0.2.1"))
+	require.Equal(t, "updated.example.", cache.Lookup("192.0.2.2"))
+}

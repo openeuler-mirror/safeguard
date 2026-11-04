@@ -11,13 +11,14 @@ type dnsNameEntry struct {
 }
 
 type dnsNameCache struct {
+	limit   int
 	now     func() time.Time
 	mu      sync.RWMutex
 	entries map[string]dnsNameEntry
 }
 
 func newDNSCache() *dnsNameCache {
-	return &dnsNameCache{entries: make(map[string]dnsNameEntry), now: time.Now}
+	return &dnsNameCache{entries: make(map[string]dnsNameEntry), now: time.Now, limit: 4096}
 }
 
 func (c *dnsNameCache) Store(addr, domain string, ttl uint32) {
@@ -28,6 +29,18 @@ func (c *dnsNameCache) Store(addr, domain string, ttl uint32) {
 	defer c.mu.Unlock()
 	if ttl == 0 {
 		return
+	}
+	if c.limit <= 0 {
+		return
+	}
+	if _, exists := c.entries[addr]; !exists && len(c.entries) >= c.limit {
+		victim := ""
+		for candidate := range c.entries {
+			if victim == "" || candidate < victim {
+				victim = candidate
+			}
+		}
+		delete(c.entries, victim)
 	}
 	c.entries[addr] = dnsNameEntry{domain: domain, expires: c.now().Add(time.Duration(ttl) * time.Second)}
 }
