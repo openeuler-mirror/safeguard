@@ -55,6 +55,7 @@ func toFqdn(domainName string) string {
 
 func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.Msg, error) {
 	failures := []string{}
+	var lastReply *dns.Msg
 	host := ""
 	if len(message.Question) > 0 {
 		host = message.Question[0].Name
@@ -95,9 +96,15 @@ func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.
 				return nil, errors.New("invalid or truncated TCP DNS response")
 			}
 		}
+		if res.Rcode == dns.RcodeServerFailure || res.Rcode == dns.RcodeRefused {
+			lastReply = res
+			continue
+		}
 		return res, nil
 	}
-
+	if lastReply != nil {
+		return lastReply, nil
+	}
 	if len(failures) == 0 {
 		return nil, errors.New("resolve failed")
 	}
