@@ -52,3 +52,14 @@ func TestDNSProxyQuestion(t *testing.T) {
 		require.Equal(t, dns.RcodeFormatError, writer.msg.Rcode)
 	}
 }
+
+func TestDNSProxyOpcode(t *testing.T) {
+	for _, code := range []int{dns.OpcodeUpdate, dns.OpcodeStatus, dns.OpcodeNotify} {
+		request := new(dns.Msg)
+		request.SetQuestion("opcode.example.", dns.TypeA)
+		request.Opcode = code
+		writer := new(proxyCapture)
+		require.NotPanics(t, func() { new(DNSProxy).ServeDNS(writer, request) })
+		require.Equal(t, dns.RcodeNotImplemented, writer.msg.Rcode)
+	}
+}
