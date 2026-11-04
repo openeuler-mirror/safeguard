@@ -39,6 +39,9 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 			continue
 		}
 
+		if !validStatusIDs(string(statusBytes)) {
+			continue
+		}
 		uid, gid := parseStatusIDs(string(statusBytes))
 		executable, _ := os.Readlink(filepath.Join(base, "exe"))
 
@@ -84,4 +87,22 @@ func parseStatusIDs(content string) (uint, uint) {
 	}
 
 	return uid, gid
+}
+
+func validStatusIDs(content string) bool {
+	seen := map[string]bool{}
+	for _, line := range strings.Split(content, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || (fields[0] != "Uid:" && fields[0] != "Gid:") {
+			continue
+		}
+		if len(fields) < 2 || seen[fields[0]] {
+			return false
+		}
+		if _, err := strconv.ParseUint(fields[1], 10, 32); err != nil {
+			return false
+		}
+		seen[fields[0]] = true
+	}
+	return seen["Uid:"] && seen["Gid:"]
 }
