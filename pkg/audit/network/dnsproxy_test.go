@@ -240,3 +240,25 @@ func TestDNSProxyQuestionClass(t *testing.T) {
 		require.Equal(t, request.Question, writer.msg.Question)
 	}
 }
+
+func TestDNSProxyAuthority(t *testing.T) {
+	for _, code := range []int{dns.RcodeSuccess, dns.RcodeNameError} {
+		code := code
+		resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetRcode(q, code)
+			response.Ns = []dns.RR{&dns.SOA{Hdr: dns.RR_Header{Name: "example.", Rrtype: dns.TypeSOA, Class: dns.ClassINET, Ttl: 120}, Ns: "ns.example.", Mbox: "admin.example.", Minttl: 30}}
+			w.WriteMsg(response)
+		})
+		proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: config.DefaultConfig(), dnsCache: newDNSCache()}}
+		request := new(dns.Msg)
+		request.SetQuestion("missing.example.", dns.TypeA)
+		writer := new(proxyCapture)
+		proxy.ServeDNS(writer, request)
+		require.Equal(t, code, writer.msg.Rcode)
+		require.Len(t, writer.msg.Ns, 1)
+		soa, ok := writer.msg.Ns[0].(*dns.SOA)
+		require.True(t, ok)
+		require.Equal(t, uint32(30), soa.Minttl)
+	}
+}
