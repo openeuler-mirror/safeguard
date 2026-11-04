@@ -71,6 +71,12 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
+	if r.Question[0].Qclass != dns.ClassINET {
+		msg.SetRcode(r, dns.RcodeNotImplemented)
+		writeDNSResponse(w, &msg)
+		return
+	}
+
 	msg.Authoritative = false
 	msg.RecursionAvailable = true
 	for i, q := range r.Question {
