@@ -33,12 +33,12 @@ type DNSAnswer struct {
 }
 
 // dnsCache stores resolved domain-to-IP mappings for periodic name resolution.
-var dnsCache map[string]string
+var dnsCache = newDNSCache()
 
 // initDNSCache initializes the DNS cache map if it has not been created yet.
 func initDNSCache() {
 	if dnsCache == nil {
-		dnsCache = make(map[string]string)
+		dnsCache = newDNSCache()
 	}
 }
 

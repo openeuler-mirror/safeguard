@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewAuditLog_EmptyDNSCache(t *testing.T) {
-	dnsCache = make(map[string]string)
+	dnsCache = newDNSCache()
 	header := eventHeader{PID: 1, EventType: BLOCKED_IPV4}
 	var dstIP [DSTIP_V4_LEN]byte
 	copy(dstIP[:], []byte{192, 168, 1, 1})
