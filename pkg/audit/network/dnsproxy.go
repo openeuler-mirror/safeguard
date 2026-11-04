@@ -55,7 +55,7 @@ func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer, caches ...*dnsNameCache) 
 		return
 	}
 	for _, address := range dnsAnswer.Addresses {
-		cache.Store(address.String(), fqdn)
+		cache.Store(address.String(), fqdn, dnsAnswer.TTL)
 	}
 }
 

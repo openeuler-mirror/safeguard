@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ func TestDNSCacheConcurrentAccess(t *testing.T) {
 			defer workers.Done()
 			addr := fmt.Sprintf("192.0.2.%d", i)
 			for j := 0; j < 100; j++ {
-				cache.Store(addr, "concurrent.example.")
+				cache.Store(addr, "concurrent.example.", 60)
 				_ = cache.Lookup(addr)
 				_ = cache.Len()
 			}
@@ -39,4 +40,18 @@ func TestDNSCacheOwner(t *testing.T) {
 	require.Equal(t, "first.example.", newAuditLog(eventHeader{}, body, first.dnsCache).Domain)
 	require.Equal(t, "second.example.", newAuditLog(eventHeader{}, body, second.dnsCache).Domain)
 	require.Empty(t, newAuditLog(eventHeader{}, body, nil).Domain)
+}
+
+func TestDNSCacheExpiry(t *testing.T) {
+	now := time.Unix(0, 0)
+	cache := newDNSCache()
+	cache.now = func() time.Time { return now }
+	cache.Store("192.0.2.1", "expires.example.", 2)
+	now = now.Add(time.Second)
+	require.Equal(t, "expires.example.", cache.Lookup("192.0.2.1"))
+	now = now.Add(time.Second)
+	require.Empty(t, cache.Lookup("192.0.2.1"))
+	require.Zero(t, cache.Len())
+	cache.Store("192.0.2.1", "zero.example.", 0)
+	require.Empty(t, cache.Lookup("192.0.2.1"))
 }
