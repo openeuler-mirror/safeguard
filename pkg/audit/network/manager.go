@@ -68,6 +68,8 @@ type Manager struct {
 	config      *config.Config
 	rb          helpers.Buffer
 	dnsContext  context.Context
+	stopDNS     context.CancelFunc
+	refreshWG   sync.WaitGroup
 	dnsResolver DNSResolver
 	dnsCache    map[string]string
 }
@@ -181,6 +183,10 @@ func (m *Manager) stopLocked() {
 		return
 	}
 	m.stopped = true
+	if m.stopDNS != nil {
+		m.stopDNS()
+	}
+	m.refreshWG.Wait()
 	if m.rb != nil {
 		m.rb.Stop()
 	}

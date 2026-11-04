@@ -1,6 +1,9 @@
 package network
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type refreshRetry struct{ failures uint }
 
@@ -20,4 +23,13 @@ func (r *refreshRetry) next(ttl uint32, err error) time.Duration {
 		r.failures++
 	}
 	return delay
+}
+
+func waitRefresh(ctx context.Context, delay time.Duration) {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	}
 }

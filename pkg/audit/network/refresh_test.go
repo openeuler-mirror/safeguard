@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"culinux/pkg/config"
+
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 )
@@ -61,4 +63,32 @@ func TestDNSRefreshContext(t *testing.T) {
 	mgr.dnsContext = context.Background()
 	_, err = mgr.ResolveAddressv4("legacy.example")
 	require.ErrorIs(t, err, legacy)
+}
+
+func TestDNSRefreshStop(t *testing.T) {
+	for _, stop := range []func(*Manager){(*Manager).Stop, (*Manager).Close} {
+		started := make(chan struct{}, 4)
+		resolver := localResolver(t, func(dns.ResponseWriter, *dns.Msg) { started <- struct{}{} })
+		cfg := config.DefaultConfig()
+		cfg.Domain.Allow = []string{"stop.example."}
+		mgr := Manager{config: cfg, dnsResolver: resolver, dnsContext: context.Background()}
+		mgr.AsyncResolve()
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Fatal("refresh did not start")
+		}
+		stopped := make(chan struct{})
+		go func(stop func(*Manager)) {
+			stop(&mgr)
+			close(stopped)
+		}(stop)
+		select {
+		case <-stopped:
+		case <-time.After(time.Second):
+			t.Fatal("refresh did not stop")
+		}
+		require.ErrorIs(t, mgr.dnsContext.Err(), context.Canceled)
+		mgr.AsyncResolve() // A stopped manager cannot restart refresh workers.
+	}
 }
