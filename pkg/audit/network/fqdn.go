@@ -27,6 +27,7 @@ func (e *DNSResponseError) Error() string {
 var ErrDNSNoData = errors.New("DNS response has no requested address records")
 
 type DNSAnswer struct {
+	QueryType uint16
 	Domain    string
 	Addresses []net.IP
 	TTL       uint32

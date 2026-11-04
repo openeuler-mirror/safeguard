@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 )
 
@@ -87,4 +88,24 @@ func TestDNSCacheReverse(t *testing.T) {
 	now = now.Add(60 * time.Second)
 	cache.Store("192.0.2.2", "fresh.example.", 60)
 	require.Equal(t, "fresh.example.", cache.Lookup("192.0.2.2"))
+}
+
+func TestDNSCacheReplace(t *testing.T) {
+	cache := newDNSCache()
+	cache.Store("192.0.2.1", "shared.example.", 60)
+	cache.Store("2001:db8::1", "rotate.example.", 60)
+	cache.Replace("rotate.example.", dns.TypeA, []net.IP{net.IPv4(192, 0, 2, 1), net.IPv4(192, 0, 2, 2)}, 60)
+	cache.Replace("rotate.example.", dns.TypeA, []net.IP{net.IPv4(192, 0, 2, 3)}, 60)
+	require.Equal(t, "shared.example.", cache.Lookup("192.0.2.1"))
+	require.Empty(t, cache.Lookup("192.0.2.2"))
+	require.Equal(t, "rotate.example.", cache.Lookup("192.0.2.3"))
+	require.Equal(t, "rotate.example.", cache.Lookup("2001:db8::1"))
+	cache.Replace("rotate.example.", dns.TypeAAAA, nil, 0)
+	require.Empty(t, cache.Lookup("2001:db8::1"))
+	require.Equal(t, "rotate.example.", cache.Lookup("192.0.2.3"))
+	cache.Replace("rotate.example.", dns.TypeMX, nil, 0)
+	require.Equal(t, "rotate.example.", cache.Lookup("192.0.2.3"))
+	cache.Replace("rotate.example.", 0, nil, 0)
+	require.Empty(t, cache.Lookup("192.0.2.3"))
+	require.Equal(t, "shared.example.", cache.Lookup("192.0.2.1"))
 }
