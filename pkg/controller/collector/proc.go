@@ -50,7 +50,7 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 
 		processes = append(processes, model.RunningProcess{
 			PID:        int(pid),
-			Command:    strings.TrimSpace(string(commandBytes)),
+			Command:    strings.TrimSuffix(string(commandBytes), "\n"),
 			Executable: executable,
 			UID:        uid,
 			GID:        gid,
