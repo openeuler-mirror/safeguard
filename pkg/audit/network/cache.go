@@ -1,14 +1,13 @@
 package network
 
 import (
+	"sort"
+	"strings"
 	"sync"
 	"time"
 )
 
-type dnsNameEntry struct {
-	domain  string
-	expires time.Time
-}
+type dnsNameEntry map[string]time.Time
 
 type dnsNameCache struct {
 	limit   int
@@ -42,7 +41,20 @@ func (c *dnsNameCache) Store(addr, domain string, ttl uint32) {
 		}
 		delete(c.entries, victim)
 	}
-	c.entries[addr] = dnsNameEntry{domain: domain, expires: c.now().Add(time.Duration(ttl) * time.Second)}
+	names := c.entries[addr]
+	if names == nil {
+		names = make(dnsNameEntry)
+		c.entries[addr] = names
+	}
+	for name, expiry := range names {
+		if !c.now().Before(expiry) {
+			delete(names, name)
+		}
+	}
+	if _, exists := names[domain]; !exists && len(names) >= 16 {
+		return
+	}
+	names[domain] = c.now().Add(time.Duration(ttl) * time.Second)
 }
 
 func (c *dnsNameCache) Lookup(addr string) string {
@@ -51,15 +63,19 @@ func (c *dnsNameCache) Lookup(addr string) string {
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	entry, ok := c.entries[addr]
-	if !ok {
-		return ""
+	var names []string
+	for domain, expiry := range c.entries[addr] {
+		if c.now().Before(expiry) {
+			names = append(names, domain)
+		} else {
+			delete(c.entries[addr], domain)
+		}
 	}
-	if !c.now().Before(entry.expires) {
+	if len(c.entries[addr]) == 0 {
 		delete(c.entries, addr)
-		return ""
 	}
-	return entry.domain
+	sort.Strings(names)
+	return strings.Join(names, ",")
 }
 
 func (c *dnsNameCache) Len() int {
