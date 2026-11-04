@@ -51,3 +51,18 @@ func TestReadProcProcessesInvalidIdentity(t *testing.T) {
 	require.Equal(t, []uint{0, 4294967295}, uids)
 	require.Equal(t, []uint{0, 1}, gids)
 }
+
+func TestReadProcProcessesPIDRange(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"0", "+1", "-1", "01", "4194304", "999999999999999999999", "1", "4194303"} {
+		dir := filepath.Join(root, name)
+		require.NoError(t, os.Mkdir(dir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
+	}
+	processes, _, _, _, err := readProcProcesses(root)
+	require.NoError(t, err)
+	require.Len(t, processes, 2)
+	require.Equal(t, 1, processes[0].PID)
+	require.Equal(t, 4194303, processes[1].PID)
+}
