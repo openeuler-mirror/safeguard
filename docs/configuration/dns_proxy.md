@@ -1,5 +1,18 @@
 # DNS Proxy
 
+## Resolver deadlines and refresh lifecycle
+
+The audit resolver uses one total deadline across upstreams and UDP-to-TCP retry. The default is the positive resolv.conf timeout (capped at 30 seconds), or 5 seconds; an explicit DNS client timeout takes precedence. A shorter caller deadline still wins.
+
+- SERVFAIL and REFUSED may try the next upstream; NXDOMAIN returns immediately. NODATA is distinct from transport failures.
+- Responses must match the question and opcode. Address extraction accepts only the requested owner or its response-local CNAME chain, with at most 16 hops; cycles are reported separately.
+- The effective TTL is the minimum across relevant addresses and aliases. Zero is preserved in answers; zero-TTL answers are not retained in the proxy reverse cache.
+- Refresh failures are exposed and retry nominally after 5, 10, 20, 40, then 60 seconds; success resets the sequence. Per-worker jitter selects 80–100% of the delay, with a one-second minimum, so successful refresh is not postponed beyond a positive TTL.
+- Network audit cancellation reaches context-aware resolvers and interrupts refresh waiting. Stop/Close wait for started refresh workers before resources are released. Legacy Resolver implementations must return from their own calls; they cannot be forcibly interrupted.
+- A known canceled audit rejects subsequent DNS-derived map updates before accessing BPF. Reverse-cache TTL governs log attribution; it does not by itself revoke existing BPF address entries.
+
+The asynchronous audit resolver and the listening DNS proxy have separate lifecycles. Worker-pool limits, shared-query coalescing and a bounded stale-result policy are pending design work; they are not configuration options.
+
 If you want to control access by [specifying domain names](./network-restriction/configuration.md), you need to select "Periodic Name Resolution" or "Change DNS Server".  
 Default is "Periodic Name Resolution", but recommended is "Change DNS Server".
 
