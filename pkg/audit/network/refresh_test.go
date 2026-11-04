@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -33,4 +34,31 @@ func TestDNSRefreshBackoff(t *testing.T) {
 	require.Equal(t, 2*time.Second, retry.next(2, nil))
 	require.Equal(t, 5*time.Second, retry.next(1, cause))
 	require.Equal(t, time.Second, retry.next(0, nil))
+}
+
+type contextualRefresh struct {
+	refreshFailure
+	seen context.Context
+}
+
+func (r *contextualRefresh) ResolveContext(ctx context.Context, _ string, _ uint16) (*DNSAnswer, error) {
+	r.seen = ctx
+	return nil, ctx.Err()
+}
+
+func TestDNSRefreshContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	resolver := &contextualRefresh{refreshFailure: refreshFailure{errors.New("legacy call")}}
+	mgr := Manager{dnsResolver: resolver, dnsContext: ctx}
+	_, err := mgr.ResolveAddressv4("canceled.example")
+	require.ErrorIs(t, err, context.Canceled)
+	require.Same(t, ctx, resolver.seen)
+	_, err = mgr.ResolveAddressv6("canceled.example")
+	require.ErrorIs(t, err, context.Canceled)
+	legacy := errors.New("legacy resolver remains supported")
+	mgr.dnsResolver = refreshFailure{legacy}
+	mgr.dnsContext = context.Background()
+	_, err = mgr.ResolveAddressv4("legacy.example")
+	require.ErrorIs(t, err, legacy)
 }
