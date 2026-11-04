@@ -106,6 +106,12 @@ func remoteAddressToCIDR(raw string) (string, error) {
 		return "", fmt.Errorf("invalid address: %s", raw)
 	}
 
+	if len(hostPort[1]) != 4 {
+		return "", fmt.Errorf("invalid port: %s", raw)
+	}
+	if _, err := hex.DecodeString(hostPort[1]); err != nil {
+		return "", fmt.Errorf("invalid port %q: %w", hostPort[1], err)
+	}
 	decoded, err := hex.DecodeString(hostPort[0])
 	if err != nil {
 		return "", err
