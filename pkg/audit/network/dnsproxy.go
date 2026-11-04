@@ -78,9 +78,15 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		res, err := this.resolve(fqdn, q.Qtype)
 		if err != nil {
 			log.Error(err)
+			msg.Rcode = dns.RcodeServerFailure
 			continue
 		}
 
+		if res.Rcode != dns.RcodeSuccess {
+			msg.Rcode = res.Rcode
+			w.WriteMsg(&msg)
+			return
+		}
 		msg.Answer = append(msg.Answer, res.Answer...)
 		dnsAnswer := dnsResponseToDNSAnswer(res)
 		dnsAnswer.Domain = fqdn
