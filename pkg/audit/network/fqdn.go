@@ -252,50 +252,64 @@ func (mgr *Manager) resolveAndUpdateDeniedFQDNList(domainName string, recordType
 }
 
 func (mgr *Manager) AsyncResolve() {
+	mgr.lifecycleMu.Lock()
+	defer mgr.lifecycleMu.Unlock()
+	if mgr.stopDNS != nil || mgr.stopped || mgr.closed {
+		return
+	}
+	if mgr.dnsContext == nil {
+		mgr.dnsContext = context.Background()
+	}
+	mgr.dnsContext, mgr.stopDNS = context.WithCancel(mgr.dnsContext)
+	mgr.refreshWG.Add(2 * (len(mgr.config.Domain.Allow) + len(mgr.config.Domain.Deny)))
 	for _, allowedDomain := range mgr.config.RestrictedNetworkConfig.Domain.Allow {
 		go func(domainName string) {
+			defer mgr.refreshWG.Done()
 			var retry refreshRetry
-			for {
+			for mgr.dnsContext.Err() == nil {
 				ttl, err := mgr.resolveAndUpdateAllowedFQDNList(domainName, dns.TypeA)
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(retry.next(ttl, err))
+				waitRefresh(mgr.dnsContext, retry.next(ttl, err))
 			}
 		}(allowedDomain)
 
 		go func(domainName string) {
+			defer mgr.refreshWG.Done()
 			var retry refreshRetry
-			for {
+			for mgr.dnsContext.Err() == nil {
 				ttl, err := mgr.resolveAndUpdateAllowedFQDNList(domainName, dns.TypeAAAA)
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(retry.next(ttl, err))
+				waitRefresh(mgr.dnsContext, retry.next(ttl, err))
 			}
 		}(allowedDomain)
 	}
 
 	for _, deniedDomain := range mgr.config.RestrictedNetworkConfig.Domain.Deny {
 		go func(domainName string) {
+			defer mgr.refreshWG.Done()
 			var retry refreshRetry
-			for {
+			for mgr.dnsContext.Err() == nil {
 				ttl, err := mgr.resolveAndUpdateDeniedFQDNList(domainName, dns.TypeA)
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(retry.next(ttl, err))
+				waitRefresh(mgr.dnsContext, retry.next(ttl, err))
 			}
 		}(deniedDomain)
 
 		go func(domainName string) {
+			defer mgr.refreshWG.Done()
 			var retry refreshRetry
-			for {
+			for mgr.dnsContext.Err() == nil {
 				ttl, err := mgr.resolveAndUpdateDeniedFQDNList(domainName, dns.TypeAAAA)
 				if err != nil {
 					log.Error(err)
 				}
-				time.Sleep(retry.next(ttl, err))
+				waitRefresh(mgr.dnsContext, retry.next(ttl, err))
 			}
 		}(deniedDomain)
 	}
