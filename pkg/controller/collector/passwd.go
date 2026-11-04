@@ -2,6 +2,7 @@ package collector
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -21,7 +22,9 @@ func readPasswdAccounts(path string) ([]model.Account, []uint, []uint, error) {
 	gids := []uint{}
 
 	scanner := bufio.NewScanner(file)
+	line := 0
 	for scanner.Scan() {
+		line++
 		fields := strings.Split(scanner.Text(), ":")
 		if len(fields) < 7 {
 			continue
@@ -46,5 +49,8 @@ func readPasswdAccounts(path string) ([]model.Account, []uint, []uint, error) {
 		gids = append(gids, account.GID)
 	}
 
-	return accounts, uids, gids, scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return accounts, uids, gids, fmt.Errorf("scan passwd %q at line %d: %w", path, line+1, err)
+	}
+	return accounts, uids, gids, nil
 }
