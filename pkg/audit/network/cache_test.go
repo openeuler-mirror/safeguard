@@ -3,6 +3,7 @@ package network
 import (
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -67,5 +68,23 @@ func TestDNSCacheBound(t *testing.T) {
 	cache.Store("192.0.2.3", "three.example.", 60)
 	require.Equal(t, 2, cache.Len())
 	require.Empty(t, cache.Lookup("192.0.2.1"))
-	require.Equal(t, "updated.example.", cache.Lookup("192.0.2.2"))
+	require.Equal(t, "two.example.,updated.example.", cache.Lookup("192.0.2.2"))
+}
+
+func TestDNSCacheReverse(t *testing.T) {
+	now := time.Unix(0, 0)
+	cache := newDNSCache()
+	cache.now = func() time.Time { return now }
+	cache.Store("192.0.2.1", "b.example.", 5)
+	cache.Store("192.0.2.1", "a.example.", 1)
+	require.Equal(t, "a.example.,b.example.", cache.Lookup("192.0.2.1"))
+	now = now.Add(time.Second)
+	require.Equal(t, "b.example.", cache.Lookup("192.0.2.1"))
+	for i := 0; i < 100; i++ {
+		cache.Store("192.0.2.2", fmt.Sprintf("%03d.example.", i), 60)
+	}
+	require.Len(t, strings.Split(cache.Lookup("192.0.2.2"), ","), 16)
+	now = now.Add(60 * time.Second)
+	cache.Store("192.0.2.2", "fresh.example.", 60)
+	require.Equal(t, "fresh.example.", cache.Lookup("192.0.2.2"))
 }
