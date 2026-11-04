@@ -255,7 +255,7 @@ func newAuditLog(header eventHeader, body detectEvent) log.RestrictedNetworkLog 
 	networkLog := log.RestrictedNetworkLog{
 		AuditEventLog: auditEvent,
 		Addr:          addr,
-		Domain:        dnsCache[addr],
+		Domain:        dnsCache.Lookup(addr),
 		Port:          port,
 		Protocol:      sockTypeToProtocolName(socktype),
 	}

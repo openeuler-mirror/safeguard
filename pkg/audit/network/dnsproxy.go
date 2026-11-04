@@ -51,7 +51,7 @@ func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer) {
 		return
 	}
 	for _, address := range dnsAnswer.Addresses {
-		dnsCache[address.String()] = fqdn
+		dnsCache.Store(address.String(), fqdn)
 	}
 }
 
@@ -89,7 +89,7 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		log.Debug(fmt.Sprintf("Domain resolved: %s (%d)\n", fqdn, q.Qtype))
-		log.Debug(fmt.Sprintf("Current DNS Cache: %#v\n", dnsCache))
+		log.Debug(fmt.Sprintf("Current DNS cache entries: %d", dnsCache.Len()))
 	}
 
 	w.WriteMsg(&msg)
