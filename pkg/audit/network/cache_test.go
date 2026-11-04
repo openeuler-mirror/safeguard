@@ -122,3 +122,18 @@ func TestDNSCacheCanonicalName(t *testing.T) {
 	cache.Store("192.0.2.3", "ä.Example.", 60)
 	require.Len(t, strings.Split(cache.Lookup("192.0.2.3"), ","), 2)
 }
+
+func TestDNSCacheExpiredEviction(t *testing.T) {
+	now := time.Unix(0, 0)
+	cache := newDNSCache()
+	cache.now = func() time.Time { return now }
+	cache.limit = 2
+	cache.Store("192.0.2.1", "live.example.", 60)
+	cache.Store("192.0.2.2", "expired.example.", 1)
+	now = now.Add(time.Second)
+	cache.Store("192.0.2.3", "new.example.", 60)
+	require.Equal(t, "live.example.", cache.Lookup("192.0.2.1"))
+	require.Empty(t, cache.Lookup("192.0.2.2"))
+	require.Equal(t, "new.example.", cache.Lookup("192.0.2.3"))
+	require.Equal(t, 2, cache.Len())
+}
