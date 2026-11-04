@@ -43,3 +43,20 @@ func TestReadProcNetCIDRs_ReportsDirectoryReadError(t *testing.T) {
 	require.Len(t, warnings, 1)
 	assert.Contains(t, warnings[0], path)
 }
+
+func TestRemoteAddressPortValidation(t *testing.T) {
+	for _, port := range []string{"0035", "ffff", "0000"} {
+		cidr, err := remoteAddressToCIDR("0100007F:" + port)
+		require.NoError(t, err)
+		require.Equal(t, "127.0.0.1/32", cidr)
+	}
+	for _, port := range []string{"", "35", "00000", "GGGG", "+001", "00 1"} {
+		_, err := remoteAddressToCIDR("0100007F:" + port)
+		require.Error(t, err, port)
+	}
+	root := t.TempDir()
+	path := filepath.Join(root, "tcp")
+	require.NoError(t, os.WriteFile(path, []byte("header\n0: ignored 0100007F:ZZZZ\n1: ignored 0200000A:0035\n"), 0600))
+	cidrs, _ := readProcNetCIDRs([]string{path})
+	require.Equal(t, []string{"10.0.0.2/32"}, cidrs)
+}
