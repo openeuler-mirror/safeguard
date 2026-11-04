@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"net"
 	"testing"
 	"time"
 
@@ -110,4 +111,14 @@ func TestDNSRefreshJitter(t *testing.T) {
 	delay := left.next(1, errors.New("temporary"))
 	require.GreaterOrEqual(t, delay, 4*time.Second)
 	require.LessOrEqual(t, delay, 5*time.Second)
+}
+
+func TestDNSUpdateCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	mgr := Manager{dnsContext: ctx}
+	answer := &DNSAnswer{Domain: "canceled.example.", Addresses: []net.IP{net.IPv4(192, 0, 2, 1)}}
+	for _, update := range []func(*DNSAnswer) error{mgr.updateAllowedFQDNist, mgr.updateDeniedFQDNList} {
+		require.NotPanics(t, func() { require.ErrorIs(t, update(answer), context.Canceled) })
+	}
 }
