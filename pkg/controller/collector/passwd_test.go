@@ -3,6 +3,8 @@ package collector
 import (
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,4 +51,19 @@ func TestReadPasswdAccounts_BoundsIdentifiersToUint32(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReadPasswdAccountsScanContext(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "passwd")
+	data := "root:x:0:0:root:/root:/bin/sh\n" + strings.Repeat("x", 65536) + "\n"
+	require.NoError(t, os.WriteFile(path, []byte(data), 0600))
+	accounts, _, _, err := readPasswdAccounts(path)
+	require.Error(t, err)
+	require.ErrorContains(t, err, path)
+	require.ErrorContains(t, err, "line 2")
+	require.Len(t, accounts, 1)
+	_, _, _, err = readPasswdAccounts(root)
+	require.ErrorIs(t, err, syscall.EISDIR)
+	require.ErrorContains(t, err, "line 1")
 }
