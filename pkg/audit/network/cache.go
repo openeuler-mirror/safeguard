@@ -27,6 +27,10 @@ func (c *dnsNameCache) Store(addr, domain string, ttl uint32) {
 	if c == nil {
 		return
 	}
+	domain = canonicalCacheName(domain)
+	if domain == "" {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.storeLocked(addr, domain, ttl)
@@ -99,6 +103,10 @@ func (c *dnsNameCache) Replace(domain string, qtype uint16, addresses []net.IP, 
 	if c == nil || qtype != 0 && qtype != dns.TypeA && qtype != dns.TypeAAAA {
 		return
 	}
+	domain = canonicalCacheName(domain)
+	if domain == "" {
+		return
+	}
 	wanted := make(map[string]bool, len(addresses))
 	for _, ip := range addresses {
 		wanted[ip.String()] = true
@@ -124,4 +132,25 @@ func (c *dnsNameCache) Replace(domain string, qtype uint16, addresses []net.IP, 
 	for _, addr := range keys {
 		c.storeLocked(addr, domain, ttl)
 	}
+}
+
+func canonicalCacheName(name string) string {
+	if name == "" {
+		return ""
+	}
+	var wire [255]byte
+	n, err := dns.PackDomainName(dns.Fqdn(name), wire[:], 0, nil, false)
+	if err != nil {
+		return ""
+	}
+	for i := 0; i < n; i++ {
+		if wire[i] >= 'A' && wire[i] <= 'Z' {
+			wire[i] += 'a' - 'A'
+		}
+	}
+	result, _, err := dns.UnpackDomainName(wire[:n], 0)
+	if err != nil {
+		return ""
+	}
+	return result
 }

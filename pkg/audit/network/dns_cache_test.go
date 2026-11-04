@@ -11,5 +11,5 @@ func TestUpdateDNSCache_StoresEntry(t *testing.T) {
 	initDNSCache()
 	answer := &DNSAnswer{Domain: "example.com", Addresses: []net.IP{net.ParseIP("1.2.3.4")}, TTL: 300}
 	updateDNSCache("example.com", answer)
-	assert.Equal(t, "example.com", dnsCache.Lookup("1.2.3.4"))
+	assert.Equal(t, "example.com.", dnsCache.Lookup("1.2.3.4"))
 }

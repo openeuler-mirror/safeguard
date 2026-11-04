@@ -109,3 +109,16 @@ func TestDNSCacheReplace(t *testing.T) {
 	require.Empty(t, cache.Lookup("192.0.2.3"))
 	require.Equal(t, "shared.example.", cache.Lookup("192.0.2.1"))
 }
+
+func TestDNSCacheCanonicalName(t *testing.T) {
+	cache := newDNSCache()
+	cache.Store("192.0.2.1", "WWW.Example.", 60)
+	cache.Store("192.0.2.1", `\087ww.example.`, 60)
+	require.Equal(t, "www.example.", cache.Lookup("192.0.2.1"))
+	cache.Replace("wWw.Example.", dns.TypeA, []net.IP{net.IPv4(192, 0, 2, 2)}, 60)
+	require.Empty(t, cache.Lookup("192.0.2.1"))
+	require.Equal(t, "www.example.", cache.Lookup("192.0.2.2"))
+	cache.Store("192.0.2.3", "Ä.Example.", 60)
+	cache.Store("192.0.2.3", "ä.Example.", 60)
+	require.Len(t, strings.Split(cache.Lookup("192.0.2.3"), ","), 2)
+}
