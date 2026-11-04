@@ -66,3 +66,20 @@ func TestReadProcProcessesPIDRange(t *testing.T) {
 	require.Equal(t, 1, processes[0].PID)
 	require.Equal(t, 4194303, processes[1].PID)
 }
+
+func TestReadProcProcessesDeletedExecutable(t *testing.T) {
+	root := t.TempDir()
+	for i, target := range []string{"/usr/bin/old (deleted)", "/usr/bin/live"} {
+		dir := filepath.Join(root, fmt.Sprint(i+1))
+		require.NoError(t, os.Mkdir(dir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
+		require.NoError(t, os.Symlink(target, filepath.Join(dir, "exe")))
+	}
+	processes, _, _, paths, err := readProcProcesses(root)
+	require.NoError(t, err)
+	require.Len(t, processes, 2)
+	require.Empty(t, processes[0].Executable)
+	require.Equal(t, "app", processes[0].Command)
+	require.Equal(t, []string{"/usr/bin/live"}, paths)
+}
