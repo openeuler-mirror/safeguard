@@ -60,6 +60,11 @@ func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer, caches ...*dnsNameCache) 
 func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := dns.Msg{}
 	msg.SetReply(r)
+	if len(r.Question) != 1 {
+		msg.SetRcode(r, dns.RcodeFormatError)
+		w.WriteMsg(&msg)
+		return
+	}
 
 	msg.Authoritative = true
 	for i, q := range r.Question {

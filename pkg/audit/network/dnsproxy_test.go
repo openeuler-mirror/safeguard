@@ -28,3 +28,27 @@ func TestDNSZeroTTLCache(t *testing.T) {
 		require.Equal(t, "positive.example.", dnsCache.Lookup("192.0.2.1"))
 	}
 }
+
+type proxyCapture struct{ msg *dns.Msg }
+
+func (w *proxyCapture) LocalAddr() net.Addr       { return &net.UDPAddr{} }
+func (w *proxyCapture) RemoteAddr() net.Addr      { return &net.UDPAddr{} }
+func (w *proxyCapture) WriteMsg(m *dns.Msg) error { w.msg = m.Copy(); return nil }
+func (*proxyCapture) Write([]byte) (int, error)   { return 0, nil }
+func (*proxyCapture) Close() error                { return nil }
+func (*proxyCapture) TsigStatus() error           { return nil }
+func (*proxyCapture) TsigTimersOnly(bool)         {}
+func (*proxyCapture) Hijack()                     {}
+
+func TestDNSProxyQuestion(t *testing.T) {
+	for _, count := range []int{0, 2} {
+		request := new(dns.Msg)
+		for i := 0; i < count; i++ {
+			request.Question = append(request.Question, dns.Question{Name: "invalid.example.", Qtype: dns.TypeA, Qclass: dns.ClassINET})
+		}
+		writer := new(proxyCapture)
+		require.NotPanics(t, func() { new(DNSProxy).ServeDNS(writer, request) })
+		require.NotNil(t, writer.msg)
+		require.Equal(t, dns.RcodeFormatError, writer.msg.Rcode)
+	}
+}
