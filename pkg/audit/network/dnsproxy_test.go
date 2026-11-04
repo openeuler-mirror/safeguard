@@ -182,3 +182,48 @@ func TestDNSProxyWriteError(t *testing.T) {
 	}
 	require.Equal(t, 2, strings.Count(logs.String(), "injected response write failure"))
 }
+
+func TestDNSProxyRelevantAddresses(t *testing.T) {
+	resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+		response := new(dns.Msg)
+		response.SetReply(q)
+		response.Answer = []dns.RR{
+			&dns.CNAME{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 5}, Target: "alias.example."},
+			&dns.A{Hdr: dns.RR_Header{Name: "alias.example.", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}, A: net.IPv4(192, 0, 2, 1)},
+			&dns.A{Hdr: dns.RR_Header{Name: "unrelated.example.", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}, A: net.IPv4(192, 0, 2, 2)},
+			&dns.A{Hdr: dns.RR_Header{Name: "alias.example.", Rrtype: dns.TypeA, Class: dns.ClassCHAOS, Ttl: 60}, A: net.IPv4(192, 0, 2, 3)},
+		}
+		w.WriteMsg(response)
+	})
+	cache := newDNSCache()
+	now := time.Unix(0, 0)
+	cache.now = func() time.Time { return now }
+	proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: config.DefaultConfig(), dnsCache: cache}}
+	request := new(dns.Msg)
+	request.SetQuestion("target.example.", dns.TypeA)
+	writer := new(proxyCapture)
+	proxy.ServeDNS(writer, request)
+	require.Len(t, writer.msg.Answer, 4)
+	require.Equal(t, "target.example.", cache.Lookup("192.0.2.1"))
+	require.Empty(t, cache.Lookup("192.0.2.2"))
+	require.Empty(t, cache.Lookup("192.0.2.3"))
+	now = now.Add(5 * time.Second)
+	require.Empty(t, cache.Lookup("192.0.2.1"))
+}
+
+func TestDNSProxyRelevantAddressesAliasCycle(t *testing.T) {
+	resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+		response := new(dns.Msg)
+		response.SetReply(q)
+		response.Answer = []dns.RR{&dns.CNAME{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: 60}, Target: q.Question[0].Name}}
+		w.WriteMsg(response)
+	})
+	cache := newDNSCache()
+	proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: config.DefaultConfig(), dnsCache: cache}}
+	request := new(dns.Msg)
+	request.SetQuestion("cycle.example.", dns.TypeA)
+	writer := new(proxyCapture)
+	proxy.ServeDNS(writer, request)
+	require.Equal(t, dns.RcodeServerFailure, writer.msg.Rcode)
+	require.Zero(t, cache.Len())
+}

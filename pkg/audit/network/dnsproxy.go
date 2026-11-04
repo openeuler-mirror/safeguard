@@ -87,8 +87,20 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			writeDNSResponse(w, &msg)
 			return
 		}
+		records, err := responseChain(res.Answer, fqdn, q.Qtype)
+		if err != nil {
+			log.Error(err)
+			msg.Rcode = dns.RcodeServerFailure
+			writeDNSResponse(w, &msg)
+			return
+		}
 		msg.Answer = append(msg.Answer, res.Answer...)
-		dnsAnswer := dnsResponseToDNSAnswer(res)
+		dnsAnswer := dnsResponseToDNSAnswer(&dns.Msg{Question: res.Question, Answer: records})
+		for _, rr := range records {
+			if rr.Header().Rrtype == dns.TypeCNAME && rr.Header().Ttl < dnsAnswer.TTL {
+				dnsAnswer.TTL = rr.Header().Ttl
+			}
+		}
 		dnsAnswer.Domain = fqdn
 
 		updateDNSCache(fqdn, dnsAnswer, this.manager.dnsCache)
