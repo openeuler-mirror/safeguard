@@ -649,3 +649,30 @@ func TestProxyUpstreamShapes(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateDNSListenerCollisions(t *testing.T) {
+	for _, tc := range []struct {
+		bind    []string
+		invalid bool
+	}{
+		{[]string{"127.0.0.1", "127.0.0.1"}, true},
+		{[]string{"LOCALHOST", "localhost."}, true},
+		{[]string{"127.0.0.1", "::ffff:127.0.0.1"}, true},
+		{[]string{"0.0.0.0", "127.0.0.1"}, true},
+		{[]string{"127.0.0.1", "0.0.0.0"}, true},
+		{[]string{"0.0.0.0"}, false},
+		{[]string{"127.0.0.1", "127.0.0.2"}, false},
+	} {
+		cfg := DefaultConfig()
+		cfg.RestrictedNetworkConfig.Enable = true
+		cfg.DNSProxyConfig.Enable = true
+		cfg.DNSProxyConfig.Upstreams = []string{"192.0.2.53"}
+		cfg.DNSProxyConfig.BindAddresses = tc.bind
+		err := cfg.Validate()
+		if tc.invalid {
+			require.ErrorContains(t, err, "dns_proxy.bind")
+		} else {
+			require.NoError(t, err)
+		}
+	}
+}

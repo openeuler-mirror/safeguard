@@ -310,10 +310,26 @@ func (c *Config) Validate() error {
 		if len(c.DNSProxyConfig.BindAddresses) == 0 {
 			return errors.New("dns_proxy.bind must contain at least one listener")
 		}
+		seen := map[string]bool{}
+		wildcard, ipv4Count := false, 0
 		for i, address := range c.DNSProxyConfig.BindAddresses {
 			if strings.TrimSpace(address) == "" {
 				return fmt.Errorf("dns_proxy.bind[%d]: listener must not be empty", i)
 			}
+			key := dnsListenerKey(address)
+			if seen[key] {
+				return fmt.Errorf("dns_proxy.bind[%d]: duplicate listener %q", i, address)
+			}
+			seen[key] = true
+			if ip := net.ParseIP(address); ip != nil && ip.To4() != nil {
+				ipv4Count++
+				if ip.IsUnspecified() {
+					wildcard = true
+				}
+			}
+		}
+		if wildcard && ipv4Count > 1 {
+			return errors.New("dns_proxy.bind: IPv4 wildcard conflicts with specific listeners")
 		}
 	}
 	if c.DNSProxyConfig.Enable {
@@ -499,4 +515,11 @@ func UniqueStrings(values []string) []string {
 		}
 	}
 	return result
+}
+
+func dnsListenerKey(address string) string {
+	if ip := net.ParseIP(address); ip != nil {
+		return ip.String()
+	}
+	return strings.ToLower(strings.TrimSuffix(address, "."))
 }
