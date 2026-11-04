@@ -71,7 +71,7 @@ type Manager struct {
 	stopDNS     context.CancelFunc
 	refreshWG   sync.WaitGroup
 	dnsResolver DNSResolver
-	dnsCache    map[string]string
+	dnsCache    *dnsNameCache
 }
 
 // IPAddress represents an IP address with BPF map key conversion capabilities.
@@ -114,7 +114,9 @@ type DefaultResolver struct {
 }
 
 func (m *Manager) SetConfigToMap() error {
-	initDNSCache()
+	if m.dnsCache == nil {
+		m.dnsCache = newDNSCache()
+	}
 
 	if err := m.setConfigMap(); err != nil {
 		return err

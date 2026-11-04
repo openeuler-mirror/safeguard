@@ -46,12 +46,16 @@ func dnsResponseToDNSAnswer(response *dns.Msg) *DNSAnswer {
 	return &dnsAnswer
 }
 
-func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer) {
+func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer, caches ...*dnsNameCache) {
+	cache := dnsCache
+	if len(caches) > 0 {
+		cache = caches[0]
+	}
 	if dnsAnswer.TTL == 0 {
 		return
 	}
 	for _, address := range dnsAnswer.Addresses {
-		dnsCache.Store(address.String(), fqdn)
+		cache.Store(address.String(), fqdn)
 	}
 }
 
@@ -72,7 +76,7 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		dnsAnswer := dnsResponseToDNSAnswer(res)
 		dnsAnswer.Domain = fqdn
 
-		updateDNSCache(fqdn, dnsAnswer)
+		updateDNSCache(fqdn, dnsAnswer, this.manager.dnsCache)
 
 		for _, allowedDomain := range this.manager.config.Domain.Allow {
 			if strings.EqualFold(toFqdn(allowedDomain), fqdn) {
@@ -89,7 +93,7 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		log.Debug(fmt.Sprintf("Domain resolved: %s (%d)\n", fqdn, q.Qtype))
-		log.Debug(fmt.Sprintf("Current DNS cache entries: %d", dnsCache.Len()))
+		log.Debug(fmt.Sprintf("Current DNS cache entries: %d", this.manager.dnsCache.Len()))
 	}
 
 	w.WriteMsg(&msg)

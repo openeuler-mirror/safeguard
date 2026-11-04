@@ -2,6 +2,7 @@ package network
 
 import (
 	"fmt"
+	"net"
 	"sync"
 	"testing"
 
@@ -26,4 +27,16 @@ func TestDNSCacheConcurrentAccess(t *testing.T) {
 	workers.Wait()
 	require.Equal(t, 8, cache.Len())
 	require.Equal(t, "concurrent.example.", cache.Lookup("192.0.2.0"))
+}
+
+func TestDNSCacheOwner(t *testing.T) {
+	first := Manager{dnsCache: newDNSCache()}
+	second := Manager{dnsCache: newDNSCache()}
+	answer := &DNSAnswer{Addresses: []net.IP{net.IPv4(192, 0, 2, 1)}, TTL: 60}
+	updateDNSCache("first.example.", answer, first.dnsCache)
+	updateDNSCache("second.example.", answer, second.dnsCache)
+	body := detectEventIPv4{DstIP: [4]byte{192, 0, 2, 1}}
+	require.Equal(t, "first.example.", newAuditLog(eventHeader{}, body, first.dnsCache).Domain)
+	require.Equal(t, "second.example.", newAuditLog(eventHeader{}, body, second.dnsCache).Domain)
+	require.Empty(t, newAuditLog(eventHeader{}, body, nil).Domain)
 }
