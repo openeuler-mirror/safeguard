@@ -1,8 +1,8 @@
 package network
 
 import (
+	"context"
 	"fmt"
-	"net"
 	"strings"
 
 	"culinux/pkg/config"
@@ -119,16 +119,8 @@ func (this *DNSProxy) resolve(domainName string, queryType uint16) (*dns.Msg, er
 	m.SetQuestion(domainName, queryType)
 	m.RecursionDesired = true
 
-	port := this.dnsConfig.Port
-	if port == "" {
-		port = "53"
-	}
-	res, _, err := this.client.Exchange(m, net.JoinHostPort(this.dnsConfig.Servers[0], port))
-	if err != nil {
-		return nil, err
-	}
-
-	return res, err
+	resolver := DefaultResolver{config: this.dnsConfig, client: this.client}
+	return resolver.exchange(context.Background(), m)
 }
 
 func createDNSConfig(dnsProxyConfig config.DNSProxyConfig) (*dns.ClientConfig, error) {

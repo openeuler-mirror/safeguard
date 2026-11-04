@@ -118,3 +118,34 @@ func TestDNSProxyRcode(t *testing.T) {
 		require.Empty(t, writer.msg.Answer)
 	}
 }
+
+func TestDNSProxyFallback(t *testing.T) {
+	forwarded := make(chan struct{}, 1)
+	resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+		forwarded <- struct{}{}
+		response := new(dns.Msg)
+		response.SetReply(q)
+		response.Answer = []dns.RR{&dns.A{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}, A: net.IPv4(192, 0, 2, 42)}}
+		w.WriteMsg(response)
+	})
+	conn, err := net.ListenPacket("udp", net.JoinHostPort("127.0.0.2", resolver.config.Port))
+	require.NoError(t, err)
+	silent := &dns.Server{PacketConn: conn, Handler: dns.HandlerFunc(func(dns.ResponseWriter, *dns.Msg) {})}
+	go silent.ActivateAndServe()
+	t.Cleanup(func() { silent.Shutdown() })
+	resolver.config.Servers = []string{"127.0.0.2", "127.0.0.1"}
+	resolver.client.Timeout = 25 * time.Millisecond
+	proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: config.DefaultConfig(), dnsCache: newDNSCache()}}
+	request := new(dns.Msg)
+	request.SetQuestion("fallback.example.", dns.TypeA)
+	writer := new(proxyCapture)
+	proxy.ServeDNS(writer, request)
+	select {
+	case <-forwarded:
+	default:
+		t.Fatal("second upstream was not queried")
+	}
+	require.Equal(t, dns.RcodeSuccess, writer.msg.Rcode)
+	require.Len(t, writer.msg.Answer, 1)
+	require.Equal(t, "fallback.example.", proxy.manager.dnsCache.Lookup("192.0.2.42"))
+}
