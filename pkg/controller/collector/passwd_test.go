@@ -67,3 +67,15 @@ func TestReadPasswdAccountsScanContext(t *testing.T) {
 	require.ErrorIs(t, err, syscall.EISDIR)
 	require.ErrorContains(t, err, "line 1")
 }
+
+func TestReadPasswdEmptyUsername(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "passwd")
+	data := ":x:0:0:missing:/root:/bin/sh\nworker:x:1000:1001:worker:/home/worker:/bin/sh\n"
+	require.NoError(t, os.WriteFile(path, []byte(data), 0600))
+	accounts, uids, gids, err := readPasswdAccounts(path)
+	require.NoError(t, err)
+	require.Len(t, accounts, 1)
+	require.Equal(t, "worker", accounts[0].Username)
+	require.Equal(t, []uint{1000}, uids)
+	require.Equal(t, []uint{1001}, gids)
+}

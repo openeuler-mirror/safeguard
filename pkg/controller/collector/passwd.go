@@ -26,7 +26,7 @@ func readPasswdAccounts(path string) ([]model.Account, []uint, []uint, error) {
 	for scanner.Scan() {
 		line++
 		fields := strings.Split(scanner.Text(), ":")
-		if len(fields) < 7 {
+		if len(fields) < 7 || fields[0] == "" {
 			continue
 		}
 		uid64, err := strconv.ParseUint(fields[2], 10, 32)
