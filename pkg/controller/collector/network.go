@@ -79,11 +79,14 @@ func readProcNetCIDRs(paths []string) ([]string, []string) {
 		malformed := 0
 		first := true
 		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
 			if first {
 				first = false
-				continue
+				if len(fields) >= 3 && fields[0] == "sl" && fields[1] == "local_address" && (fields[2] == "rem_address" || fields[2] == "remote_address") {
+					continue
+				}
+				warnings = append(warnings, fmt.Sprintf("%s: missing or invalid header", path))
 			}
-			fields := strings.Fields(scanner.Text())
 			if len(fields) < 3 {
 				malformed++
 				continue
@@ -94,6 +97,9 @@ func readProcNetCIDRs(paths []string) ([]string, []string) {
 			} else if !errors.Is(err, errUnspecifiedRemote) {
 				malformed++
 			}
+		}
+		if first && scanner.Err() == nil {
+			warnings = append(warnings, fmt.Sprintf("%s: missing header", path))
 		}
 		if malformed > 0 {
 			warnings = append(warnings, fmt.Sprintf("%s: %d malformed network records", path, malformed))
