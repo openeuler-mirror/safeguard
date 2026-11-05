@@ -26,9 +26,9 @@ func TestReadProcNetCIDRs_MissingFileProducesWarning(t *testing.T) {
 func TestReadProcNetCIDRs_ReportsScanFailureAndContinues(t *testing.T) {
 	root := t.TempDir()
 	broken, valid := filepath.Join(root, "tcp"), filepath.Join(root, "udp")
-	content := "header\n0: ignored 0100007F:0035\n" + strings.Repeat("x", 65536) + "\n"
+	content := "sl local_address rem_address st\n0: ignored 0100007F:0035\n" + strings.Repeat("x", 65536) + "\n"
 	require.NoError(t, os.WriteFile(broken, []byte(content), 0o600))
-	require.NoError(t, os.WriteFile(valid, []byte("header\n0: ignored 0200000A:0035\n"), 0o600))
+	require.NoError(t, os.WriteFile(valid, []byte("sl local_address rem_address st\n0: ignored 0200000A:0035\n"), 0o600))
 	cidrs, warnings := readProcNetCIDRs([]string{broken, valid})
 	assert.Equal(t, []string{"127.0.0.1/32", "10.0.0.2/32"}, cidrs)
 	require.Len(t, warnings, 1)
@@ -56,7 +56,7 @@ func TestRemoteAddressPortValidation(t *testing.T) {
 	}
 	root := t.TempDir()
 	path := filepath.Join(root, "tcp")
-	require.NoError(t, os.WriteFile(path, []byte("header\n0: ignored 0100007F:ZZZZ\n1: ignored 0200000A:0035\n"), 0600))
+	require.NoError(t, os.WriteFile(path, []byte("sl local_address rem_address st\n0: ignored 0100007F:ZZZZ\n1: ignored 0200000A:0035\n"), 0600))
 	cidrs, _ := readProcNetCIDRs([]string{path})
 	require.Equal(t, []string{"10.0.0.2/32"}, cidrs)
 }
@@ -64,11 +64,35 @@ func TestRemoteAddressPortValidation(t *testing.T) {
 func TestReadProcNetMalformedWarning(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "tcp")
-	data := "header\n0: ignored 00000000:0000\n1: ignored 0100007F:0035\nshort\n3: ignored 0100007F:ZZZZ\n"
+	data := "sl local_address rem_address st\n0: ignored 00000000:0000\n1: ignored 0100007F:0035\nshort\n3: ignored 0100007F:ZZZZ\n"
 	require.NoError(t, os.WriteFile(path, []byte(data), 0600))
 	cidrs, warnings := readProcNetCIDRs([]string{path})
 	require.Equal(t, []string{"127.0.0.1/32"}, cidrs)
 	require.Len(t, warnings, 1)
 	require.Contains(t, warnings[0], path)
 	require.Contains(t, warnings[0], "2 malformed")
+}
+
+func TestReadProcNetHeaderValidation(t *testing.T) {
+	for _, tc := range []struct {
+		contents string
+		want     []string
+		warning  bool
+	}{
+		{"", nil, true},
+		{"0: ignored 0100007F:0035\n", []string{"127.0.0.1/32"}, true},
+		{"sl local_address rem_address st\n0: ignored 0100007F:0035\n", []string{"127.0.0.1/32"}, false},
+		{"sl local_address remote_address st\n0: ignored 0100007F:0035\n", []string{"127.0.0.1/32"}, false},
+	} {
+		path := filepath.Join(t.TempDir(), "net")
+		require.NoError(t, os.WriteFile(path, []byte(tc.contents), 0600))
+		cidrs, warnings := readProcNetCIDRs([]string{path})
+		require.Equal(t, tc.want, append([]string(nil), cidrs...))
+		if tc.warning {
+			require.Len(t, warnings, 1)
+			require.Contains(t, warnings[0], "header")
+		} else {
+			require.Empty(t, warnings)
+		}
+	}
 }
