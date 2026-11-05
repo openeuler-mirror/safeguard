@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"errors"
 	"net"
 	"testing"
 
@@ -96,4 +97,21 @@ func TestInterfaceAddressToCIDR(t *testing.T) {
 	cidr, ok = interfaceAddressToCIDR(ipAddr)
 	require.True(t, ok)
 	assert.Equal(t, "2001:db8::8/128", cidr)
+}
+
+func TestInterfaceAddressErrors(t *testing.T) {
+	injected := errors.New("interface disappeared")
+	interfaces := []net.Interface{{Name: "eth0"}, {Name: "eth1"}}
+	calls := 0
+	addrs, err := interfaceCIDRs(interfaces, func(iface net.Interface) ([]net.Addr, error) {
+		calls++
+		if iface.Name == "eth1" {
+			return nil, injected
+		}
+		return []net.Addr{&net.IPAddr{IP: net.ParseIP("192.0.2.1")}}, nil
+	})
+	require.ErrorIs(t, err, injected)
+	require.ErrorContains(t, err, "eth1")
+	require.Empty(t, addrs)
+	require.Equal(t, 2, calls)
 }
