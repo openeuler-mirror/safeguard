@@ -17,11 +17,15 @@ func collectInterfaceCIDRs() ([]string, error) {
 		return nil, err
 	}
 
+	return interfaceCIDRs(ifaces, func(iface net.Interface) ([]net.Addr, error) { return iface.Addrs() })
+}
+
+func interfaceCIDRs(ifaces []net.Interface, getAddrs func(net.Interface) ([]net.Addr, error)) ([]string, error) {
 	result := []string{}
 	for _, iface := range ifaces {
-		addrs, err := iface.Addrs()
+		addrs, err := getAddrs(iface)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("interface %q addresses: %w", iface.Name, err)
 		}
 		for _, addr := range addrs {
 			cidr, ok := interfaceAddressToCIDR(addr)
