@@ -244,6 +244,34 @@ func TestServiceGenerateMissingParentAliases(t *testing.T) {
 	}
 }
 
+func TestServiceGenerateDanglingOutputAliases(t *testing.T) {
+	for _, absolute := range []bool{false, true} {
+		for _, reverse := range []bool{false, true} {
+			root := t.TempDir()
+			target, alias := filepath.Join(root, "config.yaml"), filepath.Join(root, "alias")
+			link := "config.yaml"
+			if absolute {
+				link = target
+			}
+			require.NoError(t, os.Symlink(link, alias))
+			output, report := target, alias
+			if reverse {
+				output, report = report, output
+			}
+			service := Service{Collector: fakeCollector{}, Now: time.Now}
+			err := service.Generate(GenerateOptions{Mode: "monitor", OutputPath: output, ReportPath: report})
+			require.ErrorContains(t, err, "different files")
+			require.NoFileExists(t, target)
+		}
+	}
+	root := t.TempDir()
+	alias := filepath.Join(root, "loop")
+	require.NoError(t, os.Symlink("loop", alias))
+	service := Service{Collector: fakeCollector{}, Now: time.Now}
+	err := service.Generate(GenerateOptions{Mode: "monitor", OutputPath: alias, ReportPath: filepath.Join(root, "report")})
+	require.ErrorContains(t, err, "too many symbolic links")
+}
+
 func TestServiceGenerateMissingDependencies(t *testing.T) {
 	for _, tc := range []struct {
 		service Service

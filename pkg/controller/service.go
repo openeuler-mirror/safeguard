@@ -49,11 +49,11 @@ func (s Service) Generate(options GenerateOptions) error {
 		if err != nil {
 			return fmt.Errorf("resolve report path: %w", err)
 		}
-		resolvedOutput, err := resolveOutputParent(output)
+		resolvedOutput, err := resolveOutputTarget(output)
 		if err != nil {
 			return fmt.Errorf("resolve output parent: %w", err)
 		}
-		resolvedReport, err := resolveOutputParent(report)
+		resolvedReport, err := resolveOutputTarget(report)
 		if err != nil {
 			return fmt.Errorf("resolve report parent: %w", err)
 		}
@@ -101,6 +101,31 @@ func (s Service) Generate(options GenerateOptions) error {
 	}
 
 	return nil
+}
+
+func resolveOutputTarget(path string) (string, error) {
+	for hops := 0; hops < 40; hops++ {
+		resolved, err := resolveOutputParent(path)
+		if err != nil {
+			return "", err
+		}
+		info, err := os.Lstat(resolved)
+		if os.IsNotExist(err) {
+			return resolved, nil
+		}
+		if err != nil || info.Mode()&os.ModeSymlink == 0 {
+			return resolved, err
+		}
+		target, err := os.Readlink(resolved)
+		if err != nil {
+			return "", err
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(resolved), target)
+		}
+		path = target
+	}
+	return "", fmt.Errorf("too many symbolic links resolving %q", path)
 }
 
 func resolveOutputParent(path string) (string, error) {
