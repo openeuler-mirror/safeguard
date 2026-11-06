@@ -41,8 +41,19 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 		}
 	}
 
+	processNames := map[string]string{}
 	for _, process := range snapshot.RunningProcesses {
-		if normalized := normalizeProcessAllowEntry(process); normalized != "" {
+		name := processAllowName(process)
+		if normalized := truncateString(name, bpfProcessNameMaxLength); normalized != "" {
+			if previous, ok := processNames[normalized]; ok && previous != name {
+				first, second := previous, name
+				if first > second {
+					first, second = second, first
+				}
+				warnings = append(warnings, fmt.Sprintf("process names %q and %q share truncated key %q", first, second, normalized))
+			} else {
+				processNames[normalized] = name
+			}
 			processAllow = append(processAllow, normalized)
 		}
 	}
@@ -150,16 +161,16 @@ func clampCIDRs(values []string) ([]string, []string) {
 // preferring the executable basename over the command field, and truncates to
 // the BPF process name length limit.
 func normalizeProcessAllowEntry(process RunningProcess) string {
+	return truncateString(processAllowName(process), bpfProcessNameMaxLength)
+}
+
+func processAllowName(process RunningProcess) string {
 	candidate := strings.TrimSpace(process.Command)
 	if process.Executable != "" {
 		candidate = filepath.Base(process.Executable)
 	}
 	candidate = strings.TrimSpace(strings.TrimSuffix(candidate, " (deleted)"))
-	if candidate == "" {
-		return ""
-	}
-
-	return truncateString(candidate, bpfProcessNameMaxLength)
+	return candidate
 }
 
 // truncateString truncates a string to at most maxLen bytes.
