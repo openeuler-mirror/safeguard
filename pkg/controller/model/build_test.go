@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBuildWhitelist_NormalizesProcessNamesForBPFMatching(t *testing.T) {
@@ -106,6 +107,24 @@ func TestBuildNetworkWhitelist_PreservesInvalidCIDRsAfterTruncatedFamilies(t *te
 	assert.Equal(t, "still-invalid", whitelist.CIDRAllow[len(whitelist.CIDRAllow)-1])
 	assert.Contains(t, warnings, "generated network.cidr.allow truncated to 256 IPv4 entries to fit eBPF map limits")
 	assert.Contains(t, warnings, "generated network.cidr.allow truncated to 256 IPv6 entries to fit eBPF map limits")
+}
+
+func TestBuildWhitelistPreservesFilePathSpaces(t *testing.T) {
+	snapshot := HostSnapshot{
+		Accounts:        []Account{{HomeDir: "/home/user "}, {HomeDir: "/home/user"}},
+		ExecutablePaths: []string{"/opt/app ", "/opt/app", "/opt/app "},
+	}
+	whitelist := BuildWhitelist(snapshot, time.Time{})
+	for _, path := range []string{"/home/user ", "/home/user", "/opt/app ", "/opt/app"} {
+		require.Contains(t, whitelist.Files.Allow, path)
+	}
+	count := 0
+	for _, path := range whitelist.Files.Allow {
+		if path == "/opt/app " {
+			count++
+		}
+	}
+	require.Equal(t, 1, count)
 }
 
 func TestBuildWhitelistAccountsIndependent(t *testing.T) {
