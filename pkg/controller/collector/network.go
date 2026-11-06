@@ -147,8 +147,9 @@ func remoteAddressToCIDR(raw string) (string, error) {
 	}
 
 	if len(decoded) == 16 {
-		for i := 0; i < 8; i++ {
-			decoded[i], decoded[15-i] = decoded[15-i], decoded[i]
+		for i := 0; i < len(decoded); i += 4 {
+			decoded[i], decoded[i+3] = decoded[i+3], decoded[i]
+			decoded[i+1], decoded[i+2] = decoded[i+2], decoded[i+1]
 		}
 		ip := net.IP(decoded)
 		cidr, ok := ipAddressToCIDR(ip)

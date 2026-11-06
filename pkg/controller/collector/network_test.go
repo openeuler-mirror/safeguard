@@ -57,8 +57,18 @@ func TestRemoteAddressToCIDR(t *testing.T) {
 		},
 		{
 			name:     "proc net tcp6 ipv6 address",
-			raw:      "01000000000000000000000000000000:01BB",
+			raw:      "00000000000000000000000001000000:01BB",
 			expected: "::1/128",
+		},
+		{
+			name:     "proc net tcp6 multiple words",
+			raw:      "B80D0120000000000000000001000000:01BB",
+			expected: "2001:db8::1/128",
+		},
+		{
+			name:     "proc net tcp6 ipv4 mapped",
+			raw:      "0000000000000000FFFF0000010200C0:01BB",
+			expected: "192.0.2.1/32",
 		},
 	}
 
