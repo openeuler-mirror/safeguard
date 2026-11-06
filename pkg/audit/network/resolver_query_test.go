@@ -367,3 +367,48 @@ func TestResolverTruncatedTCPFallback(t *testing.T) {
 	require.Len(t, answer.Addresses, 1)
 	require.True(t, answer.Addresses[0].Equal(net.IPv4(192, 0, 2, 9)))
 }
+
+func TestResolverIdentityFallback(t *testing.T) {
+	for _, tcpMode := range []bool{false, true} {
+		r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			response.Answer = []dns.RR{&dns.A{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}, A: net.IPv4(192, 0, 2, 10)}}
+			w.WriteMsg(response)
+		})
+		addr := net.JoinHostPort("127.0.0.2", r.config.Port)
+		udp, err := net.ListenPacket("udp", addr)
+		require.NoError(t, err)
+		handler := dns.HandlerFunc(func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			response.Question[0].Name = "wrong.example."
+			w.WriteMsg(response)
+		})
+		udpHandler := handler
+		if tcpMode {
+			udpHandler = func(w dns.ResponseWriter, q *dns.Msg) {
+				response := new(dns.Msg)
+				response.SetReply(q)
+				response.Truncated = true
+				w.WriteMsg(response)
+			}
+		}
+		server := &dns.Server{PacketConn: udp, Handler: udpHandler}
+		go server.ActivateAndServe()
+		t.Cleanup(func() { server.Shutdown() })
+		if tcpMode {
+			listener, err := net.Listen("tcp", addr)
+			require.NoError(t, err)
+			server := &dns.Server{Listener: listener, Handler: handler}
+			go server.ActivateAndServe()
+			t.Cleanup(func() { server.Shutdown() })
+		}
+		r.config.Servers = []string{"127.0.0.2", "127.0.0.1"}
+		r.client.Timeout = 500 * time.Millisecond
+		answer, err := r.Resolve("correct.example.", dns.TypeA)
+		require.NoError(t, err)
+		require.Len(t, answer.Addresses, 1)
+		require.True(t, answer.Addresses[0].Equal(net.IPv4(192, 0, 2, 10)))
+	}
+}

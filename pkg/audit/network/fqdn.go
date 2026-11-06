@@ -81,7 +81,8 @@ func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.
 		}
 
 		if !validDNSReply(message, res) {
-			return nil, errors.New("DNS response identity mismatch")
+			failures = append(failures, fmt.Sprintf("%s: DNS response identity mismatch", server))
+			continue
 		}
 		if res.Truncated {
 			client := r.queryClient()
@@ -101,7 +102,8 @@ func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.
 				continue
 			}
 			if !validDNSReply(message, res) || res.Truncated {
-				return nil, errors.New("invalid or truncated TCP DNS response")
+				failures = append(failures, fmt.Sprintf("%s: invalid or truncated TCP DNS response", server))
+				continue
 			}
 		}
 		if res.Rcode == dns.RcodeServerFailure || res.Rcode == dns.RcodeRefused {
