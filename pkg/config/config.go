@@ -373,6 +373,9 @@ func (c RestrictedNetworkConfig) validate() error {
 	}{
 		{"allow", c.Command.Allow}, {"deny", c.Command.Deny},
 	} {
+		if count := len(UniqueStrings(list.values)); count > 256 {
+			return fmt.Errorf("network.command.%s: %d unique names exceed map capacity 256", list.name, count)
+		}
 		if err := validateCommRules("network.command."+list.name, list.values); err != nil {
 			return err
 		}

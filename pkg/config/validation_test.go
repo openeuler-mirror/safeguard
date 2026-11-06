@@ -719,3 +719,26 @@ func TestDNSRejectUnspecifiedUpstream(t *testing.T) {
 	cfg.DNSProxyConfig.Upstreams = []string{"192.0.2.53", "2001:db8::53"}
 	require.NoError(t, cfg.Validate())
 }
+
+func TestNetworkCommandMapCapacity(t *testing.T) {
+	for _, list := range []string{"allow", "deny"} {
+		cfg := DefaultConfig()
+		cfg.RestrictedNetworkConfig.Enable = true
+		commands := make([]string, 256)
+		for i := range commands {
+			commands[i] = fmt.Sprintf("cmd%03d", i)
+		}
+		if list == "allow" {
+			cfg.Command.Allow = append(commands, commands[0])
+		} else {
+			cfg.Command.Deny = append(commands, commands[0])
+		}
+		require.NoError(t, cfg.Validate())
+		if list == "allow" {
+			cfg.Command.Allow = append(cfg.Command.Allow, "overflow")
+		} else {
+			cfg.Command.Deny = append(cfg.Command.Deny, "overflow")
+		}
+		require.ErrorContains(t, cfg.Validate(), "network.command."+list)
+	}
+}
