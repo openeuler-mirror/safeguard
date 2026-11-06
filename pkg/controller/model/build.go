@@ -30,6 +30,10 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	fileAllow = append(fileAllow, snapshot.ExecutablePaths...)
 	processAllow := make([]string, 0, len(snapshot.RunningProcesses))
 	warnings := append([]string{}, snapshot.Warnings...)
+	var accounts []Account
+	if snapshot.Accounts != nil {
+		accounts = append([]Account{}, snapshot.Accounts...)
+	}
 
 	for _, account := range snapshot.Accounts {
 		if account.HomeDir != "" {
@@ -61,7 +65,7 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 			GeneratedAt: generatedAt,
 		},
 		Network:  networkWhitelist,
-		Accounts: snapshot.Accounts,
+		Accounts: accounts,
 		Files: FileWhitelist{
 			Allow: fileAllow,
 		},
