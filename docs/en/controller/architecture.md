@@ -4,7 +4,7 @@
 
 ### Service Layer
 - Orchestrates whitelist generation
-- Manages collector lifecycle
+- Invokes the collector and renders its snapshot
 - Writes the generated YAML config and optional JSON report
 
 ### Collector Interface
@@ -32,7 +32,7 @@ Host Data -> Collector -> HostSnapshot -> BuildWhitelist -> WhitelistModel -> YA
 |-----------|--------|--------|
 | PasswdCollector | /etc/passwd | User accounts |
 | ProcCollector | /proc | Running processes |
-| NetworkCollector | /sys/class/net | Network interfaces |
+| Network collection | Host interfaces, /proc/net/tcp*, /proc/net/udp* | Local and remote addresses |
 
 ## Extension Points
 
@@ -42,11 +42,12 @@ Host Data -> Collector -> HostSnapshot -> BuildWhitelist -> WhitelistModel -> YA
 
 ## Policy Modes
 
-The controller supports two policy modes:
+The controller generates a whitelist policy. Its `--mode` flag controls enforcement:
 
 | Mode | Behavior |
 |------|----------|
-| blacklist | Allow all, block only denied items |
-| whitelist | Block all, allow only permitted items |
+| monitor | Log violations without blocking |
+| block | Enforce the generated whitelist |
 
+The YAML and optional JSON report are encoded before either file is written.
 The default output files are `demo-whitelist.yaml` and `demo-whitelist-report.json`. Override with `--output` and `--report`.
