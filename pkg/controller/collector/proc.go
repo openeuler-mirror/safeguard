@@ -1,10 +1,13 @@
 package collector
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"culinux/pkg/controller/model"
 )
@@ -32,11 +35,17 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 		base := filepath.Join(procRoot, entry.Name())
 		commandBytes, err := os.ReadFile(filepath.Join(base, "comm"))
 		if err != nil {
-			continue
+			if processGone(err) {
+				continue
+			}
+			return nil, nil, nil, nil, fmt.Errorf("read process %d comm: %w", pid, err)
 		}
 		statusBytes, err := os.ReadFile(filepath.Join(base, "status"))
 		if err != nil {
-			continue
+			if processGone(err) {
+				continue
+			}
+			return nil, nil, nil, nil, fmt.Errorf("read process %d status: %w", pid, err)
 		}
 
 		if !validStatusIDs(string(statusBytes)) {
@@ -108,4 +117,8 @@ func validStatusIDs(content string) bool {
 		seen[fields[0]] = true
 	}
 	return seen["Uid:"] && seen["Gid:"]
+}
+
+func processGone(err error) bool {
+	return errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESRCH)
 }
