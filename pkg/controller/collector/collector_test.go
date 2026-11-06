@@ -76,6 +76,22 @@ func TestSnapshotCollector_StoresWarningsForUnreadableProcNetFiles(t *testing.T)
 	assert.Len(t, snapshot.Warnings, 1)
 }
 
+func TestSnapshotCollectorMissingCallbacks(t *testing.T) {
+	for _, tc := range []struct {
+		collector SnapshotCollector
+		missing   string
+	}{
+		{SnapshotCollector{}, "hostname"},
+		{SnapshotCollector{HostnameFn: func() (string, error) { return "host", nil }}, "interface"},
+	} {
+		require.NotPanics(t, func() {
+			snapshot, err := tc.collector.Collect()
+			require.ErrorContains(t, err, tc.missing)
+			require.Empty(t, snapshot)
+		})
+	}
+}
+
 func TestReadPasswdAccounts_SkipsMalformedLines(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "passwd")
