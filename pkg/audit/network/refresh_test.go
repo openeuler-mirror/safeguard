@@ -133,3 +133,20 @@ func TestDNSRefreshNilAnswer(t *testing.T) {
 		}
 	}
 }
+
+type emptyAnswerResolver struct{}
+
+func (emptyAnswerResolver) Resolve(name string, _ uint16) (*DNSAnswer, error) {
+	return &DNSAnswer{Domain: name, TTL: 60}, nil
+}
+
+func TestDNSRefreshEmptyAnswer(t *testing.T) {
+	mgr := Manager{dnsResolver: emptyAnswerResolver{}, dnsContext: context.Background()}
+	for _, run := range []func(string, uint16) (uint32, error){mgr.resolveAndUpdateAllowedFQDNList, mgr.resolveAndUpdateDeniedFQDNList} {
+		for _, kind := range []uint16{dns.TypeA, dns.TypeAAAA} {
+			ttl, err := run("empty.example.", kind)
+			require.ErrorIs(t, err, ErrDNSNoData)
+			require.Equal(t, uint32(5), ttl)
+		}
+	}
+}
