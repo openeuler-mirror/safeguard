@@ -3,6 +3,7 @@ package network
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -47,5 +48,14 @@ func TestParseEventUnknownType(t *testing.T) {
 		_, body, err := parseEvent(buf.Bytes())
 		assert.ErrorContains(t, err, "unknown network event type")
 		assert.Nil(t, body)
+	}
+}
+
+func TestParseEventMissingBody(t *testing.T) {
+	for _, kind := range []int32{BLOCKED_IPV4, BLOCKED_IPV6} {
+		buf := new(bytes.Buffer)
+		assert.NoError(t, binary.Write(buf, binary.LittleEndian, &eventHeader{EventType: kind}))
+		_, _, err := parseEvent(buf.Bytes())
+		assert.ErrorIs(t, err, io.ErrUnexpectedEOF)
 	}
 }

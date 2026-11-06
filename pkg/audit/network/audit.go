@@ -304,6 +304,9 @@ func parseEventHeader(buf *bytes.Buffer) (eventHeader, error) {
 func parseEventBlockedIPv4(buf *bytes.Buffer) (detectEventIPv4, error) {
 	var body detectEventIPv4
 	if err := binary.Read(buf, binary.LittleEndian, &body); err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		return detectEventIPv4{}, err
 	}
 
@@ -313,6 +316,9 @@ func parseEventBlockedIPv4(buf *bytes.Buffer) (detectEventIPv4, error) {
 func parseEventBlockedIPv6(buf *bytes.Buffer) (detectEventIPv6, error) {
 	var body detectEventIPv6
 	if err := binary.Read(buf, binary.LittleEndian, &body); err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		return detectEventIPv6{}, err
 	}
 
