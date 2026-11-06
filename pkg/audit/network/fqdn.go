@@ -452,10 +452,17 @@ func refreshDelay(ttl uint32) time.Duration {
 }
 
 func (mgr *Manager) resolveAddress(domain string, kind uint16) (*DNSAnswer, error) {
+	var answer *DNSAnswer
+	var err error
 	if resolver, ok := mgr.dnsResolver.(interface {
 		ResolveContext(context.Context, string, uint16) (*DNSAnswer, error)
 	}); ok && mgr.dnsContext != nil {
-		return resolver.ResolveContext(mgr.dnsContext, domain, kind)
+		answer, err = resolver.ResolveContext(mgr.dnsContext, domain, kind)
+	} else {
+		answer, err = mgr.dnsResolver.Resolve(domain, kind)
 	}
-	return mgr.dnsResolver.Resolve(domain, kind)
+	if answer == nil && err == nil {
+		return nil, fmt.Errorf("resolver returned nil answer for %s", domain)
+	}
+	return answer, err
 }

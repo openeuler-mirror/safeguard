@@ -122,3 +122,14 @@ func TestDNSUpdateCanceled(t *testing.T) {
 		require.NotPanics(t, func() { require.ErrorIs(t, update(answer), context.Canceled) })
 	}
 }
+
+func TestDNSRefreshNilAnswer(t *testing.T) {
+	for _, resolver := range []DNSResolver{refreshFailure{}, &contextualRefresh{}} {
+		mgr := Manager{dnsResolver: resolver, dnsContext: context.Background()}
+		for _, run := range []func(string, uint16) (uint32, error){mgr.resolveAndUpdateAllowedFQDNList, mgr.resolveAndUpdateDeniedFQDNList} {
+			for _, kind := range []uint16{dns.TypeA, dns.TypeAAAA} {
+				require.NotPanics(t, func() { _, err := run("missing.example.", kind); require.ErrorContains(t, err, "nil answer") })
+			}
+		}
+	}
+}
