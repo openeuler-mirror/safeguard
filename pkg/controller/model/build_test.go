@@ -109,6 +109,14 @@ func TestBuildNetworkWhitelist_PreservesInvalidCIDRsAfterTruncatedFamilies(t *te
 	assert.Contains(t, warnings, "generated network.cidr.allow truncated to 256 IPv6 entries to fit eBPF map limits")
 }
 
+func TestBuildWhitelistPreservesProcessNameSpaces(t *testing.T) {
+	snapshot := HostSnapshot{RunningProcesses: []RunningProcess{
+		{Command: "app"}, {Command: " app"}, {Executable: "/opt/app "},
+	}}
+	whitelist := BuildWhitelist(snapshot, time.Time{})
+	require.Equal(t, []string{" app", "app", "app "}, whitelist.Process.Allow)
+}
+
 func TestBuildWhitelistPreservesFilePathSpaces(t *testing.T) {
 	snapshot := HostSnapshot{
 		Accounts:        []Account{{HomeDir: "/home/user "}, {HomeDir: "/home/user"}},

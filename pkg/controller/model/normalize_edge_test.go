@@ -13,6 +13,5 @@ func TestNormalizeProcessAllowEntry_EmptyCommand(t *testing.T) {
 
 func TestNormalizeProcessAllowEntry_WhitespaceCommand(t *testing.T) {
 	result := normalizeProcessAllowEntry(RunningProcess{Command: "  "})
-	assert.Equal(t, "", result)
+	assert.Equal(t, "  ", result)
 }
-

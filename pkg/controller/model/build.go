@@ -81,12 +81,12 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	}
 
 	networkWhitelist, networkWarnings := buildNetworkWhitelist(snapshot.CIDRs, snapshot.UIDs, snapshot.GIDs)
-	fileAllow, fileAllowTruncated := clampStrings(uniqueFilePaths(fileAllow), bpfMapLimitEntries)
+	fileAllow, fileAllowTruncated := clampStrings(uniqueExactStrings(fileAllow), bpfMapLimitEntries)
 	if fileAllowTruncated {
 		warnings = append(warnings, fmt.Sprintf("generated files.allow truncated to %d entries to fit eBPF map limits", bpfMapLimitEntries))
 	}
 
-	processAllow, processAllowTruncated := clampStrings(uniqueStrings(processAllow), bpfProcessMapLimit)
+	processAllow, processAllowTruncated := clampStrings(uniqueExactStrings(processAllow), bpfProcessMapLimit)
 	if processAllowTruncated {
 		warnings = append(warnings, fmt.Sprintf("generated process.allow truncated to %d entries to fit eBPF map limits", bpfProcessMapLimit))
 	}
@@ -187,11 +187,11 @@ func normalizeProcessAllowEntry(process RunningProcess) string {
 }
 
 func processAllowName(process RunningProcess) string {
-	candidate := strings.TrimSpace(process.Command)
+	candidate := process.Command
 	if process.Executable != "" {
 		candidate = filepath.Base(process.Executable)
 	}
-	candidate = strings.TrimSpace(strings.TrimSuffix(candidate, " (deleted)"))
+	candidate = strings.TrimSuffix(candidate, " (deleted)")
 	return candidate
 }
 
@@ -221,8 +221,8 @@ func clampUints(values []uint, limit int) ([]uint, bool) {
 	return values[:limit], true
 }
 
-// uniqueFilePaths preserves whitespace, which is significant in filenames.
-func uniqueFilePaths(values []string) []string {
+// uniqueExactStrings preserves whitespace, which is significant in names and paths.
+func uniqueExactStrings(values []string) []string {
 	seen := make(map[string]bool, len(values))
 	result := make([]string, 0, len(values))
 	for _, value := range values {
