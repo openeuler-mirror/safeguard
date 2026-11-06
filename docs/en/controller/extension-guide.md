@@ -14,7 +14,7 @@ func (c *MyCollector) Collect() (model.HostSnapshot, error) {
 
     // Collect your data
     snapshot.Hostname = "my-host"
-    snapshot.Accounts = []model.Account{...}
+    snapshot.Accounts = []model.Account{}
 
     return snapshot, nil
 }
@@ -23,11 +23,15 @@ func (c *MyCollector) Collect() (model.HostSnapshot, error) {
 ### Register Custom Collector
 
 ```go
-service := Service{
+service := controller.Service{
     Collector: &MyCollector{},
     Now:       time.Now,
 }
 ```
+
+Import `culinux/pkg/controller`, `culinux/pkg/controller/model`, and `time` for
+these examples. `Service.Generate` returns an error, and requires a non-nil
+collector and clock.
 
 ## Extending Whitelist Model
 
@@ -89,14 +93,18 @@ Test the full pipeline from collection to output:
 
 ```go
 func TestCustomCollector_Integration(t *testing.T) {
-    service := Service{
+    service := controller.Service{
         Collector: &MyCollector{},
         Now:       time.Now,
     }
-    err := service.Generate(GenerateOptions{
+    err := service.Generate(controller.GenerateOptions{
         Mode:       "monitor",
         OutputPath: t.TempDir() + "/whitelist.yaml",
     })
     require.NoError(t, err)
 }
 ```
+
+The built-in collector returns errors for required hostname, account, process,
+and interface data. Unreadable `/proc/net` files instead produce report warnings;
+custom collectors should make their own incomplete-data policy explicit.

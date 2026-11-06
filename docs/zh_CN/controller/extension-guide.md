@@ -12,7 +12,7 @@ type MyCollector struct {
 func (c *MyCollector) Collect() (model.HostSnapshot, error) {
     var snapshot model.HostSnapshot
     snapshot.Hostname = "my-host"
-    snapshot.Accounts = []model.Account{...}
+    snapshot.Accounts = []model.Account{}
     return snapshot, nil
 }
 ```
@@ -20,11 +20,14 @@ func (c *MyCollector) Collect() (model.HostSnapshot, error) {
 ### 注册自定义采集器
 
 ```go
-service := Service{
+service := controller.Service{
     Collector: &MyCollector{},
     Now:       time.Now,
 }
 ```
+
+示例需要导入 `culinux/pkg/controller`、`culinux/pkg/controller/model` 和 `time`。
+`Service.Generate` 返回错误，并要求采集器和时钟均已初始化。
 
 ## 扩展白名单模型
 
@@ -85,9 +88,12 @@ func TestMyCollector_Collect(t *testing.T) {
 ## 采集器设计原则
 
 1. **幂等性**：多次调用 `Collect()` 应返回相同结果（在主机状态不变时）
-2. **容错性**：单个采集源失败不应影响其他采集器
+2. **明确失败语义**：必需数据采集失败时返回错误，不要悄悄生成不完整配置
 3. **最小权限**：只采集白名单生成所需的最少数据
 4. **可测试性**：采集逻辑应可通过 mock 进行单元测试
+
+内置采集器对主机名、账号、进程和网卡采集错误返回错误；无法读取的
+`/proc/net` 文件则记录到报告警告中。自定义采集器应明确说明不完整数据的处理方式。
 
 ## 添加新的限制模块支持
 
