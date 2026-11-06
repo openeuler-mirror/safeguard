@@ -2,6 +2,7 @@ package network
 
 import (
 	"bytes"
+	"context"
 	"culinux/pkg/config"
 	log "culinux/pkg/log"
 	"errors"
@@ -260,5 +261,38 @@ func TestDNSProxyAuthority(t *testing.T) {
 		soa, ok := writer.msg.Ns[0].(*dns.SOA)
 		require.True(t, ok)
 		require.Equal(t, uint32(30), soa.Minttl)
+	}
+}
+
+func TestDNSProxyPolicyUpdateErrors(t *testing.T) {
+	var logs bytes.Buffer
+	old := log.Logger.Logger.Out
+	log.Logger.Logger.SetOutput(&logs)
+	t.Cleanup(func() { log.Logger.Logger.SetOutput(old) })
+	for _, kind := range []string{"allow", "deny"} {
+		logs.Reset()
+		resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetReply(q)
+			response.Answer = []dns.RR{&dns.A{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}, A: net.IPv4(192, 0, 2, 1)}}
+			w.WriteMsg(response)
+		})
+		cfg := config.DefaultConfig()
+		if kind == "allow" {
+			cfg.Domain.Allow = []string{"policy.example"}
+		} else {
+			cfg.Domain.Deny = []string{"policy.example"}
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: cfg, dnsCache: newDNSCache(), dnsContext: ctx}}
+		request := new(dns.Msg)
+		request.SetQuestion("policy.example.", dns.TypeA)
+		writer := new(proxyCapture)
+		proxy.ServeDNS(writer, request)
+		require.Equal(t, dns.RcodeSuccess, writer.msg.Rcode)
+		require.Len(t, writer.msg.Answer, 1)
+		require.Contains(t, logs.String(), "context canceled")
+		require.Contains(t, logs.String(), kind)
 	}
 }

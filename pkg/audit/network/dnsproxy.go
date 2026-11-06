@@ -114,14 +114,18 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 		for _, allowedDomain := range this.manager.config.Domain.Allow {
 			if strings.EqualFold(toFqdn(allowedDomain), fqdn) {
-				this.manager.updateAllowedFQDNist(dnsAnswer)
+				if err := this.manager.updateAllowedFQDNist(dnsAnswer); err != nil {
+					log.Error(fmt.Errorf("update allow domain %s: %w", fqdn, err))
+				}
 				break
 			}
 		}
 
 		for _, deniedDomain := range this.manager.config.Domain.Deny {
 			if strings.EqualFold(toFqdn(deniedDomain), fqdn) {
-				this.manager.updateDeniedFQDNList(dnsAnswer)
+				if err := this.manager.updateDeniedFQDNList(dnsAnswer); err != nil {
+					log.Error(fmt.Errorf("update deny domain %s: %w", fqdn, err))
+				}
 				break
 			}
 		}
