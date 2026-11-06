@@ -107,3 +107,14 @@ func TestBuildNetworkWhitelist_PreservesInvalidCIDRsAfterTruncatedFamilies(t *te
 	assert.Contains(t, warnings, "generated network.cidr.allow truncated to 256 IPv4 entries to fit eBPF map limits")
 	assert.Contains(t, warnings, "generated network.cidr.allow truncated to 256 IPv6 entries to fit eBPF map limits")
 }
+
+func TestBuildWhitelistAccountsIndependent(t *testing.T) {
+	snapshot := HostSnapshot{Accounts: []Account{{Username: "alice", HomeDir: "/home/alice"}, {Username: "bob", UID: 1001}}}
+	whitelist := BuildWhitelist(snapshot, time.Time{})
+	snapshot.Accounts[0].Username = "changed"
+	assert.Equal(t, "alice", whitelist.Accounts[0].Username)
+	whitelist.Accounts[1].UID = 42
+	assert.Equal(t, uint(1001), snapshot.Accounts[1].UID)
+	assert.Nil(t, BuildWhitelist(HostSnapshot{}, time.Time{}).Accounts)
+	assert.NotNil(t, BuildWhitelist(HostSnapshot{Accounts: []Account{}}, time.Time{}).Accounts)
+}
