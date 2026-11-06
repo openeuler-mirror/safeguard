@@ -48,3 +48,18 @@ func TestMappedIPv4CIDRKey(t *testing.T) {
 	require.Len(t, v6.key, 20)
 	require.Equal(t, uint32(64), binary.LittleEndian.Uint32(v6.key[:4]))
 }
+
+func TestDomainMapRejectsInvalidIP(t *testing.T) {
+	valid := net.ParseIP("192.0.2.1")
+	for _, bad := range []net.IP{nil, {}, {192, 0, 2}, make(net.IP, 17)} {
+		keys, err := domainNameToBPFMapKey("example.test", []net.IP{valid, bad})
+		require.ErrorContains(t, err, "example.test")
+		require.ErrorContains(t, err, "address 1")
+		require.Nil(t, keys)
+	}
+	keys, err := domainNameToBPFMapKey("example.test", []net.IP{valid, net.ParseIP("2001:db8::1")})
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
+	require.Len(t, keys[0].key, 8)
+	require.Len(t, keys[1].key, 20)
+}

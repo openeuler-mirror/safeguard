@@ -564,7 +564,10 @@ func cidrToBPFMapKey(cidr string) (IPAddress, error) {
 
 func domainNameToBPFMapKey(host string, addresses []net.IP) ([]IPAddress, error) {
 	var addrs = []IPAddress{}
-	for _, addr := range addresses {
+	for i, addr := range addresses {
+		if addr.To16() == nil {
+			return nil, fmt.Errorf("invalid DNS address %d for %s", i, host)
+		}
 		ipaddr := IPAddress{address: addr}
 		if ipaddr.isV6address() {
 			ipaddr.cidrMask = net.CIDRMask(128, 128)
