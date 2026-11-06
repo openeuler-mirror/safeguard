@@ -742,3 +742,26 @@ func TestNetworkCommandMapCapacity(t *testing.T) {
 		require.ErrorContains(t, cfg.Validate(), "network.command."+list)
 	}
 }
+
+func TestDNSBindAddressFormat(t *testing.T) {
+	for _, tc := range []struct {
+		bind    string
+		invalid bool
+	}{
+		{"127.0.0.1", false}, {"localhost", false}, {"::1", false},
+		{"127.0.0.1:53", true}, {"[::1]", true}, {"bad/path", true}, {"foo bar", true},
+		{"host\x00name", true}, {".", true},
+	} {
+		cfg := DefaultConfig()
+		cfg.RestrictedNetworkConfig.Enable = true
+		cfg.DNSProxyConfig.Enable = true
+		cfg.DNSProxyConfig.BindAddresses = []string{tc.bind}
+		cfg.DNSProxyConfig.Upstreams = []string{"192.0.2.53"}
+		err := cfg.Validate()
+		if tc.invalid {
+			require.ErrorContains(t, err, "dns_proxy.bind[0]")
+		} else {
+			require.NoError(t, err)
+		}
+	}
+}
