@@ -36,6 +36,12 @@ func NewSnapshotCollector() SnapshotCollector {
 
 // Collect gathers host data from all registered collectors into a HostSnapshot.
 func (c SnapshotCollector) Collect() (model.HostSnapshot, error) {
+	if c.HostnameFn == nil {
+		return model.HostSnapshot{}, fmt.Errorf("hostname collector is not initialized")
+	}
+	if c.InterfaceCIDRsFn == nil {
+		return model.HostSnapshot{}, fmt.Errorf("interface collector is not initialized")
+	}
 	hostname, err := c.HostnameFn()
 	if err != nil {
 		return model.HostSnapshot{}, fmt.Errorf("collect hostname: %w", err)
