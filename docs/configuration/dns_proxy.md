@@ -42,7 +42,7 @@ If the domain to be name resolved is restricted, update the IP address in the Al
 
 ## Proxy operation and troubleshooting
 
-- Requests must contain one IN-class question. The proxy forwards queries to configured upstreams, retrying on initial exchange transport errors, SERVFAIL or REFUSED; NXDOMAIN is returned directly. UDP truncation triggers one TCP retry to that upstream.
+- Requests must contain one IN-class question. The proxy forwards queries to configured upstreams, retrying on SERVFAIL, REFUSED or transport errors (including a failed TCP retry); NXDOMAIN is returned directly. UDP truncation triggers one TCP retry to that upstream.
 - Proxy upstream attempts use the client timeout per exchange; they do not share the audit resolver's total deadline. A response write failure is logged.
 - Only relevant A/AAAA records from the question's response-local CNAME chain update the cache and policy. Reverse-cache addresses expire by TTL and are limited to 4096 IPs and 16 names per IP.
 - Duplicate listeners, an IPv4 wildcard combined with a specific IPv4 listener, and statically identifiable upstream loops are rejected at configuration load. Hostnames are not resolved during this check.
