@@ -321,3 +321,14 @@ func TestResolverRetryableResponseCodes(t *testing.T) {
 		}
 	}
 }
+
+func TestResolverEmptyHost(t *testing.T) {
+	resolver := &DefaultResolver{config: &dns.ClientConfig{}, client: new(dns.Client)}
+	require.NotPanics(t, func() { answer, err := resolver.Resolve("", dns.TypeA); require.Nil(t, answer); require.Error(t, err) })
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := resolver.ResolveContext(ctx, "", dns.TypeA)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, "", toFqdn(""))
+	require.Equal(t, ".", toFqdn("."))
+}
