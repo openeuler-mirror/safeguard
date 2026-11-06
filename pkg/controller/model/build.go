@@ -81,7 +81,7 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	}
 
 	networkWhitelist, networkWarnings := buildNetworkWhitelist(snapshot.CIDRs, snapshot.UIDs, snapshot.GIDs)
-	fileAllow, fileAllowTruncated := clampStrings(uniqueStrings(fileAllow), bpfMapLimitEntries)
+	fileAllow, fileAllowTruncated := clampStrings(uniqueFilePaths(fileAllow), bpfMapLimitEntries)
 	if fileAllowTruncated {
 		warnings = append(warnings, fmt.Sprintf("generated files.allow truncated to %d entries to fit eBPF map limits", bpfMapLimitEntries))
 	}
@@ -219,6 +219,20 @@ func clampUints(values []uint, limit int) ([]uint, bool) {
 		return values, false
 	}
 	return values[:limit], true
+}
+
+// uniqueFilePaths preserves whitespace, which is significant in filenames.
+func uniqueFilePaths(values []string) []string {
+	seen := make(map[string]bool, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != "" && !seen[value] {
+			seen[value] = true
+			result = append(result, value)
+		}
+	}
+	sort.Strings(result)
+	return result
 }
 
 // uniqueStrings deduplicates and sorts a string slice, trimming whitespace and
