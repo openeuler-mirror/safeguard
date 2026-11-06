@@ -208,8 +208,7 @@ func (m *Manager) setConfigMap() error {
 	// 设置 allow process size
 	binary.LittleEndian.PutUint32(key[MAP_ALLOW_PROCESS_INDEX:MAP_ALLOW_PROCESS_INDEX+4], uint32(len(m.config.RestrictedProcessConfig.Allow)))
 
-	k := uint8(0)
-	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
+	err = helpers.UpdateConfigMap(configMap, key)
 	if err != nil {
 		return err
 	}
