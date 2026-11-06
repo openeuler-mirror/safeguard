@@ -128,3 +128,27 @@ func TestAuditConfigMapKeyWidth(t *testing.T) {
 		require.NotErrorIs(t, err, injected)
 	}
 }
+
+func TestNetworkPresenceMapValueWidth(t *testing.T) {
+	data, err := bpf.EmbedFS.ReadFile("bytecode/restricted-network.bpf.o")
+	require.NoError(t, err)
+	module, err := libbpfgo.NewModuleFromBuffer(data, "presence_schema")
+	require.NoError(t, err)
+	defer module.Close()
+	for _, name := range []string{"allowed_command_list", "denied_command_list", "allowed_uid_list", "denied_uid_list", "allowed_gid_list", "denied_gid_list"} {
+		m, err := module.GetMap(name)
+		require.NoError(t, err)
+		require.Equal(t, 4, m.ValueSize())
+		injected := errors.New("update failed")
+		fake := &configMapProbe{keySize: m.KeySize(), valueSize: m.ValueSize(), err: injected}
+		key := make([]byte, m.KeySize())
+		require.ErrorIs(t, UpdateUint32MapValue(fake, key), injected)
+		require.Equal(t, []byte{0, 0, 0, 0}, fake.value)
+		err = UpdateUint32MapValue(fake, key[:len(key)-1])
+		require.Error(t, err)
+		require.NotErrorIs(t, err, injected)
+	}
+	lpm, err := module.GetMap("allowed_v4_cidr_list")
+	require.NoError(t, err)
+	require.Equal(t, 1, lpm.ValueSize())
+}
