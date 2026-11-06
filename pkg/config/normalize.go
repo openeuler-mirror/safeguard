@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"sort"
-	"strings"
 
 	"github.com/miekg/dns"
 )
@@ -45,7 +44,22 @@ func NormalizeIDs(values []uint) []uint {
 func NormalizeDomains(values []string) []string {
 	names := make([]string, len(values))
 	for i, value := range values {
-		names[i] = strings.ToLower(dns.Fqdn(value))
+		name := dns.Fqdn(value)
+		var wire [255]byte
+		n, err := dns.PackDomainName(name, wire[:], 0, nil, false)
+		if err != nil {
+			names[i] = name
+			continue
+		}
+		for j := 0; j < n; j++ {
+			if wire[j] >= 'A' && wire[j] <= 'Z' {
+				wire[j] += 'a' - 'A'
+			}
+		}
+		names[i], _, err = dns.UnpackDomainName(wire[:n], 0)
+		if err != nil {
+			names[i] = name
+		}
 	}
 	return UniqueStrings(names)
 }

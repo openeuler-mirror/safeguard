@@ -85,3 +85,17 @@ func TestNormalizeLoadedDomains(t *testing.T) {
 	require.Equal(t, []string{"example.com."}, cfg.Domain.Allow)
 	require.Equal(t, []string{"blocked.org."}, cfg.Domain.Deny)
 }
+
+func TestNormalizeDomainsWireNames(t *testing.T) {
+	input := []string{"Ä.EXAMPLE", "ä.EXAMPLE", `foo\046BAR.example`, `foo\.bar.EXAMPLE`}
+	before := append([]string{}, input...)
+	expected := []string{`\195\132.example.`, `\195\164.example.`, `foo\.bar.example.`}
+	require.Equal(t, expected, NormalizeDomains(input))
+	require.Equal(t, before, input)
+	path := filepath.Join(t.TempDir(), "dns.yaml")
+	source := "network:\n  enable: true\n  domain:\n    allow:\n      - 'Ä.EXAMPLE'\n      - 'ä.EXAMPLE'\n      - 'foo\\046BAR.example'\n      - 'foo\\.bar.EXAMPLE'\n"
+	require.NoError(t, os.WriteFile(path, []byte(source), 0600))
+	cfg, err := NewConfig(path)
+	require.NoError(t, err)
+	require.Equal(t, expected, cfg.Domain.Allow)
+}
