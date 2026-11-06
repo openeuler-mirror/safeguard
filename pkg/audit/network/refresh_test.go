@@ -150,3 +150,30 @@ func TestDNSRefreshEmptyAnswer(t *testing.T) {
 		}
 	}
 }
+
+type countingLegacyResolver struct {
+	calls int
+	err   error
+}
+
+func (r *countingLegacyResolver) Resolve(string, uint16) (*DNSAnswer, error) {
+	r.calls++
+	return nil, r.err
+}
+
+func TestDNSLegacyResolverCanceled(t *testing.T) {
+	cause := errors.New("legacy invoked")
+	resolver := &countingLegacyResolver{err: cause}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	mgr := Manager{dnsResolver: resolver, dnsContext: ctx}
+	_, err := mgr.ResolveAddressv4("test.example")
+	require.ErrorIs(t, err, context.Canceled)
+	_, err = mgr.ResolveAddressv6("test.example")
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, resolver.calls)
+	mgr.dnsContext = context.Background()
+	_, err = mgr.ResolveAddressv4("test.example")
+	require.ErrorIs(t, err, cause)
+	require.Equal(t, 1, resolver.calls)
+}

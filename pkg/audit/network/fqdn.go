@@ -459,6 +459,9 @@ func (mgr *Manager) resolveAddress(domain string, kind uint16) (*DNSAnswer, erro
 	}); ok && mgr.dnsContext != nil {
 		answer, err = resolver.ResolveContext(mgr.dnsContext, domain, kind)
 	} else {
+		if mgr.dnsContext != nil && mgr.dnsContext.Err() != nil {
+			return nil, mgr.dnsContext.Err()
+		}
 		answer, err = mgr.dnsResolver.Resolve(domain, kind)
 	}
 	if answer == nil && err == nil {
