@@ -243,3 +243,20 @@ func TestServiceGenerateMissingParentAliases(t *testing.T) {
 		require.NoFileExists(t, output)
 	}
 }
+
+func TestServiceGenerateMissingDependencies(t *testing.T) {
+	for _, tc := range []struct {
+		service Service
+		missing string
+	}{
+		{Service{Now: time.Now}, "collector"},
+		{Service{Collector: fakeCollector{}}, "clock"},
+	} {
+		output := filepath.Join(t.TempDir(), "config.yaml")
+		require.NotPanics(t, func() {
+			err := tc.service.Generate(GenerateOptions{Mode: "monitor", OutputPath: output})
+			require.ErrorContains(t, err, tc.missing)
+		})
+		require.NoFileExists(t, output)
+	}
+}

@@ -67,6 +67,12 @@ func (s Service) Generate(options GenerateOptions) error {
 		}
 	}
 
+	if s.Collector == nil {
+		return fmt.Errorf("collector is not initialized")
+	}
+	if s.Now == nil {
+		return fmt.Errorf("clock is not initialized")
+	}
 	snapshot, err := s.Collector.Collect()
 	if err != nil {
 		return fmt.Errorf("collect host snapshot: %w", err)
