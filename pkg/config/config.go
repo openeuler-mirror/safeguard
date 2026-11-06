@@ -334,7 +334,10 @@ func (c *Config) Validate() error {
 	}
 	if c.DNSProxyConfig.Enable {
 		for i, server := range c.DNSProxyConfig.Upstreams {
-			if net.ParseIP(server) != nil {
+			if ip := net.ParseIP(server); ip != nil {
+				if ip.IsUnspecified() {
+					return fmt.Errorf("dns_proxy.upstreams[%d]: address must not be unspecified", i)
+				}
 				continue
 			}
 			_, valid := dns.IsDomainName(server)
