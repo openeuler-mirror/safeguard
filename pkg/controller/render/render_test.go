@@ -157,3 +157,23 @@ func TestMarshalConfigYAML_RejectsUnloadableConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestMarshalReportRejectsInvalidUTF8(t *testing.T) {
+	invalid := string([]byte{0xff})
+	cases := map[string]model.WhitelistModel{
+		"hostname": {Metadata: model.Metadata{Hostname: invalid}},
+		"cidr":     {Network: model.NetworkWhitelist{CIDRAllow: []string{invalid}}},
+		"file":     {Files: model.FileWhitelist{Allow: []string{invalid}}},
+		"process":  {Process: model.ProcessWhitelist{Allow: []string{invalid}}},
+		"warning":  {Warnings: []string{invalid}},
+		"username": {Accounts: []model.Account{{Username: invalid}}},
+		"home":     {Accounts: []model.Account{{HomeDir: invalid}}},
+		"shell":    {Accounts: []model.Account{{Shell: invalid}}},
+	}
+	for name, value := range cases {
+		t.Run(name, func(t *testing.T) { data, err := MarshalReportJSON(value); require.Error(t, err); require.Nil(t, data) })
+	}
+	data, err := MarshalReportJSON(model.WhitelistModel{Accounts: []model.Account{{Username: "用户"}}})
+	require.NoError(t, err)
+	require.Contains(t, string(data), "用户")
+}
