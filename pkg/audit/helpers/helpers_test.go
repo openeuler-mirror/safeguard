@@ -152,3 +152,16 @@ func TestNetworkPresenceMapValueWidth(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, lpm.ValueSize())
 }
+
+func TestAuditStringBytes(t *testing.T) {
+	var comm [16]byte
+	copy(comm[:], []byte("进程"))
+	require.Equal(t, "进程", CommToString(comm))
+	var host [65]byte
+	copy(host[:], []byte("主机.example"))
+	require.Equal(t, "主机.example", NodenameToString(host))
+	comm = [16]byte{0xc3, 0, 0xa9, 0xff}
+	require.Equal(t, string([]byte{0xc3, 0xa9, 0xff}), CommToString(comm))
+	host = [65]byte{0xc3, 0, 0xa9, 0xff}
+	require.Equal(t, string([]byte{0xc3, 0xa9, 0xff}), NodenameToString(host))
+}

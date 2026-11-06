@@ -6,23 +6,21 @@ import (
 )
 
 func CommToString(commBytes [16]byte) string {
-	var s string
-	for _, b := range commBytes {
-		if b != 0x00 {
-			s += string(b)
-		}
-	}
-	return s
+	return nonZeroBytes(commBytes[:])
 }
 
 func NodenameToString(bytes [65]byte) string {
-	var s string
-	for _, b := range bytes {
-		if b != 0x00 {
-			s += string(b)
+	return nonZeroBytes(bytes[:])
+}
+
+func nonZeroBytes(input []byte) string {
+	result := make([]byte, 0, len(input))
+	for _, b := range input {
+		if b != 0 {
+			result = append(result, b)
 		}
 	}
-	return s
+	return string(result)
 }
 
 // UpdateConfigMap writes the u32 zero key used by audit configuration maps.
