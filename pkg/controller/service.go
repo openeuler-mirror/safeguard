@@ -49,6 +49,17 @@ func (s Service) Generate(options GenerateOptions) error {
 		if err != nil {
 			return fmt.Errorf("resolve report path: %w", err)
 		}
+		resolvedOutput, err := resolveOutputParent(output)
+		if err != nil {
+			return fmt.Errorf("resolve output parent: %w", err)
+		}
+		resolvedReport, err := resolveOutputParent(report)
+		if err != nil {
+			return fmt.Errorf("resolve report parent: %w", err)
+		}
+		if resolvedOutput == resolvedReport {
+			return fmt.Errorf("output and report must refer to different files")
+		}
 		outputInfo, outputErr := os.Stat(output)
 		reportInfo, reportErr := os.Stat(report)
 		if output == report || (outputErr == nil && reportErr == nil && os.SameFile(outputInfo, reportInfo)) {
@@ -84,4 +95,26 @@ func (s Service) Generate(options GenerateOptions) error {
 	}
 
 	return nil
+}
+
+func resolveOutputParent(path string) (string, error) {
+	dir := filepath.Dir(path)
+	for {
+		resolved, err := filepath.EvalSymlinks(dir)
+		if err == nil {
+			relative, err := filepath.Rel(dir, path)
+			if err != nil {
+				return "", err
+			}
+			return filepath.Join(resolved, relative), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", err
+		}
+		dir = parent
+	}
 }
