@@ -50,11 +50,7 @@ func toFqdn(domainName string) string {
 	if domainName == "" {
 		return ""
 	}
-	if domainName[len(domainName)-1:] == "." {
-		return domainName
-	}
-
-	return domainName + "."
+	return dns.Fqdn(domainName)
 }
 
 func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.Msg, error) {

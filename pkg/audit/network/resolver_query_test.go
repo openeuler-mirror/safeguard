@@ -412,3 +412,18 @@ func TestResolverIdentityFallback(t *testing.T) {
 		require.True(t, answer.Addresses[0].Equal(net.IPv4(192, 0, 2, 10)))
 	}
 }
+
+func TestResolverEscapedFinalDot(t *testing.T) {
+	r := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+		response := new(dns.Msg)
+		response.SetReply(q)
+		response.Answer = []dns.RR{&dns.A{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}, A: net.IPv4(192, 0, 2, 11)}}
+		w.WriteMsg(response)
+	})
+	require.Equal(t, `dot\..`, toFqdn(`dot\.`))
+	require.Equal(t, `example.`, toFqdn(`example.`))
+	answer, err := r.Resolve(`dot\.`, dns.TypeA)
+	require.NoError(t, err)
+	require.Len(t, answer.Addresses, 1)
+	require.True(t, answer.Addresses[0].Equal(net.IPv4(192, 0, 2, 11)))
+}
