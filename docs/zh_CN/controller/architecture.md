@@ -7,11 +7,12 @@
 `Service` 是 controller 的顶层编排器，串联数据采集、模型构建和渲染输出：
 
 ```go
-service := Service{
-    Collector: &SnapshotCollector{},
-    Now:       time.Now,
-}
-result, err := service.Generate()
+service := controller.NewService()
+err := service.Generate(controller.GenerateOptions{
+    Mode:       "monitor",
+    OutputPath: "whitelist.yaml",
+    ReportPath: "report.json",
+})
 ```
 
 ### 采集层
@@ -30,7 +31,7 @@ type SnapshotCollector interface {
 |--------|--------|------|
 | PasswdCollector | /etc/passwd | 用户账号信息 |
 | ProcCollector | /proc/* | 运行进程信息 |
-| NetworkCollector | /sys/class/net | 网络接口和 CIDR |
+| 网络采集 | 网络接口、/proc/net/tcp*、/proc/net/udp* | 本机及远端地址 |
 
 ### 模型层
 
@@ -66,8 +67,8 @@ service.go
     ├─ Collector.Collect()  → HostSnapshot
     ├─ BuildWhitelist()     → WhitelistModel
     ├─ MarshalConfigYAML()  → YAML bytes
-    ├─ WriteFile()          → 保存 YAML 配置
     ├─ MarshalReportJSON()  → JSON bytes (可选)
+    ├─ WriteFile()          → 保存 YAML 配置
     └─ WriteFile()          → 保存 JSON 报告 (可选)
 ```
 
@@ -75,3 +76,4 @@ service.go
 
 `controller generate` 默认输出 `demo-whitelist.yaml` 和 `demo-whitelist-report.json`。
 可以通过 `--output` 和 `--report` 覆盖输出路径。
+生成的策略固定为 whitelist；`--mode` 选择 monitor（仅记录）或 block（阻断）。

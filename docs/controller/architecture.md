@@ -4,7 +4,7 @@
 
 ### Service Layer
 - Orchestrates whitelist generation
-- Manages collector lifecycle
+- Invokes the collector and renders its snapshot
 - Writes the generated YAML config and optional JSON report
 
 ### Collector Interface
@@ -32,7 +32,10 @@ Host Data → Collector → HostSnapshot → BuildWhitelist → WhitelistModel �
 |-----------|--------|--------|
 | PasswdCollector | /etc/passwd | User accounts |
 | ProcCollector | /proc | Running processes |
-| NetworkCollector | /sys/class/net | Network interfaces |
+| Network collection | Host interfaces, /proc/net/tcp*, /proc/net/udp* | Local and remote addresses |
+
+The controller generates a whitelist policy. Use `--mode monitor` to log violations
+or `--mode block` to enforce it. Both outputs are encoded before either file is written.
 
 ## Extension Points
 
