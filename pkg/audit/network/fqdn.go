@@ -94,7 +94,11 @@ func (r *DefaultResolver) exchange(ctx context.Context, message *dns.Msg) (*dns.
 			}
 			res, err = exchangeDNSContext(ctx, client, message, net.JoinHostPort(server, port))
 			if err != nil {
-				return nil, err
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
+				failures = append(failures, fmt.Sprintf("%s TCP: %v", server, err))
+				continue
 			}
 			if !validDNSReply(message, res) || res.Truncated {
 				return nil, errors.New("invalid or truncated TCP DNS response")
