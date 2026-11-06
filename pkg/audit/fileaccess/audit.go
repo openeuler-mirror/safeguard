@@ -177,13 +177,9 @@ func retToaction(ret int32) string {
 }
 
 func pathToString(path [PATH_MAX]byte) string {
-	var s string
-	for _, b := range path {
-		if b != 0x00 {
-			s += string(b)
-		} else {
-			break
-		}
+	end := bytes.IndexByte(path[:], 0)
+	if end < 0 {
+		end = len(path)
 	}
-	return s
+	return string(path[:end])
 }
