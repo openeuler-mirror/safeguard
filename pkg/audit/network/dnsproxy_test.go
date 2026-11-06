@@ -296,3 +296,46 @@ func TestDNSProxyPolicyUpdateErrors(t *testing.T) {
 		require.Contains(t, logs.String(), kind)
 	}
 }
+
+func TestDNSProxyWirePolicyMatch(t *testing.T) {
+	var logs bytes.Buffer
+	old := log.Logger.Logger.Out
+	log.Logger.Logger.SetOutput(&logs)
+	t.Cleanup(func() { log.Logger.Logger.SetOutput(old) })
+	resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+		response := new(dns.Msg)
+		response.SetReply(q)
+		response.Answer = []dns.RR{&dns.A{Hdr: dns.RR_Header{Name: q.Question[0].Name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}, A: net.IPv4(192, 0, 2, 1)}}
+		w.WriteMsg(response)
+	})
+	for _, tc := range []struct {
+		rule, query, kind  string
+		normalize, matched bool
+	}{
+		{`foo\046BAR.example`, `foo\.bar.example.`, "allow", true, true},
+		{"Ä.example", "Ä.example.", "deny", true, true},
+		{"Ä.example", "ä.example.", "allow", false, false},
+	} {
+		logs.Reset()
+		cfg := config.DefaultConfig()
+		names := []string{tc.rule}
+		if tc.normalize {
+			names = config.NormalizeDomains(names)
+		}
+		if tc.kind == "allow" {
+			cfg.Domain.Allow = names
+		} else {
+			cfg.Domain.Deny = names
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: cfg, dnsCache: newDNSCache(), dnsContext: ctx}}
+		request := new(dns.Msg)
+		request.SetQuestion(tc.query, dns.TypeA)
+		writer := new(proxyCapture)
+		proxy.ServeDNS(writer, request)
+		require.Equal(t, dns.RcodeSuccess, writer.msg.Rcode)
+		require.Equal(t, request.Question, writer.msg.Question)
+		require.Equal(t, tc.matched, strings.Contains(logs.String(), "context canceled"))
+	}
+}
