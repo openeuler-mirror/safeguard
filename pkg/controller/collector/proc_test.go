@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,4 +101,31 @@ func TestReadProcProcessesCommandWhitespace(t *testing.T) {
 	for i, want := range expected {
 		require.Equal(t, want, processes[i].Command)
 	}
+}
+
+func TestProcReadErrors(t *testing.T) {
+	require.True(t, processGone(&os.PathError{Err: syscall.ESRCH}))
+	require.True(t, processGone(os.ErrNotExist))
+	require.False(t, processGone(syscall.EACCES))
+	for _, badFile := range []string{"comm", "status"} {
+		root := t.TempDir()
+		dir := filepath.Join(root, "1")
+		require.NoError(t, os.Mkdir(dir, 0755))
+		require.NoError(t, os.Mkdir(filepath.Join(dir, badFile), 0755))
+		if badFile == "status" {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0644))
+		}
+		processes, uids, gids, paths, err := readProcProcesses(root)
+		require.ErrorIs(t, err, syscall.EISDIR)
+		require.ErrorContains(t, err, filepath.Join(dir, badFile))
+		require.Nil(t, processes)
+		require.Nil(t, uids)
+		require.Nil(t, gids)
+		require.Nil(t, paths)
+	}
+	root := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(root, "1"), 0755))
+	processes, _, _, _, err := readProcProcesses(root)
+	require.NoError(t, err)
+	require.Empty(t, processes)
 }
