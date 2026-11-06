@@ -39,3 +39,13 @@ func TestParseEvent_EmptyBytes(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestParseEventUnknownType(t *testing.T) {
+	for _, eventType := range []int32{-1, 2, 999} {
+		buf := new(bytes.Buffer)
+		assert.NoError(t, binary.Write(buf, binary.LittleEndian, &eventHeader{EventType: eventType, PID: 42}))
+		assert.NoError(t, binary.Write(buf, binary.LittleEndian, &detectEventIPv4{Action: ACTION_BLOCKED}))
+		_, body, err := parseEvent(buf.Bytes())
+		assert.ErrorContains(t, err, "unknown network event type")
+		assert.Nil(t, body)
+	}
+}
