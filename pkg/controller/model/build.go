@@ -80,7 +80,15 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 // clamping values to eBPF map limits and returning any truncation warnings.
 func buildNetworkWhitelist(cidrs []string, uids []uint, gids []uint) (NetworkWhitelist, []string) {
 	warnings := []string{}
-	cidrAllow, cidrWarnings := clampCIDRs(uniqueStrings(cidrs))
+	normalized := make([]string, 0, len(cidrs))
+	for _, value := range cidrs {
+		value = strings.TrimSpace(value)
+		if _, prefix, err := net.ParseCIDR(value); err == nil {
+			value = prefix.String()
+		}
+		normalized = append(normalized, value)
+	}
+	cidrAllow, cidrWarnings := clampCIDRs(uniqueStrings(normalized))
 	warnings = append(warnings, cidrWarnings...)
 
 	uidAllow, uidTruncated := clampUints(uniqueUints(uids), bpfMapLimitEntries)

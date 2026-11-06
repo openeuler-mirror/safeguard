@@ -118,3 +118,14 @@ func TestBuildWhitelistAccountsIndependent(t *testing.T) {
 	assert.Nil(t, BuildWhitelist(HostSnapshot{}, time.Time{}).Accounts)
 	assert.NotNil(t, BuildWhitelist(HostSnapshot{Accounts: []Account{}}, time.Time{}).Accounts)
 }
+
+func TestBuildWhitelistCanonicalCIDR(t *testing.T) {
+	cidrs := make([]string, 0, 260)
+	for i := 0; i < 256; i++ {
+		cidrs = append(cidrs, fmt.Sprintf("10.1.2.%d/24", i))
+	}
+	cidrs = append(cidrs, "2001:db8::1/64", "2001:db8::abcd/64", "invalid")
+	whitelist, warnings := buildNetworkWhitelist(cidrs, nil, nil)
+	assert.Equal(t, []string{"10.1.2.0/24", "2001:db8::/64", "invalid"}, whitelist.CIDRAllow)
+	assert.Empty(t, warnings)
+}
