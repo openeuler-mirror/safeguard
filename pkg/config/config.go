@@ -316,6 +316,12 @@ func (c *Config) Validate() error {
 			if strings.TrimSpace(address) == "" {
 				return fmt.Errorf("dns_proxy.bind[%d]: listener must not be empty", i)
 			}
+			if net.ParseIP(address) == nil {
+				_, valid := dns.IsDomainName(address)
+				if !valid || address == "." || strings.ContainsAny(address, ":/[] \t\r\n\x00\\") {
+					return fmt.Errorf("dns_proxy.bind[%d]: expected IP or hostname without port", i)
+				}
+			}
 			key := dnsListenerKey(address)
 			if seen[key] {
 				return fmt.Errorf("dns_proxy.bind[%d]: duplicate listener %q", i, address)
