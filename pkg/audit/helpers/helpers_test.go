@@ -37,9 +37,9 @@ func TestNodenameToString(t *testing.T) {
 			expect: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-",
 		},
 		{
-			name:   "embedded null byte is skipped",
+			name:   "embedded null terminates the string",
 			input:  [65]byte{0x61, 0x00, 0x62, 0x00, 0x63},
-			expect: "abc",
+			expect: "a",
 		},
 	}
 
@@ -72,9 +72,9 @@ func TestCommToString(t *testing.T) {
 			expect: "abcdefghijklmnop",
 		},
 		{
-			name:   "embedded null byte is skipped",
+			name:   "embedded null terminates the string",
 			input:  [16]byte{0x61, 0x00, 0x62},
-			expect: "ab",
+			expect: "a",
 		},
 	}
 
@@ -160,8 +160,8 @@ func TestAuditStringBytes(t *testing.T) {
 	var host [65]byte
 	copy(host[:], []byte("主机.example"))
 	require.Equal(t, "主机.example", NodenameToString(host))
-	comm = [16]byte{0xc3, 0, 0xa9, 0xff}
-	require.Equal(t, string([]byte{0xc3, 0xa9, 0xff}), CommToString(comm))
-	host = [65]byte{0xc3, 0, 0xa9, 0xff}
-	require.Equal(t, string([]byte{0xc3, 0xa9, 0xff}), NodenameToString(host))
+	comm = [16]byte{0xc3, 0xa9, 0, 0xff}
+	require.Equal(t, "é", CommToString(comm))
+	host = [65]byte{0xc3, 0xa9, 0, 0xff}
+	require.Equal(t, "é", NodenameToString(host))
 }
