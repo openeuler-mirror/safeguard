@@ -142,8 +142,7 @@ func (m *Manager) setModeAndTarget() error {
 		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
 	}
 
-	k := uint8(0)
-	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
+	err = helpers.UpdateConfigMap(configMap, key)
 	if err != nil {
 		return err
 	}

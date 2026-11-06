@@ -1,9 +1,15 @@
 package helpers
 
 import (
+	"errors"
 	"testing"
+	"unsafe"
 
+	"culinux/pkg/bpf"
+
+	"github.com/aquasecurity/libbpfgo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func bytesToNode(b [65]byte) [65]byte { return b }
@@ -76,5 +82,49 @@ func TestCommToString(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, CommToString(test.input), test.expect)
 		})
+	}
+}
+
+type configMapProbe struct {
+	keySize, valueSize int
+	key                uint32
+	value              []byte
+	err                error
+}
+
+func (m *configMapProbe) KeySize() int   { return m.keySize }
+func (m *configMapProbe) ValueSize() int { return m.valueSize }
+func (m *configMapProbe) Update(key, value unsafe.Pointer) error {
+	m.key = *(*uint32)(key)
+	m.value = append([]byte(nil), unsafe.Slice((*byte)(value), m.valueSize)...)
+	return m.err
+}
+
+func TestAuditConfigMapKeyWidth(t *testing.T) {
+	for _, tc := range []struct {
+		object, name string
+		valueSize    int
+	}{
+		{"network", "network_safeguard_config_map", 24}, {"file", "fileopen_safeguard_config_map", 12},
+		{"mount", "mount_safeguard_config_map", 8}, {"process", "process_safeguard_config_map", 16},
+	} {
+		data, err := bpf.EmbedFS.ReadFile("bytecode/restricted-" + tc.object + ".bpf.o")
+		require.NoError(t, err)
+		module, err := libbpfgo.NewModuleFromBuffer(data, "schema_test")
+		require.NoError(t, err)
+		m, err := module.GetMap(tc.name)
+		require.NoError(t, err)
+		require.Equal(t, 4, m.KeySize())
+		require.Equal(t, tc.valueSize, m.ValueSize())
+		module.Close()
+		injected := errors.New("update failed")
+		fake := &configMapProbe{keySize: 4, valueSize: tc.valueSize, err: injected}
+		payload := []byte("abcdefghijklmnopqrstuvwx")[:tc.valueSize]
+		require.ErrorIs(t, UpdateConfigMap(fake, payload), injected)
+		require.Zero(t, fake.key)
+		require.Equal(t, payload, fake.value)
+		err = UpdateConfigMap(fake, payload[:len(payload)-1])
+		require.Error(t, err)
+		require.NotErrorIs(t, err, injected)
 	}
 }

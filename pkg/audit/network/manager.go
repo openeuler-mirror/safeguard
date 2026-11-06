@@ -263,8 +263,7 @@ func (m *Manager) setConfigMap() error {
 	binary.LittleEndian.PutUint32(key[MAP_ALLOW_UID_INDEX:MAP_ALLOW_UID_INDEX+4], uint32(len(m.config.RestrictedNetworkConfig.UID.Allow)))
 	binary.LittleEndian.PutUint32(key[MAP_ALLOW_GID_INDEX:MAP_ALLOW_GID_INDEX+4], uint32(len(m.config.RestrictedNetworkConfig.GID.Allow)))
 
-	k := uint8(0)
-	err = configMap.Update(unsafe.Pointer(&k), unsafe.Pointer(&key[0]))
+	err = helpers.UpdateConfigMap(configMap, key)
 
 	if err != nil {
 		return err
