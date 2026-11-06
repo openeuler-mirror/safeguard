@@ -129,6 +129,9 @@ func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recor
 	if host == "" {
 		return nil, errors.New("DNS host must not be empty")
 	}
+	if r == nil || r.config == nil || r.client == nil {
+		return nil, errors.New("DNS resolver is not initialized")
+	}
 	ctx, cancel := context.WithTimeout(ctx, r.queryClient().Timeout)
 	defer cancel()
 	message := new(dns.Msg)
