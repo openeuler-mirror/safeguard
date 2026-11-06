@@ -559,6 +559,10 @@ func cidrToBPFMapKey(cidr string) (IPAddress, error) {
 	if err != nil {
 		return ipaddr, err
 	}
+	if ones, bits := n.Mask.Size(); bits == 128 && n.IP.To4() != nil {
+		n.IP = n.IP.To4()
+		n.Mask = net.CIDRMask(ones-96, 32)
+	}
 	ipaddr.address = n.IP
 	ipaddr.cidrMask = n.Mask
 	ipaddr.ipAddressToBPFMapKey()
