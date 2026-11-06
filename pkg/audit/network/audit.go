@@ -288,7 +288,7 @@ func parseEvent(eventBytes []byte) (eventHeader, detectEvent, error) {
 
 		return header, body, nil
 	} else {
-		return eventHeader{}, detectEventIPv4{}, err
+		return eventHeader{}, nil, fmt.Errorf("unknown network event type %d", header.EventType)
 	}
 }
 
