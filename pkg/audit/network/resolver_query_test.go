@@ -13,6 +13,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDNSCNAMEAddressConflict(t *testing.T) {
+	for _, record := range []string{"name.example. 60 IN A 192.0.2.1", "name.example. 60 IN AAAA 2001:db8::1"} {
+		alias, err := dns.NewRR("name.example. 60 IN CNAME target.example.")
+		require.NoError(t, err)
+		address, err := dns.NewRR(record)
+		require.NoError(t, err)
+		for _, records := range [][]dns.RR{{alias, address}, {address, alias}} {
+			for _, kind := range []uint16{dns.TypeA, dns.TypeAAAA} {
+				result, err := responseChain(records, "name.example.", kind)
+				require.ErrorContains(t, err, "CNAME and address")
+				require.Nil(t, result)
+			}
+		}
+	}
+}
+
 func localResolver(t *testing.T, handler dns.HandlerFunc) *DefaultResolver {
 	t.Helper()
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
