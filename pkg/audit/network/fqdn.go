@@ -47,6 +47,9 @@ func initDNSCache() {
 // e.g. example.com -> example.com.
 // toFqdn converts a domain name to FQDN format by appending a trailing dot.
 func toFqdn(domainName string) string {
+	if domainName == "" {
+		return ""
+	}
 	if domainName[len(domainName)-1:] == "." {
 		return domainName
 	}
@@ -120,6 +123,9 @@ func (r *DefaultResolver) Resolve(host string, recordType uint16) (*DNSAnswer, e
 func (r *DefaultResolver) ResolveContext(ctx context.Context, host string, recordType uint16) (*DNSAnswer, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
+	}
+	if host == "" {
+		return nil, errors.New("DNS host must not be empty")
 	}
 	ctx, cancel := context.WithTimeout(ctx, r.queryClient().Timeout)
 	defer cancel()
