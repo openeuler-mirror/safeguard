@@ -129,3 +129,22 @@ func TestProcReadErrors(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, processes)
 }
+
+func TestProcExeErrors(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "1")
+	require.NoError(t, os.Mkdir(dir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("worker\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
+	processes, _, _, paths, err := readProcProcesses(root)
+	require.NoError(t, err)
+	require.Len(t, processes, 1)
+	require.Empty(t, paths)
+	exe := filepath.Join(dir, "exe")
+	require.NoError(t, os.WriteFile(exe, nil, 0644))
+	processes, _, _, paths, err = readProcProcesses(root)
+	require.ErrorIs(t, err, syscall.EINVAL)
+	require.ErrorContains(t, err, exe)
+	require.Nil(t, processes)
+	require.Nil(t, paths)
+}
