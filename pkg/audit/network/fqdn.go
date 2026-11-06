@@ -464,5 +464,8 @@ func (mgr *Manager) resolveAddress(domain string, kind uint16) (*DNSAnswer, erro
 	if answer == nil && err == nil {
 		return nil, fmt.Errorf("resolver returned nil answer for %s", domain)
 	}
+	if err == nil && len(answer.Addresses) == 0 {
+		return nil, fmt.Errorf("%s type %d: %w", domain, kind, ErrDNSNoData)
+	}
 	return answer, err
 }
