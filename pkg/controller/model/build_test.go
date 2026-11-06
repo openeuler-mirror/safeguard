@@ -155,3 +155,19 @@ func TestBuildWhitelistStableAccounts(t *testing.T) {
 	assert.Equal(t, result.Accounts, BuildWhitelist(second, time.Time{}).Accounts)
 	assert.Equal(t, []Account{c, a, b}, first.Accounts)
 }
+
+func TestBuildWhitelistStableCollisions(t *testing.T) {
+	a := RunningProcess{Command: "long-process-name-alpha"}
+	b := RunningProcess{Command: "long-process-name-beta"}
+	c := RunningProcess{Command: "long-process-name-gamma"}
+	first := BuildWhitelist(HostSnapshot{RunningProcesses: []RunningProcess{a, b, c, a}}, time.Time{})
+	second := BuildWhitelist(HostSnapshot{RunningProcesses: []RunningProcess{c, b, a}}, time.Time{})
+	assert.Equal(t, first.Process.Allow, second.Process.Allow)
+	assert.Equal(t, first.Warnings, second.Warnings)
+	assert.Len(t, first.Warnings, 1)
+	if len(first.Warnings) > 0 {
+		for _, name := range []string{a.Command, b.Command, c.Command} {
+			assert.Contains(t, first.Warnings[0], name)
+		}
+	}
+}

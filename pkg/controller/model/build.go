@@ -57,21 +57,27 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 		}
 	}
 
-	processNames := map[string]string{}
+	processNames := map[string]map[string]bool{}
 	for _, process := range snapshot.RunningProcesses {
 		name := processAllowName(process)
 		if normalized := truncateString(name, bpfProcessNameMaxLength); normalized != "" {
-			if previous, ok := processNames[normalized]; ok && previous != name {
-				first, second := previous, name
-				if first > second {
-					first, second = second, first
-				}
-				warnings = append(warnings, fmt.Sprintf("process names %q and %q share truncated key %q", first, second, normalized))
-			} else {
-				processNames[normalized] = name
+			if processNames[normalized] == nil {
+				processNames[normalized] = map[string]bool{}
 			}
+			processNames[normalized][name] = true
 			processAllow = append(processAllow, normalized)
 		}
+	}
+	for key, names := range processNames {
+		if len(names) < 2 {
+			continue
+		}
+		sorted := make([]string, 0, len(names))
+		for name := range names {
+			sorted = append(sorted, name)
+		}
+		sort.Strings(sorted)
+		warnings = append(warnings, fmt.Sprintf("process names %q share truncated key %q", sorted, key))
 	}
 
 	networkWhitelist, networkWarnings := buildNetworkWhitelist(snapshot.CIDRs, snapshot.UIDs, snapshot.GIDs)
