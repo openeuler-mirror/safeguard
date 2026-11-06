@@ -417,6 +417,7 @@ func responseChain(records []dns.RR, name string, recordType uint16) ([]dns.RR, 
 		}
 		seen = append(seen, name)
 		target := ""
+		address := false
 		for _, rr := range records {
 			if rr.Header().Class != dns.ClassINET || !sameDNSName(name, rr.Header().Name) {
 				continue
@@ -427,9 +428,17 @@ func responseChain(records []dns.RR, name string, recordType uint16) ([]dns.RR, 
 				}
 				target = alias.Target
 				relevant = append(relevant, rr)
-			} else if rr.Header().Rrtype == recordType {
-				relevant = append(relevant, rr)
+			} else {
+				if rr.Header().Rrtype == dns.TypeA || rr.Header().Rrtype == dns.TypeAAAA {
+					address = true
+				}
+				if rr.Header().Rrtype == recordType {
+					relevant = append(relevant, rr)
+				}
 			}
+		}
+		if target != "" && address {
+			return nil, errors.New("CNAME and address records share an owner")
 		}
 		if target == "" {
 			return relevant, nil
