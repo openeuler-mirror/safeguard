@@ -702,3 +702,20 @@ func TestValidateDNSUpstreamLoop(t *testing.T) {
 		}
 	}
 }
+
+func TestDNSRejectUnspecifiedUpstream(t *testing.T) {
+	for _, server := range []string{"0.0.0.0", "::", "::ffff:0.0.0.0"} {
+		cfg := DefaultConfig()
+		cfg.RestrictedNetworkConfig.Enable = true
+		cfg.DNSProxyConfig.Enable = true
+		cfg.DNSProxyConfig.BindAddresses = []string{"127.0.0.1"}
+		cfg.DNSProxyConfig.Upstreams = []string{server}
+		require.ErrorContains(t, cfg.Validate(), "dns_proxy.upstreams[0]")
+	}
+	cfg := DefaultConfig()
+	cfg.RestrictedNetworkConfig.Enable = true
+	cfg.DNSProxyConfig.Enable = true
+	cfg.DNSProxyConfig.BindAddresses = []string{"127.0.0.1"}
+	cfg.DNSProxyConfig.Upstreams = []string{"192.0.2.53", "2001:db8::53"}
+	require.NoError(t, cfg.Validate())
+}
