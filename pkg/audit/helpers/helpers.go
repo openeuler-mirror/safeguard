@@ -1,26 +1,25 @@
 package helpers
 
 import (
+	"bytes"
 	"fmt"
 	"unsafe"
 )
 
 func CommToString(commBytes [16]byte) string {
-	return nonZeroBytes(commBytes[:])
+	return cStringBytes(commBytes[:])
 }
 
 func NodenameToString(bytes [65]byte) string {
-	return nonZeroBytes(bytes[:])
+	return cStringBytes(bytes[:])
 }
 
-func nonZeroBytes(input []byte) string {
-	result := make([]byte, 0, len(input))
-	for _, b := range input {
-		if b != 0 {
-			result = append(result, b)
-		}
+func cStringBytes(input []byte) string {
+	end := bytes.IndexByte(input, 0)
+	if end < 0 {
+		end = len(input)
 	}
-	return string(result)
+	return string(input[:end])
 }
 
 // UpdateConfigMap writes the u32 zero key used by audit configuration maps.
