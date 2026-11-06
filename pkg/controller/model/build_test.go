@@ -129,3 +129,17 @@ func TestBuildWhitelistCanonicalCIDR(t *testing.T) {
 	assert.Equal(t, []string{"10.1.2.0/24", "2001:db8::/64", "invalid"}, whitelist.CIDRAllow)
 	assert.Empty(t, warnings)
 }
+
+func TestBuildWhitelistProcessCollision(t *testing.T) {
+	first := "long-process-name-alpha"
+	second := "long-process-name-beta"
+	snapshot := HostSnapshot{RunningProcesses: []RunningProcess{{Command: first}, {Command: second}, {Command: first}, {Command: "short"}}}
+	whitelist := BuildWhitelist(snapshot, time.Time{})
+	assert.Contains(t, whitelist.Process.Allow, "long-process-na")
+	assert.Len(t, whitelist.Warnings, 1)
+	if len(whitelist.Warnings) > 0 {
+		assert.Contains(t, whitelist.Warnings[0], first)
+		assert.Contains(t, whitelist.Warnings[0], second)
+		assert.Contains(t, whitelist.Warnings[0], "long-process-na")
+	}
+}
