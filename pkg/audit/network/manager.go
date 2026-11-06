@@ -280,8 +280,7 @@ func (m *Manager) setAllowedCommandList() error {
 
 	for _, c := range m.config.RestrictedNetworkConfig.Command.Allow {
 		key := byteToKey([]byte(c))
-		value := uint8(0)
-		err = commands.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+		err = helpers.UpdateUint32MapValue(commands, key)
 		if err != nil {
 			return err
 		}
@@ -298,8 +297,7 @@ func (m *Manager) setDeniedCommandList() error {
 
 	for _, c := range m.config.RestrictedNetworkConfig.Command.Deny {
 		key := byteToKey([]byte(c))
-		value := uint8(0)
-		err = commands.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+		err = helpers.UpdateUint32MapValue(commands, key)
 		if err != nil {
 			return err
 		}
@@ -315,8 +313,7 @@ func (m *Manager) setAllowedUIDList() error {
 	}
 	for _, uid := range m.config.RestrictedNetworkConfig.UID.Allow {
 		key := uintToKey(uid)
-		value := uint8(0)
-		err = uids.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+		err = helpers.UpdateUint32MapValue(uids, key)
 		if err != nil {
 			return err
 		}
@@ -332,8 +329,7 @@ func (m *Manager) setDeniedUIDList() error {
 	}
 	for _, uid := range m.config.RestrictedNetworkConfig.UID.Deny {
 		key := uintToKey(uid)
-		value := uint8(0)
-		err = uids.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+		err = helpers.UpdateUint32MapValue(uids, key)
 		if err != nil {
 			return err
 		}
@@ -349,8 +345,7 @@ func (m *Manager) setAllowedGIDList() error {
 	}
 	for _, gid := range m.config.RestrictedNetworkConfig.GID.Allow {
 		key := uintToKey(gid)
-		value := uint8(0)
-		err = gids.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+		err = helpers.UpdateUint32MapValue(gids, key)
 		if err != nil {
 			return err
 		}
@@ -366,8 +361,7 @@ func (m *Manager) setDeniedGIDList() error {
 	}
 	for _, gid := range m.config.RestrictedNetworkConfig.GID.Deny {
 		key := uintToKey(gid)
-		value := uint8(0)
-		err = gids.Update(unsafe.Pointer(&key[0]), unsafe.Pointer(&value))
+		err = helpers.UpdateUint32MapValue(gids, key)
 		if err != nil {
 			return err
 		}
