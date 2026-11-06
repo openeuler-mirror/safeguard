@@ -143,3 +143,15 @@ func TestBuildWhitelistProcessCollision(t *testing.T) {
 		assert.Contains(t, whitelist.Warnings[0], "long-process-na")
 	}
 }
+
+func TestBuildWhitelistStableAccounts(t *testing.T) {
+	a := Account{Username: "alice", UID: 2, GID: 3, HomeDir: "/home/a", Shell: "/bin/z"}
+	b := Account{Username: "alice", UID: 2, GID: 3, HomeDir: "/home/a", Shell: "/bin/a"}
+	c := Account{Username: "bob", UID: 1, GID: 1, HomeDir: "/home/b"}
+	first := HostSnapshot{Accounts: []Account{c, a, b}}
+	second := HostSnapshot{Accounts: []Account{b, c, a}}
+	result := BuildWhitelist(first, time.Time{})
+	assert.Equal(t, []Account{b, a, c}, result.Accounts)
+	assert.Equal(t, result.Accounts, BuildWhitelist(second, time.Time{}).Accounts)
+	assert.Equal(t, []Account{c, a, b}, first.Accounts)
+}

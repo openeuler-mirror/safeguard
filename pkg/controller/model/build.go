@@ -33,6 +33,22 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	var accounts []Account
 	if snapshot.Accounts != nil {
 		accounts = append([]Account{}, snapshot.Accounts...)
+		sort.Slice(accounts, func(i, j int) bool {
+			a, b := accounts[i], accounts[j]
+			if a.Username != b.Username {
+				return a.Username < b.Username
+			}
+			if a.UID != b.UID {
+				return a.UID < b.UID
+			}
+			if a.GID != b.GID {
+				return a.GID < b.GID
+			}
+			if a.HomeDir != b.HomeDir {
+				return a.HomeDir < b.HomeDir
+			}
+			return a.Shell < b.Shell
+		})
 	}
 
 	for _, account := range snapshot.Accounts {
