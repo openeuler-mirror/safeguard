@@ -427,3 +427,17 @@ func TestResolverEscapedFinalDot(t *testing.T) {
 	require.Len(t, answer.Addresses, 1)
 	require.True(t, answer.Addresses[0].Equal(net.IPv4(192, 0, 2, 11)))
 }
+
+func TestResolverUninitialized(t *testing.T) {
+	for _, resolver := range []*DefaultResolver{nil, {}, {config: &dns.ClientConfig{}}, {client: new(dns.Client)}} {
+		require.NotPanics(t, func() {
+			answer, err := resolver.Resolve("example.test", dns.TypeA)
+			require.Nil(t, answer)
+			require.ErrorContains(t, err, "not initialized")
+		})
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err := resolver.ResolveContext(ctx, "example.test", dns.TypeA)
+		require.ErrorIs(t, err, context.Canceled)
+	}
+}
