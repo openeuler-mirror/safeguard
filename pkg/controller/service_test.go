@@ -227,3 +227,19 @@ func TestServiceGenerate_ReportEncodingFailureDoesNotWriteFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceGenerateMissingParentAliases(t *testing.T) {
+	for _, nested := range []string{"", "not-yet/child"} {
+		root := t.TempDir()
+		real := filepath.Join(root, "real")
+		alias := filepath.Join(root, "alias")
+		require.NoError(t, os.Mkdir(real, 0755))
+		require.NoError(t, os.Symlink(real, alias))
+		output := filepath.Join(real, nested, "config.yaml")
+		report := filepath.Join(alias, nested, "config.yaml")
+		service := Service{Collector: fakeCollector{}, Now: time.Now}
+		err := service.Generate(GenerateOptions{Mode: "monitor", OutputPath: output, ReportPath: report})
+		require.ErrorContains(t, err, "different files")
+		require.NoFileExists(t, output)
+	}
+}
