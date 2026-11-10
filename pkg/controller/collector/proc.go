@@ -52,7 +52,10 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 			continue
 		}
 		uid, gid := parseStatusIDs(string(statusBytes))
-		executable, _ := os.Readlink(filepath.Join(base, "exe"))
+		executable, err := os.Readlink(filepath.Join(base, "exe"))
+		if err != nil && !processGone(err) {
+			return nil, nil, nil, nil, fmt.Errorf("read process %d exe: %w", pid, err)
+		}
 		if strings.HasSuffix(executable, " (deleted)") {
 			executable = ""
 		}
