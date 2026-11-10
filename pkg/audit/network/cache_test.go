@@ -12,6 +12,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDNSCacheExtraAnswer(t *testing.T) {
+	for _, kind := range []uint16{dns.TypeANY, dns.TypeHTTPS, dns.TypeSVCB} {
+		now := time.Unix(0, 0)
+		cache := newDNSCache()
+		cache.now = func() time.Time { return now }
+		cache.Store("192.0.2.9", "service.example.", 60)
+		answer := &DNSAnswer{QueryType: kind, TTL: 5, Addresses: []net.IP{net.ParseIP("192.0.2.1"), net.ParseIP("2001:db8::1")}}
+		updateDNSCache("service.example.", answer, cache)
+		require.Equal(t, "service.example.", cache.Lookup("192.0.2.1"))
+		require.Equal(t, "service.example.", cache.Lookup("2001:db8::1"))
+		answer.TTL = 0
+		updateDNSCache("service.example.", answer, cache)
+		require.Equal(t, "service.example.", cache.Lookup("192.0.2.1"))
+		now = now.Add(5 * time.Second)
+		require.Empty(t, cache.Lookup("192.0.2.1"))
+		require.Equal(t, "service.example.", cache.Lookup("192.0.2.9"))
+	}
+}
+
 func TestDNSCacheConcurrentAccess(t *testing.T) {
 	cache := newDNSCache()
 	var workers sync.WaitGroup

@@ -76,6 +76,12 @@ func updateDNSCache(fqdn string, dnsAnswer *DNSAnswer, caches ...*dnsNameCache) 
 	if len(caches) > 0 {
 		cache = caches[0]
 	}
+	if dnsAnswer.QueryType != 0 && dnsAnswer.QueryType != dns.TypeA && dnsAnswer.QueryType != dns.TypeAAAA {
+		for _, address := range dnsAnswer.Addresses {
+			cache.Store(address.String(), fqdn, dnsAnswer.TTL)
+		}
+		return
+	}
 	cache.Replace(fqdn, dnsAnswer.QueryType, dnsAnswer.Addresses, dnsAnswer.TTL)
 }
 
