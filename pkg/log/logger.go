@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 	"os/user"
 	"strconv"
@@ -68,16 +69,17 @@ func SetFormatter(format string) {
 }
 
 // SetOutput sets the log output file path.
-func SetOutput(path string) {
+func SetOutput(path string) error {
 	if path == "stdout" || path == "" {
-		Logger.Logger.Out = os.Stdout
+		Logger.Logger.SetOutput(os.Stdout)
 	} else {
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
-			Logger.Fatal(err)
+			return fmt.Errorf("open log output %q: %w", path, err)
 		}
-		Logger.Logger.Out = file
+		Logger.Logger.SetOutput(file)
 	}
+	return nil
 }
 
 // SetRotation configures log file rotation with size and age limits.

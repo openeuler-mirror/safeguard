@@ -76,7 +76,9 @@ EXAMPLES:
 		}
 
 		log.SetFormatter(conf.Log.Format)
-		log.SetOutput(conf.Log.Output)
+		if err := log.SetOutput(conf.Log.Output); err != nil {
+			return err
+		}
 		log.SetRotation(conf.Log.Output, conf.Log.MaxSize, conf.Log.MaxAge)
 		log.SetLabel(conf.Log.Labels)
 		log.SetLevel(conf.Log.Level)
