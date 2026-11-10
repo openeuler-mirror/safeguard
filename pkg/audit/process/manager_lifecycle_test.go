@@ -1,9 +1,37 @@
 package process
 
 import (
+	"errors"
+	"reflect"
 	"sync"
 	"testing"
+
+	"culinux/pkg/audit/helpers"
 )
+
+type attachTestLink struct {
+	name      string
+	destroyed *[]string
+}
+
+func (l attachTestLink) Destroy() error {
+	*l.destroyed = append(*l.destroyed, l.name)
+	return nil
+}
+
+func TestProcessAttachRollsBackWhenLSMFails(t *testing.T) {
+	cause := errors.New("LSM unavailable")
+	var destroyed []string
+	err := attachProcessPrograms(func(name string) (helpers.Link, error) {
+		if name == "restricted_process_bprm_check" {
+			return nil, cause
+		}
+		return attachTestLink{name, &destroyed}, nil
+	})
+	if !errors.Is(err, cause) || !reflect.DeepEqual(destroyed, []string{BPF_PROGRAM_EXEC, BPF_PROGRAM_FORK}) {
+		t.Fatalf("err=%v, destroyed=%v", err, destroyed)
+	}
+}
 
 type lifecycleBuffer struct{ stops, closes int }
 

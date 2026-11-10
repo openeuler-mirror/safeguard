@@ -8,7 +8,6 @@ import (
 
 	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
-	log "culinux/pkg/log"
 
 	"github.com/aquasecurity/libbpfgo"
 )
@@ -133,35 +132,24 @@ func (m *Manager) Close() {
 
 // Attach attaches the BPF LSM programs for process restriction.
 func (m *Manager) Attach() error {
-	if err := helpers.AttachAll([]string{BPF_PROGRAM_FORK, BPF_PROGRAM_EXEC}, func(name string) (helpers.Link, error) {
+	return attachProcessPrograms(func(name string) (helpers.Link, error) {
 		prog, err := m.mod.GetProgram(name)
 		if err != nil {
 			return nil, err
+		}
+		if name == "restricted_process_bprm_check" {
+			return prog.AttachLSM()
 		}
 		point := "sched_process_fork"
 		if name == BPF_PROGRAM_EXEC {
 			point = "sched_process_exec"
 		}
 		return prog.AttachTracepoint("sched", point)
-	}); err != nil {
-		return err
-	}
+	})
+}
 
-	// 附加 LSM hook
-	lsmProg, err := m.mod.GetProgram("restricted_process_bprm_check")
-	if err != nil {
-		log.Debug(fmt.Sprintf("LSM program restricted_process_bprm_check not found: %v", err))
-	} else {
-		_, err = lsmProg.AttachLSM()
-		if err != nil {
-			log.Debug(fmt.Sprintf("Failed to attach LSM program: %v", err))
-		} else {
-			log.Debug("restricted_process_bprm_check attached.")
-		}
-	}
-
-	log.Debug(fmt.Sprintf("%s, %s attached.", BPF_PROGRAM_FORK, BPF_PROGRAM_EXEC))
-	return nil
+func attachProcessPrograms(attach func(string) (helpers.Link, error)) error {
+	return helpers.AttachAll([]string{BPF_PROGRAM_FORK, BPF_PROGRAM_EXEC, "restricted_process_bprm_check"}, attach)
 }
 
 func (m *Manager) SetConfigToMap() error {
