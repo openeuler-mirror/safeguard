@@ -14,6 +14,30 @@ import (
 	"time"
 )
 
+func TestDNSSVCBAddressHints(t *testing.T) {
+	for _, kind := range []uint16{dns.TypeSVCB, dns.TypeHTTPS} {
+		service := dns.SVCB{
+			Hdr: dns.RR_Header{Name: "name.example.", Rrtype: kind, Class: dns.ClassINET, Ttl: 17},
+			Priority: 1, Target: ".", Value: []dns.SVCBKeyValue{
+				&dns.SVCBIPv4Hint{Hint: []net.IP{net.ParseIP("192.0.2.1")}},
+				&dns.SVCBIPv6Hint{Hint: []net.IP{net.ParseIP("2001:db8::1")}},
+			},
+		}
+		var record dns.RR = &service
+		if kind == dns.TypeHTTPS {
+			record = &dns.HTTPS{SVCB: service}
+		}
+		unrelated := &dns.A{Hdr: dns.RR_Header{Name: "other.example.", Rrtype: dns.TypeA, Class: dns.ClassINET}, A: net.IPv4(192, 0, 2, 2)}
+		relevant, err := responseChain([]dns.RR{record, unrelated}, "name.example.", kind)
+		require.NoError(t, err)
+		answer := dnsResponseToDNSAnswer(&dns.Msg{Answer: relevant})
+		require.Len(t, answer.Addresses, 2)
+		require.True(t, answer.Addresses[0].Equal(net.ParseIP("192.0.2.1")))
+		require.True(t, answer.Addresses[1].Equal(net.ParseIP("2001:db8::1")))
+		require.Equal(t, uint32(17), answer.TTL)
+	}
+}
+
 func TestDNSServiceStopsInFlightProxy(t *testing.T) {
 	upstream, err := net.ListenPacket("udp", "127.0.0.1:0")
 	require.NoError(t, err)
