@@ -171,6 +171,38 @@ func prepareDNSListeners(addresses []string, listen func(string, string) (net.Pa
 	return listeners, nil
 }
 
+func servePreparedDNS(ctx context.Context, listeners []net.PacketConn, handler func(context.Context) dns.Handler) error {
+	if len(listeners) == 0 {
+		return fmt.Errorf("no DNS listeners")
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	results := make(chan error, len(listeners))
+	for _, conn := range listeners {
+		server := &dns.Server{PacketConn: conn, Handler: handler(ctx)}
+		go func() { results <- server.ActivateAndServe() }()
+	}
+	var result error
+	remaining := len(listeners)
+	select {
+	case <-ctx.Done():
+		result = ctx.Err()
+	case result = <-results:
+		remaining--
+		if result == nil {
+			result = fmt.Errorf("DNS listener stopped unexpectedly")
+		}
+	}
+	cancel()
+	for _, conn := range listeners {
+		conn.Close()
+	}
+	for i := 0; i < remaining; i++ {
+		<-results
+	}
+	return result
+}
+
 func (mgr *Manager) StartDNSServer(bindAddress string) error {
 	dnsConfig, err := createDNSConfig(mgr.config.DNSProxyConfig)
 	if err != nil {

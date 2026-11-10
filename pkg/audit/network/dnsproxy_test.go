@@ -14,6 +14,54 @@ import (
 	"time"
 )
 
+func TestDNSListenerLifecycle(t *testing.T) {
+	listeners, err := prepareDNSListeners([]string{"127.0.0.1:0"}, net.ListenPacket)
+	require.NoError(t, err)
+	addr := listeners[0].LocalAddr().String()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		result <- servePreparedDNS(ctx, listeners, func(context.Context) dns.Handler {
+			return dns.HandlerFunc(func(w dns.ResponseWriter, request *dns.Msg) {
+				response := new(dns.Msg)
+				response.SetReply(request)
+				w.WriteMsg(response)
+			})
+		})
+	}()
+	request := new(dns.Msg)
+	request.SetQuestion("example.test.", dns.TypeA)
+	_, _, err = (&dns.Client{Timeout: time.Second}).Exchange(request, addr)
+	require.NoError(t, err)
+	cancel()
+	select {
+	case err := <-result:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("DNS server did not stop")
+	}
+	conn, err := net.ListenPacket("udp", addr)
+	require.NoError(t, err)
+	require.NoError(t, conn.Close())
+}
+
+func TestDNSListenerLifecycleUnexpectedClose(t *testing.T) {
+	listeners, err := prepareDNSListeners([]string{"127.0.0.1:0"}, net.ListenPacket)
+	require.NoError(t, err)
+	result := make(chan error, 1)
+	go func() {
+		result <- servePreparedDNS(context.Background(), listeners, func(context.Context) dns.Handler { return dns.HandlerFunc(func(dns.ResponseWriter, *dns.Msg) {}) })
+	}()
+	require.NoError(t, listeners[0].Close())
+	select {
+	case err := <-result:
+		require.Error(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("closed listener did not report failure")
+	}
+}
+
 func TestPrepareDNSListeners(t *testing.T) {
 	var opened net.PacketConn
 	cause := errors.New("injected bind failure")
