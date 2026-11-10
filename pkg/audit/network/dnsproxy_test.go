@@ -14,6 +14,36 @@ import (
 	"time"
 )
 
+func TestDNSServiceStopsInFlightProxy(t *testing.T) {
+	upstream, err := net.ListenPacket("udp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer upstream.Close()
+	host, port, err := net.SplitHostPort(upstream.LocalAddr().String())
+	require.NoError(t, err)
+	listeners, err := prepareDNSListeners([]string{"127.0.0.1:0"}, net.ListenPacket)
+	require.NoError(t, err)
+	addr := listeners[0].LocalAddr().String()
+	mgr := &Manager{config: &config.Config{}, dnsCache: newDNSCache()}
+	service := startDNSService(context.Background(), listeners, func(ctx context.Context) dns.Handler {
+		return &DNSProxy{ctx: ctx, manager: mgr, client: &dns.Client{Timeout: time.Second}, dnsConfig: &dns.ClientConfig{Servers: []string{host}, Port: port}}
+	}, func() {})
+	defer service.stop()
+	request := new(dns.Msg)
+	request.SetQuestion("example.test.", dns.TypeA)
+	go (&dns.Client{Timeout: time.Second}).Exchange(request, addr)
+	require.NoError(t, upstream.SetReadDeadline(time.Now().Add(time.Second)))
+	_, _, err = upstream.ReadFrom(make([]byte, 512))
+	require.NoError(t, err)
+	done := make(chan error, 1)
+	go func() { done <- service.stop() }()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("service did not cancel in-flight query")
+	}
+}
+
 func TestDNSSupervisor(t *testing.T) {
 	handler := func(context.Context) dns.Handler {
 		return dns.HandlerFunc(func(dns.ResponseWriter, *dns.Msg) {})
