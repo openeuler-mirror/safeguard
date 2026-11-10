@@ -12,7 +12,7 @@ safeguard detects and controls four types of security events:
 safeguard can choose between the following restriction targets:
 
 - Host-wide — Apply restrictions to all processes on the host
-- Container Only — Apply restrictions only to processes running inside containers
+- Container Only — Request container scope; file-access and process restrictions can currently also affect the host
 
 ## Operation Modes
 
@@ -39,7 +39,7 @@ Each restriction module is disabled by default. Set `enable: true` in the module
 - Monitoring and Blocking modes
     - Two modes are available: monitoring mode, which monitors and logs events, and blocking mode, which blocks events
 - For Containers
-    - Restrictions can be applied to containers only
+    - Container scope depends on the module; file-access and process restrictions do not currently filter by target
 
 ## Demo
 

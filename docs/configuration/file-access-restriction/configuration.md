@@ -6,7 +6,7 @@ Linux Kernel >= 5.13 is required to use this option.
 |:------:|:----|:-----------:|
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable file access restrictions. Default is `false`. |
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, file access events are only logged. If `block` is specified, matching file access is blocked. |
-| `target` | Enum with the following possible values: `host`, `container` | Selecting `host` applies the restriction host-wide. Selecting `container` applies the restriction only to containers. |
+| `target` | Enum with the following possible values: `host`, `container` | Accepted configuration value; the current file-access LSM does not filter by target. |
 | `policy` (top level) | Enum with the following possible values: `blacklist`, `whitelist` | If `blacklist` is specified (default), allow all except denied. If `whitelist` is specified, deny all except allowed. |
 | `allow` | A list of allow file paths | |
 | `deny` | A list of denied file paths | |
@@ -14,6 +14,11 @@ Linux Kernel >= 5.13 is required to use this option.
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the file access restriction module disabled even when `mode`, `policy`, `allow`, or `deny` are configured.
 Use `monitor` mode first when validating a new file access policy, then switch to `block` after the required paths are confirmed.
 Check either example with `safeguard controller validate --config <path>` before applying it.
+
+!!! warning
+
+    `target: container` does not currently restrict this module to containers.
+    A file policy can also affect host processes; review it before using block mode.
 
 ## Policy Modes
 
