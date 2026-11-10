@@ -14,6 +14,34 @@ import (
 	"time"
 )
 
+func TestDNSSupervisor(t *testing.T) {
+	handler := func(context.Context) dns.Handler {
+		return dns.HandlerFunc(func(dns.ResponseWriter, *dns.Msg) {})
+	}
+	for _, fail := range []bool{false, true} {
+		listeners, err := prepareDNSListeners([]string{"127.0.0.1:0"}, net.ListenPacket)
+		require.NoError(t, err)
+		failed := make(chan struct{}, 1)
+		service := startDNSService(context.Background(), listeners, handler, func() { failed <- struct{}{} })
+		if fail {
+			require.NoError(t, listeners[0].Close())
+			select {
+			case <-failed:
+			case <-time.After(time.Second):
+				t.Fatal("listener failure was not reported")
+			}
+			require.Error(t, service.stop())
+		} else {
+			require.NoError(t, service.stop())
+			select {
+			case <-failed:
+				t.Fatal("normal shutdown reported as failure")
+			default:
+			}
+		}
+	}
+}
+
 func TestDNSProxyQueryCancel(t *testing.T) {
 	upstream, err := net.ListenPacket("udp", "127.0.0.1:0")
 	require.NoError(t, err)

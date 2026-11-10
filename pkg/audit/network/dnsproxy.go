@@ -208,6 +208,32 @@ func servePreparedDNS(ctx context.Context, listeners []net.PacketConn, handler f
 	return result
 }
 
+type dnsService struct {
+	cancel context.CancelFunc
+	done   chan struct{}
+	err    error
+}
+
+func startDNSService(parent context.Context, listeners []net.PacketConn, handler func(context.Context) dns.Handler, failed func()) *dnsService {
+	ctx, cancel := context.WithCancel(parent)
+	service := &dnsService{cancel: cancel, done: make(chan struct{})}
+	go func() {
+		defer close(service.done)
+		err := servePreparedDNS(ctx, listeners, handler)
+		if ctx.Err() == nil {
+			service.err = err
+			failed()
+		}
+	}()
+	return service
+}
+
+func (service *dnsService) stop() error {
+	service.cancel()
+	<-service.done
+	return service.err
+}
+
 func (mgr *Manager) StartDNSServer(bindAddress string) error {
 	dnsConfig, err := createDNSConfig(mgr.config.DNSProxyConfig)
 	if err != nil {
