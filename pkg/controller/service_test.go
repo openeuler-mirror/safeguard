@@ -264,6 +264,20 @@ func TestResolveOutputPath(t *testing.T) {
 	require.ErrorContains(t, err, "too many symbolic links")
 }
 
+func TestServiceGenerateSymlinkDotDotAliases(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(root, "outside")
+	require.NoError(t, os.MkdirAll(filepath.Join(outside, "child"), 0755))
+	require.NoError(t, os.Symlink("outside/child", filepath.Join(root, "link")))
+	alias, target := root+"/link/../config.yaml", filepath.Join(outside, "config.yaml")
+	service := Service{Collector: fakeCollector{}, Now: time.Now}
+	for _, paths := range [][2]string{{alias, target}, {target, alias}} {
+		err := service.Generate(GenerateOptions{Mode: "monitor", OutputPath: paths[0], ReportPath: paths[1]})
+		require.ErrorContains(t, err, "different files")
+		require.NoFileExists(t, target)
+	}
+}
+
 func TestServiceGenerateDanglingOutputAliases(t *testing.T) {
 	for _, absolute := range []bool{false, true} {
 		for _, reverse := range []bool{false, true} {
