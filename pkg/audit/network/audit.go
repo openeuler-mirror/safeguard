@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -129,13 +130,15 @@ func setupBPFProgram(ctx context.Context) (*libbpfgo.Module, error) {
 	return mod, nil
 }
 
-func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) error {
+func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) (result error) {
 	defer wg.Done()
 
 	if !conf.RestrictedNetworkConfig.Enable {
 		log.Info("network audit is disable. shutdown...")
 		return nil
 	}
+	ctx, cancelNetwork := context.WithCancel(ctx)
+	defer cancelNetwork()
 
 	mod, err := setupBPFProgram(ctx)
 	if err != nil {
@@ -168,15 +171,33 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 		return helpers.During("network", "dns-start", err)
 	}
 	if mgr.config.EnableDNSProxy() {
+		addresses := make([]string, 0, len(mgr.config.DNSProxyConfig.BindAddresses))
 		for _, bindAddress := range mgr.config.DNSProxyConfig.BindAddresses {
-			go func(bindAddress string) {
-				log.Info(fmt.Sprintf("Launching the DNS Proxy %s...", bindAddress))
-				err := mgr.StartDNSServer(bindAddress)
-				if err != nil {
-					log.Fatal(err)
-				}
-			}(bindAddress)
+			addresses = append(addresses, net.JoinHostPort(bindAddress, "53"))
 		}
+		listeners, err := prepareDNSListeners(addresses, net.ListenPacket)
+		if err != nil {
+			return helpers.During("network", "dns-start", err)
+		}
+		proxyConfig, err := createDNSConfig(mgr.config.DNSProxyConfig)
+		if err != nil {
+			for _, listener := range listeners {
+				listener.Close()
+			}
+			return helpers.During("network", "dns-config", err)
+		}
+		service := startDNSService(ctx, listeners, func(serviceCtx context.Context) dns.Handler {
+			return &DNSProxy{ctx: serviceCtx, client: new(dns.Client), dnsConfig: proxyConfig, manager: &mgr}
+		}, cancelNetwork)
+		defer func() {
+			if err := service.stop(); err != nil {
+				if result == nil || errors.Is(result, context.Canceled) {
+					result = helpers.During("network", "dns-server", err)
+				} else {
+					result = fmt.Errorf("%w; DNS server: %v", result, err)
+				}
+			}
+		}()
 	} else {
 		log.Info("Start async DNS Resolver...")
 		mgr.AsyncResolve()
