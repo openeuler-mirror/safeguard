@@ -168,7 +168,9 @@ IP 地址段控制。包含 \fIallow\fP 和 \fIdeny\fP 列表，每项为 CIDR �
 \fIhost\fP 或 \fIcontainer\fP。
 .TP
 .B allow
-允许执行的进程名列表（whitelist 模式下使用），匹配可执行文件的 basename（如 \fIbash\fP、\fIpython3\fP）。
+允许执行的进程名列表（whitelist 模式下使用），例如 \fIbash\fP。
+当前 LSM 仅在路径前 16 字节内查找最后一个斜杠；后续斜杠可能导致
+意外匹配或阻断。启用阻断前应在 monitor 模式下检查实际路径。
 .sp
 注意：进程拦截当前仅在全局策略为 \fIwhitelist\fP 时生效。
 .RE
