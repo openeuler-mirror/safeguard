@@ -40,7 +40,8 @@ Each module supports two scope targets:
 Apply restrictions globally, including host and container processes.
 .TP
 .B container
-Apply restrictions only to container processes; host processes are unaffected.
+Request container-only restrictions. The current file-access and process LSM
+programs do not filter by target and can also affect host processes.
 .RE
 .sp
 The global policy supports two modes:

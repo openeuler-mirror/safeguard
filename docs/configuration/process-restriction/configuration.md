@@ -6,7 +6,7 @@ Linux Kernel >= 5.13 is required to use this option.
 |:------:|:----|:-----------:|
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable process restrictions. Default is `false`. |
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, process execution events are only logged. If `block` is specified, matching process execution is blocked. |
-| `target` | Enum with the following possible values: `host`, `container` | Selecting `host` applies the restriction host-wide. Selecting `container` applies the restriction only to containers. |
+| `target` | Enum with the following possible values: `host`, `container` | Accepted configuration value; the current process LSM does not filter by target. |
 | `allow` | A list of allowed process names | Used when the global `policy` is `whitelist`. |
 
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the process restriction module disabled even when `mode`, `target`, or `allow` are configured.
@@ -26,6 +26,9 @@ process:
 !!! warning
 
     Process blocking currently works as a whitelist policy. If the global `policy` is not `whitelist`, the process LSM program allows execution.
+
+    `target: container` does not currently restrict this module to containers.
+    A process policy can also affect host processes; review it before using block mode.
 
 ## Policy Modes
 
