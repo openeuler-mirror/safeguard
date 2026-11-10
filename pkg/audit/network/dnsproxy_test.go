@@ -14,6 +14,30 @@ import (
 	"time"
 )
 
+func TestDNSProxyQueryCancel(t *testing.T) {
+	upstream, err := net.ListenPacket("udp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer upstream.Close()
+	host, port, err := net.SplitHostPort(upstream.LocalAddr().String())
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	proxy := &DNSProxy{ctx: ctx, client: &dns.Client{Timeout: time.Second}, dnsConfig: &dns.ClientConfig{Servers: []string{host}, Port: port}}
+	result := make(chan error, 1)
+	go func() { _, err := proxy.resolve("example.test.", dns.TypeA); result <- err }()
+	buffer := make([]byte, 512)
+	require.NoError(t, upstream.SetReadDeadline(time.Now().Add(time.Second)))
+	_, _, err = upstream.ReadFrom(buffer)
+	require.NoError(t, err)
+	cancel()
+	select {
+	case err := <-result:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("proxy query did not stop")
+	}
+}
+
 func TestDNSListenerLifecycle(t *testing.T) {
 	listeners, err := prepareDNSListeners([]string{"127.0.0.1:0"}, net.ListenPacket)
 	require.NoError(t, err)
