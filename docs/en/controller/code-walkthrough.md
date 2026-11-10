@@ -37,12 +37,14 @@ service.go
     ├─ Collector.Collect()  → HostSnapshot
     ├─ BuildWhitelist()     → WhitelistModel
     ├─ MarshalConfigYAML()  → YAML bytes
-    ├─ WriteFile()          → Save YAML config
     ├─ MarshalReportJSON()  → JSON bytes (optional)
+    ├─ WriteFile()          → Save YAML config
     └─ WriteFile()          → Save JSON report (optional)
-    │
-    ▼
-collector/ ◀───────────── model/ ◀───────────── render/
 ```
 
 The CLI defaults to `demo-whitelist.yaml` and `demo-whitelist-report.json`. Override with `--output` and `--report`. The generated config can be applied via `safeguard --config demo-whitelist.yaml`.
+
+The YAML and optional report are encoded before either file is written. If the
+report write fails, the already-written YAML is not rolled back. `processcheck`
+is a separate matching utility; it is not part of this generation flow and does
+not represent kernel enforcement results.
