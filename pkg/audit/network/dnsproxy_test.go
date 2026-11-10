@@ -14,6 +14,31 @@ import (
 	"time"
 )
 
+func TestPrepareDNSListeners(t *testing.T) {
+	var opened net.PacketConn
+	cause := errors.New("injected bind failure")
+	listen := func(network, address string) (net.PacketConn, error) {
+		if address == "fail" {
+			return nil, cause
+		}
+		var err error
+		opened, err = net.ListenPacket(network, address)
+		return opened, err
+	}
+	listeners, err := prepareDNSListeners([]string{"127.0.0.1:0", "fail"}, listen)
+	require.ErrorIs(t, err, cause)
+	require.Nil(t, listeners)
+	_, err = opened.WriteTo([]byte("x"), opened.LocalAddr())
+	require.ErrorIs(t, err, net.ErrClosed)
+
+	listeners, err = prepareDNSListeners([]string{"127.0.0.1:0", "127.0.0.1:0"}, net.ListenPacket)
+	require.NoError(t, err)
+	require.Len(t, listeners, 2)
+	for _, listener := range listeners {
+		require.NoError(t, listener.Close())
+	}
+}
+
 func TestDNSZeroTTLCache(t *testing.T) {
 	for _, reverse := range []bool{false, true} {
 		dnsCache = newDNSCache()

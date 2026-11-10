@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"culinux/pkg/config"
 	log "culinux/pkg/log"
@@ -152,6 +153,22 @@ func createDNSConfig(dnsProxyConfig config.DNSProxyConfig) (*dns.ClientConfig, e
 	}
 
 	return dnsConfig, nil
+}
+
+// prepareDNSListeners reserves every address before serving any requests.
+func prepareDNSListeners(addresses []string, listen func(string, string) (net.PacketConn, error)) ([]net.PacketConn, error) {
+	var listeners []net.PacketConn
+	for _, address := range addresses {
+		conn, err := listen("udp", address)
+		if err != nil {
+			for _, previous := range listeners {
+				previous.Close()
+			}
+			return nil, fmt.Errorf("listen DNS on %s: %w", address, err)
+		}
+		listeners = append(listeners, conn)
+	}
+	return listeners, nil
 }
 
 func (mgr *Manager) StartDNSServer(bindAddress string) error {
