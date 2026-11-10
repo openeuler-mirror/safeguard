@@ -44,6 +44,13 @@ func TestCheckBPFLSMBootOverride(t *testing.T) {
 		{"lsm=bpf lsm=capability", false},
 		{"lsm=capability lsm=bpf", true},
 		{"quiet", true},
+		{`lsm="capability,bpf"`, true},
+		{`"lsm=capability,bpf"`, true},
+		{`lsm="capability, bpf"`, false},
+		{`lsm=capability -- lsm=bpf`, false},
+		{`quiet -- lsm=capability`, true},
+		{`other="value lsm=bpf" lsm=capability`, false},
+		{`other="value lsm=capability"`, true},
 	} {
 		readBoot := func() (string, error) { return tc.cmdline, nil }
 		err := checkBPFLSM(unavailable, readBoot, config)
