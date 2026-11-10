@@ -104,7 +104,7 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 	}
 
 	var consumers helpers.Consumers
-	consumers.Go(func() { helpers.DrainLost(lostChannel) })
+	consumers.Go(func() { helpers.ReportLost(lostChannel, MODULE) })
 	helpers.ReportReady(ctx)
 	consumers.Go(func() {
 		for {

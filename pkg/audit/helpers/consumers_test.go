@@ -1,12 +1,15 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 func TestConsumersWaitForInFlightHandler(t *testing.T) {
@@ -37,6 +40,35 @@ func TestLostDrainDoesNotBlockProducer(t *testing.T) {
 	}
 	close(lost)
 	consumers.Wait()
+}
+
+func TestLostDrainReportsNonzeroCounts(t *testing.T) {
+	lost := make(chan uint64, 3)
+	lost <- 3
+	lost <- 0
+	lost <- 7
+	close(lost)
+	var counts []uint64
+	drainLost(lost, func(count uint64) { counts = append(counts, count) })
+	if len(counts) != 2 || counts[0] != 3 || counts[1] != 7 {
+		t.Fatalf("unexpected loss counts: %v", counts)
+	}
+}
+
+func TestReportLostIncludesModuleAndCount(t *testing.T) {
+	logger := logrus.StandardLogger()
+	previousOutput, previousLevel := logger.Out, logger.GetLevel()
+	var output bytes.Buffer
+	logger.SetOutput(&output)
+	logger.SetLevel(logrus.InfoLevel)
+	t.Cleanup(func() { logger.SetOutput(previousOutput); logger.SetLevel(previousLevel) })
+	lost := make(chan uint64, 1)
+	lost <- 42
+	close(lost)
+	ReportLost(lost, "mount")
+	if !bytes.Contains(output.Bytes(), []byte("mount audit lost 42 events")) {
+		t.Fatalf("missing loss information: %s", output.String())
+	}
 }
 
 func TestConsumerFailureRequestsShutdown(t *testing.T) {
