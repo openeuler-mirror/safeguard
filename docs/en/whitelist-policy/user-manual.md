@@ -3,7 +3,8 @@
 ## Overview
 
 The whitelist policy feature enables automatic generation of security configurations
-based on the current host state. This provides a secure-by-default approach.
+based on the current host state. Review the result before enforcing it; generation
+defaults to monitor mode, which does not block violations.
 
 ## Configuration
 
@@ -36,13 +37,12 @@ safeguard controller generate --output whitelist.yaml --report report.json
 ## Generated Components
 
 ### Network
-- CIDR ranges from interfaces
-- Allowed UIDs/GIDs
-- Running process commands
+- Host addresses from interfaces and remote addresses from `/proc/net`
+- Allowed UIDs/GIDs from accounts and running processes
+- An empty command allow list
 
 ### Process
-- Currently running executables
-- User accounts
+- Names derived from currently running executables or process commands
 
 ### File Access
 - Home directories
@@ -63,6 +63,6 @@ If `--output whitelist.yaml` was used during generation, apply that file instead
 
 | Aspect | Monitor | Block |
 |--------|---------|-------|
-| Logging | All events | Violations only |
+| Effect | Observe policy violations | Enforce the policy |
 | Action | Log only | Prevent access |
-| Use case | Testing | Production |
+| Typical use | Review before enforcement | Enforcement after review |
