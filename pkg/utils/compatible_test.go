@@ -32,6 +32,25 @@ func TestCheckBPFLSMActiveListIsAuthoritative(t *testing.T) {
 	assert.Error(t, checkBPFLSM(unavailable, unavailable, unavailable))
 }
 
+func TestCheckBPFLSMBootOverride(t *testing.T) {
+	unavailable := func() (string, error) { return "", errors.New("unavailable") }
+	config := func() (string, error) { return `CONFIG_LSM="capability,bpf"`, nil }
+	for _, tc := range []struct {
+		cmdline string
+		want    bool
+	}{
+		{"quiet lsm=capability", false},
+		{"quiet lsm=capability,bpf", true},
+		{"lsm=bpf lsm=capability", false},
+		{"lsm=capability lsm=bpf", true},
+		{"quiet", true},
+	} {
+		readBoot := func() (string, error) { return tc.cmdline, nil }
+		err := checkBPFLSM(unavailable, readBoot, config)
+		assert.Equal(t, tc.want, err == nil, tc.cmdline)
+	}
+}
+
 func TestLSMListContainsBPF(t *testing.T) {
 	assert.True(t, lsmListContainsBPF("lockdown,capability,landlock,bpf,yama"))
 	assert.True(t, lsmListContainsBPF("lockdown, capability, bpf"))
