@@ -2,8 +2,9 @@ package fileaccess
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
-	"strings"
+	"os"
 	"sync"
 	"unsafe"
 
@@ -229,19 +230,20 @@ func (m *Manager) setModeAndTarget() error {
 	if err != nil {
 		return err
 	}
-	err = configMap.Pin(FILEACCESS_PIN)
-	if err != nil {
-		if !strings.Contains(err.Error(), "file exists") {
-			return err
-		}
-		if unpinErr := configMap.Unpin(FILEACCESS_PIN); unpinErr != nil {
-			return unpinErr
-		}
-		if pinErr := configMap.Pin(FILEACCESS_PIN); pinErr != nil {
-			return pinErr
-		}
+	if err := pinFileConfig(configMap.Pin); err != nil {
+		return err
 	}
 
 	m.ownsPin = true
+	return nil
+}
+
+func pinFileConfig(pin func(string) error) error {
+	if err := pin(FILEACCESS_PIN); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("file config pin %s already exists; verify ownership before removal: %w", FILEACCESS_PIN, err)
+		}
+		return fmt.Errorf("pin file config %s: %w", FILEACCESS_PIN, err)
+	}
 	return nil
 }

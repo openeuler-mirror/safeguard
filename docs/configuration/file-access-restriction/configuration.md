@@ -79,6 +79,10 @@ In whitelist mode, all access is denied by default. Make sure to:
 
 ### BPF map errors
 
+If `/sys/fs/bpf/file_config` already exists, startup fails without removing it.
+It may belong to another running instance or be left after a crash; verify its
+owner and stop the relevant instance before removing a stale pin.
+
 If you see errors related to BPF maps:
 
 1. Ensure kernel version is >= 5.13.
