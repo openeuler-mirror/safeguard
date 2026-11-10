@@ -27,7 +27,7 @@ func NewLogger() *log.Entry {
 func logLevel(level string) string {
 	logLevelEnv := os.Getenv("SAFEGUARD_LOG")
 	if logLevelEnv != "" {
-		return logLevelEnv
+		return strings.ToUpper(logLevelEnv)
 	}
 
 	return strings.ToUpper(level)
@@ -44,6 +44,12 @@ func SetLevel(level string) {
 		log.SetLevel(log.DebugLevel)
 	case "INFO":
 		log.SetLevel(log.InfoLevel)
+	case "WARN", "WARNING":
+		log.SetLevel(log.WarnLevel)
+	case "ERROR":
+		log.SetLevel(log.ErrorLevel)
+	case "FATAL":
+		log.SetLevel(log.FatalLevel)
 	default:
 		log.SetLevel(log.InfoLevel)
 	}

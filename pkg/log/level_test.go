@@ -7,12 +7,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSetLevel_WARNFallsBackToInfo(t *testing.T) {
+func TestSetLevelSupportedLevels(t *testing.T) {
 	prevLevel := log.GetLevel()
 	t.Cleanup(func() { log.SetLevel(prevLevel) })
-
-	SetLevel("WARN")
-	assert.Equal(t, log.InfoLevel, log.GetLevel())
+	t.Setenv("SAFEGUARD_LOG", "")
+	for _, tc := range []struct {
+		input string
+		want  log.Level
+	}{
+		{"warn", log.WarnLevel}, {"WARNING", log.WarnLevel},
+		{"error", log.ErrorLevel}, {"fatal", log.FatalLevel},
+		{"invalid", log.InfoLevel},
+	} {
+		SetLevel(tc.input)
+		assert.Equal(t, tc.want, log.GetLevel(), tc.input)
+	}
+	t.Setenv("SAFEGUARD_LOG", "dEbUg")
+	SetLevel("ERROR")
+	assert.Equal(t, log.DebugLevel, log.GetLevel())
 }
 
 func TestSetLevel_DebugLevel(t *testing.T) {
