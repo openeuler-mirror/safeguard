@@ -1,9 +1,11 @@
 package audit
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"culinux/pkg/config"
@@ -79,11 +81,15 @@ EXAMPLES:
 		log.SetLabel(conf.Log.Labels)
 		log.SetLevel(conf.Log.Level)
 
-		ctx, cancel := signal.NotifyContext(c.Context, os.Interrupt)
+		ctx, cancel := auditSignalContext(c.Context)
 		defer cancel()
 
 		return runTasksWithOptions(ctx, tasks, options)
 	}
 
 	return app
+}
+
+func auditSignalContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 }
