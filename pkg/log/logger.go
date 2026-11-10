@@ -124,7 +124,7 @@ func Error(err error) {
 
 // WithFields returns a log entry with additional fields.
 func WithFields(fields log.Fields) *log.Entry {
-	return log.WithFields(fields)
+	return Logger.WithFields(fields)
 }
 
 // LogLabels holds persistent labels for log entries.
