@@ -170,14 +170,9 @@ func RunAudit(ctx context.Context, wg *sync.WaitGroup, conf *config.Config) erro
 				continue
 			}
 
-			action := "MONITOR"
-			if event.Action == ACTION_BLOCK {
-				action = "BLOCKED"
-			}
-
 			log.WithFields(logrus.Fields{
 				"Module":     MODULE,
-				"Action":     action,
+				"Action":     processExecAction(event.Action),
 				"Hostname":   helpers.NodenameToString(event.Nodename),
 				"PID":        event.PID,
 				"PPID":       event.PPID,
@@ -213,6 +208,17 @@ func newAuditLog(event auditLog) log.RestrictedProcessLog {
 	}
 
 	return processAccessLog
+}
+
+func processExecAction(action uint8) string {
+	switch action {
+	case ACTION_MONITOR:
+		return "MONITOR"
+	case ACTION_BLOCK:
+		return "BLOCKED"
+	default:
+		return "UNKNOWN"
+	}
 }
 
 func parseEvent(eventBytes []byte) (auditLog, error) {

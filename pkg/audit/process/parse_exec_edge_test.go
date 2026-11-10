@@ -8,6 +8,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestProcessExecAction(t *testing.T) {
+	for _, tc := range []struct {
+		action uint8
+		want   string
+	}{
+		{ACTION_MONITOR, "MONITOR"},
+		{ACTION_BLOCK, "BLOCKED"},
+		{2, "UNKNOWN"},
+		{255, "UNKNOWN"},
+	} {
+		assert.Equal(t, tc.want, processExecAction(tc.action))
+	}
+}
+
 func TestParseExecEvent_ShortBytes(t *testing.T) {
 	_, err := parseExecEvent([]byte{0x01})
 	assert.Error(t, err)
