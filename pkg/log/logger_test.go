@@ -74,6 +74,15 @@ func TestSetLevelAndFormatter(t *testing.T) {
 	assert.True(t, ok)
 }
 
+func TestSetOutputFailurePreservesWriter(t *testing.T) {
+	previous := Logger.Logger.Out
+	path := t.TempDir() + "/missing/log"
+	err := SetOutput(path)
+	require.ErrorIs(t, err, os.ErrNotExist)
+	assert.ErrorContains(t, err, path)
+	assert.Same(t, previous, Logger.Logger.Out)
+}
+
 func TestSetOutputAndLabel(t *testing.T) {
 	prevLogger := Logger
 	prevOut := Logger.Logger.Out
