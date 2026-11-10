@@ -7,12 +7,13 @@ Linux Kernel >= 5.13 is required to use this option.
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable file access restrictions. Default is `false`. |
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, file access events are only logged. If `block` is specified, matching file access is blocked. |
 | `target` | Enum with the following possible values: `host`, `container` | Selecting `host` applies the restriction host-wide. Selecting `container` applies the restriction only to containers. |
-| `policy` | Enum with the following possible values: `blacklist`, `whitelist` | If `blacklist` is specified (default), allow all except denied. If `whitelist` is specified, deny all except allowed. |
+| `policy` (top level) | Enum with the following possible values: `blacklist`, `whitelist` | If `blacklist` is specified (default), allow all except denied. If `whitelist` is specified, deny all except allowed. |
 | `allow` | A list of allow file paths | |
-| `deny` | A list of allow file paths | |
+| `deny` | A list of denied file paths | |
 
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the file access restriction module disabled even when `mode`, `policy`, `allow`, or `deny` are configured.
 Use `monitor` mode first when validating a new file access policy, then switch to `block` after the required paths are confirmed.
+Check either example with `safeguard controller validate --config <path>` before applying it.
 
 ## Policy Modes
 
@@ -21,11 +22,11 @@ Use `monitor` mode first when validating a new file access policy, then switch t
 In blacklist mode, all file access is allowed by default. Only files in the `deny` list will be blocked.
 
 ```yaml
-file:
+policy: blacklist  # or omit for default
+files:
   enable: true
   mode: block
   target: host
-  policy: blacklist  # or omit for default
   deny:
     - /etc/passwd
     - /etc/shadow
@@ -36,11 +37,11 @@ file:
 In whitelist mode, all file access is denied by default. Only files in the `allow` list will be permitted.
 
 ```yaml
-file:
+policy: whitelist
+files:
   enable: true
   mode: block
   target: host
-  policy: whitelist
   allow:
     - /usr/bin
     - /etc
