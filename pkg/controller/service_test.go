@@ -244,6 +244,26 @@ func TestServiceGenerateMissingParentAliases(t *testing.T) {
 	}
 }
 
+func TestResolveOutputPath(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(root, "outside")
+	require.NoError(t, os.MkdirAll(filepath.Join(outside, "child"), 0755))
+	require.NoError(t, os.Symlink("outside/child", filepath.Join(root, "link")))
+	require.NoError(t, os.Symlink("loop", filepath.Join(root, "loop")))
+	for _, tc := range []struct{ input, want string }{
+		{root + "/link/../file", outside + "/file"},
+		{root + "/link/./missing/file", outside + "/child/missing/file"},
+		{root + "/link", outside + "/child"},
+		{root + "/unknown/../file", root + "/file"},
+	} {
+		got, err := resolveOutputPath(tc.input)
+		require.NoError(t, err, tc.input)
+		require.Equal(t, tc.want, got, tc.input)
+	}
+	_, err := resolveOutputPath(filepath.Join(root, "loop"))
+	require.ErrorContains(t, err, "too many symbolic links")
+}
+
 func TestServiceGenerateDanglingOutputAliases(t *testing.T) {
 	for _, absolute := range []bool{false, true} {
 		for _, reverse := range []bool{false, true} {

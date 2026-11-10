@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"culinux/pkg/controller/collector"
@@ -101,6 +102,52 @@ func (s Service) Generate(options GenerateOptions) error {
 	}
 
 	return nil
+}
+
+func resolveOutputPath(path string) (string, error) {
+	current := string(filepath.Separator)
+	if !filepath.IsAbs(path) {
+		var err error
+		current, err = os.Getwd()
+		if err != nil {
+			return "", err
+		}
+	}
+	parts := strings.Split(path, string(filepath.Separator))
+	hops := 0
+	for len(parts) > 0 {
+		part := parts[0]
+		parts = parts[1:]
+		if part == "" || part == "." {
+			continue
+		}
+		if part == ".." {
+			current = filepath.Dir(current)
+			continue
+		}
+		candidate := filepath.Join(current, part)
+		info, err := os.Lstat(candidate)
+		if os.IsNotExist(err) || err == nil && info.Mode()&os.ModeSymlink == 0 {
+			current = candidate
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		hops++
+		if hops > 40 {
+			return "", fmt.Errorf("too many symbolic links resolving %q", path)
+		}
+		target, err := os.Readlink(candidate)
+		if err != nil {
+			return "", err
+		}
+		if filepath.IsAbs(target) {
+			current = string(filepath.Separator)
+		}
+		parts = append(strings.Split(target, string(filepath.Separator)), parts...)
+	}
+	return current, nil
 }
 
 func resolveOutputTarget(path string) (string, error) {
