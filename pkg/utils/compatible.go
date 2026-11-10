@@ -124,15 +124,22 @@ func cmdlineHasBPFLSM(cmdline string) bool {
 
 // hasBPFLSM checks if BPF LSM is enabled via the active LSM list, boot parameters, or kernel config.
 func hasBPFLSM() error {
-	if activeLSM, err := readSecurityLSM(); err == nil && lsmListContainsBPF(activeLSM) {
+	return checkBPFLSM(readSecurityLSM, readCmdline, readKernelConfig)
+}
+
+func checkBPFLSM(readActive, readBoot, readConfig func() (string, error)) error {
+	if activeLSM, err := readActive(); err == nil {
+		if lsmListContainsBPF(activeLSM) {
+			return nil
+		}
+		return errors.New("BPF LSM is not present in the active LSM list")
+	}
+
+	if cmdline, err := readBoot(); err == nil && cmdlineHasBPFLSM(cmdline) {
 		return nil
 	}
 
-	if cmdline, err := readCmdline(); err == nil && cmdlineHasBPFLSM(cmdline) {
-		return nil
-	}
-
-	if kernelConfig, err := readKernelConfig(); err == nil && kernelConfigHasBPFLSM(kernelConfig) {
+	if kernelConfig, err := readConfig(); err == nil && kernelConfigHasBPFLSM(kernelConfig) {
 		return nil
 	}
 
