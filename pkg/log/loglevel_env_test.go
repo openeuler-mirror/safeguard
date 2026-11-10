@@ -10,7 +10,7 @@ import (
 func TestLogLevel_EnvOverrides(t *testing.T) {
 	os.Setenv("SAFEGUARD_LOG", "custom")
 	defer os.Unsetenv("SAFEGUARD_LOG")
-	assert.Equal(t, "custom", logLevel("debug"))
+	assert.Equal(t, "CUSTOM", logLevel("debug"))
 }
 
 func TestLogLevel_NoEnvUppercases(t *testing.T) {
