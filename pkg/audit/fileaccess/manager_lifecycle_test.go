@@ -1,9 +1,31 @@
 package fileaccess
 
 import (
+	"errors"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 )
+
+func TestFileConfigPinConflict(t *testing.T) {
+	for _, cause := range []error{nil, os.ErrExist, os.ErrPermission} {
+		calls := 0
+		err := pinFileConfig(func(path string) error {
+			calls++
+			if path != FILEACCESS_PIN {
+				t.Fatalf("unexpected pin path: %s", path)
+			}
+			return cause
+		})
+		if calls != 1 || !errors.Is(err, cause) {
+			t.Fatalf("calls=%d err=%v cause=%v", calls, err, cause)
+		}
+		if cause == os.ErrExist && !strings.Contains(err.Error(), "verify ownership") {
+			t.Fatalf("missing conflict guidance: %v", err)
+		}
+	}
+}
 
 type lifecycleBuffer struct{ stops, closes int }
 
