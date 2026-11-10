@@ -44,11 +44,14 @@ type WhitelistModel struct {
 
 ### 第二步：更新 BuildWhitelist
 
+以下代码是示意，需先添加字段和提取函数，并保留现有字段转换。
+
 ```go
 func BuildWhitelist(snapshot HostSnapshot, now time.Time) WhitelistModel {
     // 已有逻辑...
-    model.MyCustomField = extractCustomField(snapshot)
-    return model
+    result := WhitelistModel{} // 此处保留现有字段转换
+    result.MyCustomField = extractCustomField(snapshot)
+    return result
 }
 ```
 

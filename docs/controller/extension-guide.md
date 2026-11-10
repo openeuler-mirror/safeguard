@@ -14,7 +14,7 @@ func (c *MyCollector) Collect() (model.HostSnapshot, error) {
 
     // Collect your data
     snapshot.Hostname = "my-host"
-    snapshot.Accounts = []model.Account{...}
+    snapshot.Accounts = []model.Account{}
 
     return snapshot, nil
 }
@@ -23,11 +23,17 @@ func (c *MyCollector) Collect() (model.HostSnapshot, error) {
 ### Register Custom Collector
 
 ```go
-service := Service{
+service := controller.Service{
     Collector: &MyCollector{},
     Now:       time.Now,
 }
 ```
+
+Import `culinux/pkg/controller`, `culinux/pkg/controller/model`, and `time` for
+these examples. `Service.Generate` requires a collector and clock.
+
+The built-in collector returns errors for required hostname, account, process,
+and interface data; unreadable `/proc/net` files produce report warnings.
 
 ## Extending Whitelist Model
 
@@ -42,11 +48,14 @@ type WhitelistModel struct {
 
 ### Step 2: Update BuildWhitelist
 
+This sketch requires the new field and extraction function; retain existing mappings.
+
 ```go
 func BuildWhitelist(snapshot HostSnapshot, now time.Time) WhitelistModel {
     // existing logic...
-    model.MyCustomField = extractCustomField(snapshot)
-    return model
+    result := WhitelistModel{} // preserve the existing field mappings here
+    result.MyCustomField = extractCustomField(snapshot)
+    return result
 }
 ```
 
