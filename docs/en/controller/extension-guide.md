@@ -46,11 +46,14 @@ type WhitelistModel struct {
 
 ### Step 2: Update BuildWhitelist
 
+This sketch requires the new field and extraction function; retain existing mappings.
+
 ```go
 func BuildWhitelist(snapshot HostSnapshot, now time.Time) WhitelistModel {
     // existing logic...
-    model.MyCustomField = extractCustomField(snapshot)
-    return model
+    result := WhitelistModel{} // preserve the existing field mappings here
+    result.MyCustomField = extractCustomField(snapshot)
+    return result
 }
 ```
 
