@@ -25,6 +25,14 @@ type DNSProxy struct {
 
 func dnsResponseToDNSAnswer(response *dns.Msg) *DNSAnswer {
 	dnsAnswer := DNSAnswer{}
+	add := func(addresses []net.IP, ttl uint32) {
+		for _, address := range addresses {
+			dnsAnswer.Addresses = append(dnsAnswer.Addresses, address)
+			if len(dnsAnswer.Addresses) == 1 || ttl < dnsAnswer.TTL {
+				dnsAnswer.TTL = ttl
+			}
+		}
+	}
 	if len(response.Question) == 1 {
 		dnsAnswer.QueryType = response.Question[0].Qtype
 	}
@@ -32,16 +40,29 @@ func dnsResponseToDNSAnswer(response *dns.Msg) *DNSAnswer {
 		switch answer.Header().Rrtype {
 		case dns.TypeA:
 			if record, ok := answer.(*dns.A); ok {
-				dnsAnswer.Addresses = append(dnsAnswer.Addresses, record.A)
-				if len(dnsAnswer.Addresses) == 1 || record.Hdr.Ttl < dnsAnswer.TTL {
-					dnsAnswer.TTL = record.Hdr.Ttl
-				}
+				add([]net.IP{record.A}, record.Hdr.Ttl)
 			}
 		case dns.TypeAAAA:
 			if record, ok := answer.(*dns.AAAA); ok {
-				dnsAnswer.Addresses = append(dnsAnswer.Addresses, record.AAAA)
-				if len(dnsAnswer.Addresses) == 1 || record.Hdr.Ttl < dnsAnswer.TTL {
-					dnsAnswer.TTL = record.Hdr.Ttl
+				add([]net.IP{record.AAAA}, record.Hdr.Ttl)
+			}
+		case dns.TypeSVCB, dns.TypeHTTPS:
+			var record *dns.SVCB
+			switch value := answer.(type) {
+			case *dns.SVCB:
+				record = value
+			case *dns.HTTPS:
+				record = &value.SVCB
+			}
+			if record == nil || record.Priority == 0 {
+				continue
+			}
+			for _, value := range record.Value {
+				switch hint := value.(type) {
+				case *dns.SVCBIPv4Hint:
+					add(hint.Hint, record.Hdr.Ttl)
+				case *dns.SVCBIPv6Hint:
+					add(hint.Hint, record.Hdr.Ttl)
 				}
 			}
 		}
