@@ -432,7 +432,7 @@ func responseChain(records []dns.RR, name string, recordType uint16) ([]dns.RR, 
 				if rr.Header().Rrtype == dns.TypeA || rr.Header().Rrtype == dns.TypeAAAA {
 					address = true
 				}
-				if rr.Header().Rrtype == recordType {
+				if recordType == dns.TypeANY || rr.Header().Rrtype == recordType {
 					relevant = append(relevant, rr)
 				}
 			}

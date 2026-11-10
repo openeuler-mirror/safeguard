@@ -13,6 +13,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDNSAnyResponseAddresses(t *testing.T) {
+	var records []dns.RR
+	for _, text := range []string{
+		"name.example. 60 IN A 192.0.2.1",
+		"name.example. 30 IN AAAA 2001:db8::1",
+		"unrelated.example. 1 IN A 192.0.2.2",
+		"name.example. 90 IN TXT hello",
+	} {
+		record, err := dns.NewRR(text)
+		require.NoError(t, err)
+		records = append(records, record)
+	}
+	relevant, err := responseChain(records, "name.example.", dns.TypeANY)
+	require.NoError(t, err)
+	answer := dnsResponseToDNSAnswer(&dns.Msg{Answer: relevant})
+	require.Len(t, answer.Addresses, 2)
+	require.True(t, answer.Addresses[0].Equal(net.ParseIP("192.0.2.1")))
+	require.True(t, answer.Addresses[1].Equal(net.ParseIP("2001:db8::1")))
+	require.Equal(t, uint32(30), answer.TTL)
+	keys, err := domainNameToBPFMapKey("name.example.", answer.Addresses)
+	require.NoError(t, err)
+	require.Len(t, keys, 2)
+}
+
 func TestDNSCNAMEAddressConflict(t *testing.T) {
 	for _, record := range []string{"name.example. 60 IN A 192.0.2.1", "name.example. 60 IN AAAA 2001:db8::1"} {
 		alias, err := dns.NewRR("name.example. 60 IN CNAME target.example.")
