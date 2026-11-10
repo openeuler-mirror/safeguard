@@ -167,7 +167,10 @@ Whether to enable. Default: \fIfalse\fP.
 \fIhost\fP or \fIcontainer\fP.
 .TP
 .B allow
-List of allowed process names (used in whitelist mode). Matches the executable basename (e.g. \fIbash\fP, \fIpython3\fP).
+List of allowed process names (used in whitelist mode), for example \fIbash\fP.
+The current LSM searches only the first 16 path bytes for the last slash;
+later slashes can cause unexpected matches or blocks. Check paths in monitor
+mode before enabling blocking.
 .sp
 Note: Process blocking currently only takes effect when the global \fIpolicy\fP is \fIwhitelist\fP.
 .RE

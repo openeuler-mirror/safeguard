@@ -38,7 +38,16 @@ In blacklist mode, process execution is allowed by default. The current process 
 
 ### Whitelist Mode
 
-In whitelist mode, process execution is denied by default. Only process names in the `allow` list are permitted. Entries are matched against executable basenames, such as `bash` or `python3`.
+In whitelist mode, process execution is denied by default. The `allow` list
+contains executable names, such as `bash` or `python3`.
+
+!!! warning
+
+    The current LSM searches only the first 16 bytes of the execution path for
+    its last slash. If a later slash exists, the derived key may differ from the
+    executable basename, causing unexpected matches or blocks. Test actual paths
+    in monitor mode before enabling block mode; this limitation is not fixed by
+    the controller's generated list.
 
 ## Configuration Map Structure
 
