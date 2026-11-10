@@ -114,12 +114,18 @@ func kernelConfigHasBPFLSM(kernelConfig string) bool {
 
 // cmdlineHasBPFLSM checks if the boot command line lsm= parameter includes bpf.
 func cmdlineHasBPFLSM(cmdline string) bool {
+	_, enabled := cmdlineBPFLSM(cmdline)
+	return enabled
+}
+
+func cmdlineBPFLSM(cmdline string) (present, enabled bool) {
 	for _, field := range strings.Fields(cmdline) {
 		if strings.HasPrefix(field, "lsm=") {
-			return lsmListContainsBPF(strings.TrimPrefix(field, "lsm="))
+			present = true
+			enabled = lsmListContainsBPF(strings.TrimPrefix(field, "lsm="))
 		}
 	}
-	return false
+	return present, enabled
 }
 
 // hasBPFLSM checks if BPF LSM is enabled via the active LSM list, boot parameters, or kernel config.
@@ -135,8 +141,13 @@ func checkBPFLSM(readActive, readBoot, readConfig func() (string, error)) error 
 		return errors.New("BPF LSM is not present in the active LSM list")
 	}
 
-	if cmdline, err := readBoot(); err == nil && cmdlineHasBPFLSM(cmdline) {
-		return nil
+	if cmdline, err := readBoot(); err == nil {
+		if present, enabled := cmdlineBPFLSM(cmdline); present {
+			if enabled {
+				return nil
+			}
+			return errors.New("BPF LSM is not included in the boot lsm= override")
+		}
 	}
 
 	if kernelConfig, err := readConfig(); err == nil && kernelConfigHasBPFLSM(kernelConfig) {
