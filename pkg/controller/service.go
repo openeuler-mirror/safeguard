@@ -42,27 +42,16 @@ func (s Service) Generate(options GenerateOptions) error {
 		return fmt.Errorf("output path must not be empty")
 	}
 	if options.ReportPath != "" {
-		output, err := filepath.Abs(options.OutputPath)
+		output, err := resolveOutputPath(options.OutputPath)
 		if err != nil {
 			return fmt.Errorf("resolve output path: %w", err)
 		}
-		report, err := filepath.Abs(options.ReportPath)
+		report, err := resolveOutputPath(options.ReportPath)
 		if err != nil {
 			return fmt.Errorf("resolve report path: %w", err)
 		}
-		resolvedOutput, err := resolveOutputTarget(output)
-		if err != nil {
-			return fmt.Errorf("resolve output parent: %w", err)
-		}
-		resolvedReport, err := resolveOutputTarget(report)
-		if err != nil {
-			return fmt.Errorf("resolve report parent: %w", err)
-		}
-		if resolvedOutput == resolvedReport {
-			return fmt.Errorf("output and report must refer to different files")
-		}
-		outputInfo, outputErr := os.Stat(output)
-		reportInfo, reportErr := os.Stat(report)
+		outputInfo, outputErr := os.Stat(options.OutputPath)
+		reportInfo, reportErr := os.Stat(options.ReportPath)
 		if output == report || (outputErr == nil && reportErr == nil && os.SameFile(outputInfo, reportInfo)) {
 			return fmt.Errorf("output and report must refer to different files")
 		}
