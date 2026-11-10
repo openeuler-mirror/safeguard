@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"sync"
+
+	log "culinux/pkg/log"
 )
 
 // Consumers joins event handlers before their backing module is released.
@@ -68,6 +70,20 @@ func (c *Consumers) Wait() error {
 
 // DrainLost keeps perf-buffer loss reporting from blocking producer shutdown.
 func DrainLost(lost <-chan uint64) {
-	for range lost {
+	drainLost(lost, func(uint64) {})
+}
+
+// ReportLost drains perf-buffer loss notifications and records their source.
+func ReportLost(lost <-chan uint64, module string) {
+	drainLost(lost, func(count uint64) {
+		log.Error(fmt.Errorf("%s audit lost %d events", module, count))
+	})
+}
+
+func drainLost(lost <-chan uint64, report func(uint64)) {
+	for count := range lost {
+		if count != 0 {
+			report(count)
+		}
 	}
 }
