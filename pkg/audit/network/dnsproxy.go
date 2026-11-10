@@ -17,6 +17,7 @@ const (
 )
 
 type DNSProxy struct {
+	ctx       context.Context
 	client    *dns.Client
 	dnsConfig *dns.ClientConfig
 	manager   *Manager
@@ -143,7 +144,11 @@ func (this *DNSProxy) resolve(domainName string, queryType uint16) (*dns.Msg, er
 	m.RecursionDesired = true
 
 	resolver := DefaultResolver{config: this.dnsConfig, client: this.client}
-	return resolver.exchange(context.Background(), m)
+	ctx := this.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return resolver.exchange(ctx, m)
 }
 
 func createDNSConfig(dnsProxyConfig config.DNSProxyConfig) (*dns.ClientConfig, error) {
