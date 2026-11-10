@@ -119,13 +119,51 @@ func cmdlineHasBPFLSM(cmdline string) bool {
 }
 
 func cmdlineBPFLSM(cmdline string) (present, enabled bool) {
-	for _, field := range strings.Fields(cmdline) {
+	for _, field := range kernelCommandLineFields(cmdline) {
+		if strings.HasPrefix(field, `"`) {
+			field = strings.TrimPrefix(field, `"`)
+			field = strings.TrimSuffix(field, `"`)
+		}
+		if field == "--" {
+			break
+		}
 		if strings.HasPrefix(field, "lsm=") {
 			present = true
-			enabled = lsmListContainsBPF(strings.TrimPrefix(field, "lsm="))
+			value := strings.TrimPrefix(field, "lsm=")
+			if strings.HasPrefix(value, `"`) {
+				value = strings.TrimSuffix(strings.TrimPrefix(value, `"`), `"`)
+			}
+			enabled = false
+			for _, name := range strings.Split(value, ",") {
+				enabled = enabled || name == "bpf"
+			}
 		}
 	}
 	return present, enabled
+}
+
+func kernelCommandLineFields(line string) []string {
+	var fields []string
+	start, quoted := -1, false
+	for i := 0; i < len(line); i++ {
+		if strings.ContainsRune(" \t\n\r\v\f", rune(line[i])) && !quoted {
+			if start >= 0 {
+				fields = append(fields, line[start:i])
+				start = -1
+			}
+			continue
+		}
+		if start < 0 {
+			start = i
+		}
+		if line[i] == '"' {
+			quoted = !quoted
+		}
+	}
+	if start >= 0 {
+		fields = append(fields, line[start:])
+	}
+	return fields
 }
 
 // hasBPFLSM checks if BPF LSM is enabled via the active LSM list, boot parameters, or kernel config.
