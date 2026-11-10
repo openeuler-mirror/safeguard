@@ -37,12 +37,12 @@ service.go
     ├─ Collector.Collect()  → HostSnapshot
     ├─ BuildWhitelist()     → WhitelistModel
     ├─ MarshalConfigYAML()  → YAML bytes
-    ├─ WriteFile()          → 保存 YAML 配置
     ├─ MarshalReportJSON()  → JSON bytes (可选)
+    ├─ WriteFile()          → 保存 YAML 配置
     └─ WriteFile()          → 保存 JSON 报告 (可选)
-    │
-    ▼
-collector/ ◀───────────── model/ ◀───────────── render/
 ```
 
 CLI 默认输出 `demo-whitelist.yaml` 和 `demo-whitelist-report.json`，可以通过 `--output` 和 `--report` 覆盖。默认生成的配置可通过 `safeguard --config demo-whitelist.yaml` 应用。
+
+YAML 和可选报告先完成编码，再依次写入；如果报告写入失败，已写入的 YAML
+不会回滚。`processcheck` 是独立匹配工具，不参与上述生成流程，也不代表内核策略的执行结果。
