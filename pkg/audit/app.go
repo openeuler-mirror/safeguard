@@ -80,6 +80,7 @@ EXAMPLES:
 			return err
 		}
 		log.SetRotation(conf.Log.Output, conf.Log.MaxSize, conf.Log.MaxAge)
+		defer log.SetOutput("stdout")
 		log.SetLabel(conf.Log.Labels)
 		log.SetLevel(conf.Log.Level)
 
