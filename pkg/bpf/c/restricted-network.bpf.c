@@ -147,34 +147,34 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
     allow_gid = -EPERM;
   }
 
-  struct sockaddr a;
-  bpf_probe_read_kernel(&a, sizeof(struct sockaddr), address);
+  struct sockaddr_in6 a = {};
+  if (bpf_probe_read_kernel(&a, sizeof(struct sockaddr), address))
+    return 0;
 
-  bool is_ipv6 = (a.sa_family == AF_INET6);
-  bool is_ipv4 = (a.sa_family == AF_INET);
+  bool is_ipv6 = (a.sin6_family == AF_INET6);
+  bool is_ipv4 = (a.sin6_family == AF_INET);
 
   if (!(is_ipv4 || is_ipv6))
     return 0;
 
-  struct sockaddr_in *inet_addr4;
-  struct sockaddr_in6 *inet_addr6;
-
-  if (is_ipv6) {
-    inet_addr6 = (struct sockaddr_in6 *)&a;
-  } else {
-    inet_addr4 = (struct sockaddr_in *)&a;
-  }
+  if (is_ipv6 && bpf_probe_read_kernel(&a, sizeof(a), address))
+    return 0;
+  struct sockaddr_in *inet_addr4 = (struct sockaddr_in *)&a;
+  struct sockaddr_in6 *inet_addr6 = &a;
 
   if ((is_ipv6 && is_destination_port_zero_v6(inet_addr6)) ||
       (is_ipv4 && is_destination_port_zero_v4(inet_addr4))) {
     return 0;
   }
 
-  union ip_trie_key key = {.v4.prefixlen = 32, .v4.addr = inet_addr4->sin_addr};
+  union ip_trie_key key = {};
 
   if (is_ipv6) {
     key.v6.prefixlen = 128;
-    key.v6.addr = BPF_CORE_READ(inet_addr6, sin6_addr);
+    key.v6.addr = inet_addr6->sin6_addr;
+  } else {
+    key.v4.prefixlen = 32;
+    key.v4.addr = inet_addr4->sin_addr;
   }
 
   struct allowed_command_key allowed_command;
