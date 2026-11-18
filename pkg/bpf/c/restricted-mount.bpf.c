@@ -32,6 +32,7 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
 
     event.cgroup = bpf_get_current_cgroup_id();
     event.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+    event.uid = (u32)bpf_get_current_uid_gid();
 	BPF_CORE_READ_INTO(&event.nodename, current_task, nsproxy, uts_ns, name.nodename);
     bpf_get_current_comm(&event.task, sizeof(event.task));
     bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
@@ -135,6 +136,7 @@ int BPF_PROG(restricted_move_mount, const struct path *from_path, const struct p
 
     event.cgroup = bpf_get_current_cgroup_id();
     event.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+    event.uid = (u32)bpf_get_current_uid_gid();
     bpf_get_current_comm(&event.task, sizeof(event.task));
     bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
 
