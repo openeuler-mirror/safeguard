@@ -30,7 +30,6 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
     struct mount_safeguard_config *config = (struct mount_safeguard_config *)bpf_map_lookup_elem(&mount_safeguard_config_map, &index);
 	if(dev_name == NULL) return ret;
 
-	BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum);
     event.cgroup = bpf_get_current_cgroup_id();
     event.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
 	BPF_CORE_READ_INTO(&event.nodename, current_task, nsproxy, uts_ns, name.nodename);
@@ -84,8 +83,13 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
 
 out:
 
-    if (config && config->target == TARGET_CONTAINER && inum == 0xF0000000) {
-        return 0;
+    if (config && config->target == TARGET_CONTAINER) {
+        if (BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum)) {
+            return 0;
+        }
+        if ((u32)inum == config->host_mnt_ns) {
+            return 0;
+        }
     }
 
     if (find && config && config->mode == MODE_MONITOR) {
