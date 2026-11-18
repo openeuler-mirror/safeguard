@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	log "culinux/pkg/log"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,4 +79,20 @@ func TestApp_ConfigFailureReturnsErrorBeforeStartingModules(t *testing.T) {
 			assert.ErrorIs(t, err, os.ErrNotExist)
 		}
 	}
+}
+
+func TestAppClosesLogOnStartupError(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("audit startup requires root")
+	}
+	previous := log.Logger.Logger.Out
+	t.Cleanup(func() { log.Logger.Logger.SetOutput(previous) })
+	t.Setenv("SKIP_COMPATIBLE_CHECK", "1")
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	content := fmt.Sprintf("process:\n  enable: true\nlog:\n  output: %s\n", filepath.Join(dir, "audit.log"))
+	require.NoError(t, os.WriteFile(configPath, []byte(content), 0600))
+	err := NewApp("test").Run([]string{"safeguard", "--config", configPath, "--startup-timeout", "-1s"})
+	require.ErrorContains(t, err, "startup timeout")
+	assert.Same(t, os.Stdout, log.Logger.Logger.Out)
 }
