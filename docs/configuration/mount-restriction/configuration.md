@@ -8,7 +8,7 @@ Linux Kernel >= 5.13 is required to use this option.
 |:------:|:----|:-----------:|
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable mount restrictions. Default is `false`. |
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, mount events are only logged. If `block` is specified, matching mount attempts are blocked. |
-| `target` | Enum with the following possible values: `host`, `container` | Selecting `host` applies the restriction host-wide. Selecting `container` applies the restriction only to containers. |
+| `target` | Enum with the following possible values: `host`, `container` | `container` uses a fixed namespace identifier for `sb_mount`; `move_mount` has no target filter. Both can affect host processes. |
 | `deny` | A list of denied mount source paths | Compared with the mount source path or device name, for example `/var/run/docker.sock`. |
 
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the mount restriction module disabled even when `mode`, `target`, or `deny` are configured.
@@ -45,7 +45,13 @@ Review the logs to confirm the denied paths are correct, then switch to `block` 
 
 ## Container-Targeted Restriction
 
-Apply mount restrictions only to containers, leaving host processes unrestricted:
+Request container-targeted mount restrictions:
+
+!!! warning
+
+    The fixed identifier used by `sb_mount` may not match the host namespace,
+    and `move_mount` does not filter by target. Either hook can restrict host
+    processes; verify before using block mode.
 
 ```yaml
 mount:
