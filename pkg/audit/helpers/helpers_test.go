@@ -143,7 +143,7 @@ func TestAuditConfigMapKeyWidth(t *testing.T) {
 		object, name string
 		valueSize    int
 	}{
-		{"network", "network_safeguard_config_map", 24}, {"file", "fileopen_safeguard_config_map", 12},
+		{"network", "network_safeguard_config_map", 28}, {"file", "fileopen_safeguard_config_map", 12},
 		{"mount", "mount_safeguard_config_map", 8}, {"process", "process_safeguard_config_map", 16},
 	} {
 		data, err := bpf.EmbedFS.ReadFile("bytecode/restricted-" + tc.object + ".bpf.o")
@@ -157,7 +157,7 @@ func TestAuditConfigMapKeyWidth(t *testing.T) {
 		module.Close()
 		injected := errors.New("update failed")
 		fake := &configMapProbe{keySize: 4, valueSize: tc.valueSize, err: injected}
-		payload := []byte("abcdefghijklmnopqrstuvwx")[:tc.valueSize]
+		payload := []byte("abcdefghijklmnopqrstuvwxyz12")[:tc.valueSize]
 		require.ErrorIs(t, UpdateConfigMap(fake, payload), injected)
 		require.Zero(t, fake.key)
 		require.Equal(t, payload, fake.value)

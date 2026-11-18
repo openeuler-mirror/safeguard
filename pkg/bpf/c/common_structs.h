@@ -118,6 +118,7 @@ struct network_safeguard_config
   int has_allow_command;
   int has_allow_uid;
   int has_allow_gid;
+  u32 host_mnt_ns;
 };
 
 struct buffer {

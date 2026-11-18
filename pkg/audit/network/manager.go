@@ -47,7 +47,7 @@ const (
 	   +---------------+---------------+---------------+-------------------+-------------------+-------------------+
 	*/
 
-	MAP_SIZE                = 24
+	MAP_SIZE                = 28
 	MAP_MODE_START          = 0
 	MAP_MODE_END            = 4
 	MAP_TARGET_START        = 4
@@ -57,6 +57,7 @@ const (
 	MAP_ALLOW_COMMAND_INDEX = 12
 	MAP_ALLOW_UID_INDEX     = 16
 	MAP_ALLOW_GID_INDEX     = 20
+	MAP_HOST_MNT_INDEX      = 24
 )
 
 // Manager manages network audit events and BPF map operations for network restriction.
@@ -263,13 +264,25 @@ func (m *Manager) setConfigMap() error {
 	binary.LittleEndian.PutUint32(key[MAP_ALLOW_UID_INDEX:MAP_ALLOW_UID_INDEX+4], uint32(len(m.config.RestrictedNetworkConfig.UID.Allow)))
 	binary.LittleEndian.PutUint32(key[MAP_ALLOW_GID_INDEX:MAP_ALLOW_GID_INDEX+4], uint32(len(m.config.RestrictedNetworkConfig.GID.Allow)))
 
-	err = helpers.UpdateConfigMap(configMap, key)
+	return writeNetworkConfigMap(configMap, key, m.config.IsOnlyContainer("network"), helpers.HostMountNamespace)
+}
 
-	if err != nil {
-		return err
+func writeNetworkConfigMap(m interface {
+	KeySize() int
+	ValueSize() int
+	Update(unsafe.Pointer, unsafe.Pointer) error
+}, value []byte, container bool, hostNamespace func() (uint32, error)) error {
+	if container {
+		if len(value) < MAP_HOST_MNT_INDEX+4 {
+			return fmt.Errorf("network configuration payload is too short")
+		}
+		inode, err := hostNamespace()
+		if err != nil {
+			return fmt.Errorf("identify host mount namespace: %w", err)
+		}
+		binary.LittleEndian.PutUint32(value[MAP_HOST_MNT_INDEX:MAP_HOST_MNT_INDEX+4], inode)
 	}
-
-	return nil
+	return helpers.UpdateConfigMap(m, value)
 }
 
 func (m *Manager) setAllowedCommandList() error {
