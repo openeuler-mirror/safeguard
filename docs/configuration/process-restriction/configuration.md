@@ -10,6 +10,7 @@ Linux Kernel >= 5.13 is required to use this option.
 | `allow` | A list of allowed process names | Used when the global `policy` is `whitelist`. |
 
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the process restriction module disabled even when `mode`, `target`, or `allow` are configured.
+Entries in `allow` are process names, not paths; values containing `/` are rejected.
 Use `monitor` mode first when validating a new process policy, then switch to `block` after the allowed process list is confirmed.
 
 ```yaml

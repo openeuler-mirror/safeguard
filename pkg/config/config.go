@@ -303,6 +303,11 @@ func (c *Config) Validate() error {
 		if err := validateCommRules("process.allow", c.RestrictedProcessConfig.Allow); err != nil {
 			return err
 		}
+		for i, name := range c.RestrictedProcessConfig.Allow {
+			if strings.ContainsRune(name, '/') {
+				return fmt.Errorf("process.allow[%d]: use a process name, not a path", i)
+			}
+		}
 	}
 	if c.RestrictedNetworkConfig.Enable {
 		if err := c.RestrictedNetworkConfig.validate(); err != nil {
