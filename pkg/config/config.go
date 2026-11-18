@@ -214,6 +214,11 @@ func (c *Config) Validate() error {
 	if _, exists := c.Log.Labels["safeguard_pid"]; exists {
 		return errors.New("log.labels.safeguard_pid is reserved")
 	}
+	switch strings.ToUpper(c.Log.Level) {
+	case "TRACE", "DEBUG", "INFO", "WARN", "WARNING", "ERROR", "FATAL":
+	default:
+		return fmt.Errorf("invalid log.level %q", c.Log.Level)
+	}
 	if c.Policy != "blacklist" && c.Policy != "whitelist" {
 		return fmt.Errorf("invalid policy %q: must be blacklist or whitelist", c.Policy)
 	}
