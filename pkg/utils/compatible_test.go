@@ -91,6 +91,22 @@ func TestKernelConfigHasBPFLSM(t *testing.T) {
 	assert.False(t, kernelConfigHasBPFLSM(""))
 }
 
+func TestKernelConfigLSMLineMustBeExact(t *testing.T) {
+	for _, tc := range []struct {
+		config string
+		want   bool
+	}{
+		{"CONFIG_LSM=\"capability,bpf\"\r\n", true},
+		{"# CONFIG_LSM=\"bpf\"\n", false},
+		{"OTHER_CONFIG_LSM=\"bpf\"\n", false},
+		{"CONFIG_LSM=\"capability, bpf\"\n", false},
+		{"CONFIG_LSM=\"bpf\" # comment\n", false},
+		{"CONFIG_LSM=\"invalid\",bpf\"\n", false},
+	} {
+		assert.Equal(t, tc.want, kernelConfigHasBPFLSM(tc.config), tc.config)
+	}
+}
+
 func TestCmdlineHasBPFLSM(t *testing.T) {
 	assert.True(t, cmdlineHasBPFLSM("quiet splash lsm=lockdown,yama,bpf audit=1"))
 	assert.True(t, cmdlineHasBPFLSM("lsm=bpf"))

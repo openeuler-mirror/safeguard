@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"runtime"
 	"strings"
 )
@@ -107,9 +106,23 @@ func lsmListContainsBPF(lsmList string) bool {
 
 // kernelConfigHasBPFLSM checks if the kernel CONFIG_LSM option includes bpf.
 func kernelConfigHasBPFLSM(kernelConfig string) bool {
-	re := regexp.MustCompile(`CONFIG_LSM="([^"]*)"`)
-	matches := re.FindStringSubmatch(kernelConfig)
-	return len(matches) > 0 && lsmListContainsBPF(matches[1])
+	for _, line := range strings.Split(kernelConfig, "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if !strings.HasPrefix(line, `CONFIG_LSM="`) || !strings.HasSuffix(line, `"`) {
+			continue
+		}
+		value := strings.TrimSuffix(strings.TrimPrefix(line, `CONFIG_LSM="`), `"`)
+		if strings.ContainsRune(value, '"') {
+			return false
+		}
+		for _, name := range strings.Split(value, ",") {
+			if name == "bpf" {
+				return true
+			}
+		}
+		return false
+	}
+	return false
 }
 
 // cmdlineHasBPFLSM checks if the boot command line lsm= parameter includes bpf.
