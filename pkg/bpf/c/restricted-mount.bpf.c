@@ -124,7 +124,14 @@ int BPF_PROG(restricted_move_mount, const struct path *from_path, const struct p
     struct task_struct *current_task = (struct task_struct *)bpf_get_current_task();
     struct task_struct *parent_task = BPF_CORE_READ(current_task, real_parent);
     BPF_CORE_READ_INTO(&event.nodename, current_task, nsproxy, uts_ns, name.nodename);
-    BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum);
+    if (config && config->target == TARGET_CONTAINER) {
+        if (BPF_CORE_READ_INTO(&inum, current_task, nsproxy, mnt_ns, ns.inum)) {
+            return 0;
+        }
+        if ((u32)inum == config->host_mnt_ns) {
+            return 0;
+        }
+    }
 
     event.cgroup = bpf_get_current_cgroup_id();
     event.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
