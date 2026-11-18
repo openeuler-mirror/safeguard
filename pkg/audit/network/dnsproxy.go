@@ -118,6 +118,9 @@ func (this *DNSProxy) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 		msg.Ns = append(msg.Ns, res.Ns...)
 		if res.Rcode != dns.RcodeSuccess {
+			if res.Rcode == dns.RcodeNameError {
+				this.manager.dnsCache.Replace(fqdn, 0, nil, 0)
+			}
 			msg.Rcode = res.Rcode
 			writeDNSResponse(w, &msg)
 			return
