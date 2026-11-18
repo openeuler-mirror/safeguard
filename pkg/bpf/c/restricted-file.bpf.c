@@ -62,6 +62,15 @@ static __always_inline int get_perm(struct file_open_audit_event *event) {
     struct fileopen_safeguard_config *config =
 				(struct fileopen_safeguard_config *)bpf_map_lookup_elem(&fileopen_safeguard_config_map, &findex);
 
+	if (config && config->target == TARGET_CONTAINER) {
+		u32 current_mnt_ns = 0;
+		struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+		if (BPF_CORE_READ_INTO(&current_mnt_ns, task, nsproxy, mnt_ns, ns.inum))
+			return 0;
+		if (current_mnt_ns == config->host_mnt_ns)
+			return 0;
+	}
+
 	u32 policy = POLICY_BLACKLIST;
 	if (config) {
 		policy = config->policy;
