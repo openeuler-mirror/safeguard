@@ -33,6 +33,8 @@ safeguard 的配置文件是 YAML 格式，包含顶层配置节。每个限制�
 | `dns_proxy` | 映射 | DNS 代理配置，详见[DNS 代理](../configuration/dns_proxy.md) |
 | `policy` | 枚举：`blacklist`、`whitelist` | 策略模式。`blacklist`（默认允许，阻止拒绝项）或 `whitelist`（默认阻止，允许白名单项） |
 
+`log.labels` 可设置附加标签；`safeguard_pid` 保留给当前进程 ID，配置该标签会被拒绝。
+
 ## 通用限制模块字段
 
 每个限制模块共享以下字段：
