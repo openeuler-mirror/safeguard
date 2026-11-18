@@ -9,6 +9,7 @@ import (
 func TestNewAuditLog_MountEvent(t *testing.T) {
 	var event auditLog
 	event.PID = 999
+	event.UID = 1234
 	event.Ret = 1
 	copy(event.Nodename[:], "host01")
 	copy(event.Command[:], "mount")
@@ -17,4 +18,5 @@ func TestNewAuditLog_MountEvent(t *testing.T) {
 	assert.Equal(t, "MONITOR", result.Action)
 	assert.Equal(t, "/dev/sda1", result.SourcePath)
 	assert.Equal(t, uint32(999), result.PID)
+	assert.Equal(t, uint32(1234), result.UID)
 }

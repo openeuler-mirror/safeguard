@@ -141,6 +141,7 @@ func newAuditLog(event auditLog) log.RestrictedMountLog {
 		Action:     retToaction(event.Ret),
 		Hostname:   helpers.NodenameToString(event.Nodename),
 		PID:        event.PID,
+		UID:        event.UID,
 		Comm:       helpers.CommToString(event.Command),
 		ParentComm: helpers.CommToString(event.ParentCommand),
 	}
