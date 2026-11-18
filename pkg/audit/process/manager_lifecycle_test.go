@@ -1,13 +1,50 @@
 package process
 
 import (
+	"encoding/binary"
 	"errors"
 	"reflect"
 	"sync"
 	"testing"
+	"unsafe"
 
 	"culinux/pkg/audit/helpers"
 )
+
+type processConfigProbe struct {
+	writes int
+	value  [MAP_SIZE]byte
+}
+
+func (p *processConfigProbe) KeySize() int   { return 4 }
+func (p *processConfigProbe) ValueSize() int { return MAP_SIZE }
+func (p *processConfigProbe) Update(_ unsafe.Pointer, value unsafe.Pointer) error {
+	p.writes++
+	p.value = *(*[MAP_SIZE]byte)(value)
+	return nil
+}
+
+func TestProcessHostNamespaceConfig(t *testing.T) {
+	cause := errors.New("namespace inaccessible")
+	probe := new(processConfigProbe)
+	value := make([]byte, MAP_SIZE)
+	err := writeProcessConfigMap(probe, value, true, func() (uint32, error) { return 0, cause })
+	if !errors.Is(err, cause) || probe.writes != 0 {
+		t.Fatalf("err=%v writes=%d", err, probe.writes)
+	}
+	err = writeProcessConfigMap(probe, value, true, func() (uint32, error) { return 0xf0000001, nil })
+	if err != nil || binary.LittleEndian.Uint32(probe.value[12:]) != 0xf0000001 {
+		t.Fatalf("err=%v value=%v", err, probe.value)
+	}
+	err = writeProcessConfigMap(probe, value, false, func() (uint32, error) { t.Fatal("unexpected namespace lookup"); return 0, nil })
+	if err != nil || probe.writes != 2 {
+		t.Fatalf("err=%v writes=%d", err, probe.writes)
+	}
+	err = writeProcessConfigMap(probe, nil, true, func() (uint32, error) { t.Fatal("unexpected namespace lookup"); return 0, nil })
+	if err == nil || probe.writes != 2 {
+		t.Fatalf("err=%v writes=%d", err, probe.writes)
+	}
+}
 
 type attachTestLink struct {
 	name      string

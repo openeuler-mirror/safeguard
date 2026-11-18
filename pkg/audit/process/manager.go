@@ -43,6 +43,7 @@ const (
 	MAP_POLICY_START        = 8
 	MAP_POLICY_END          = 12
 	MAP_ALLOW_PROCESS_INDEX = 12
+	MAP_HOST_MNT_INDEX      = MAP_ALLOW_PROCESS_INDEX
 )
 
 type Manager struct {
@@ -196,12 +197,25 @@ func (m *Manager) setConfigMap() error {
 	// 设置 allow process size
 	binary.LittleEndian.PutUint32(key[MAP_ALLOW_PROCESS_INDEX:MAP_ALLOW_PROCESS_INDEX+4], uint32(len(m.config.RestrictedProcessConfig.Allow)))
 
-	err = helpers.UpdateConfigMap(configMap, key)
-	if err != nil {
-		return err
-	}
+	return writeProcessConfigMap(configMap, key, m.config.IsOnlyContainer("process"), helpers.HostMountNamespace)
+}
 
-	return nil
+func writeProcessConfigMap(m interface {
+	KeySize() int
+	ValueSize() int
+	Update(unsafe.Pointer, unsafe.Pointer) error
+}, value []byte, container bool, hostNamespace func() (uint32, error)) error {
+	if container {
+		if len(value) < MAP_HOST_MNT_INDEX+4 {
+			return fmt.Errorf("process configuration payload is too short")
+		}
+		inode, err := hostNamespace()
+		if err != nil {
+			return fmt.Errorf("identify host mount namespace: %w", err)
+		}
+		binary.LittleEndian.PutUint32(value[MAP_HOST_MNT_INDEX:MAP_HOST_MNT_INDEX+4], inode)
+	}
+	return helpers.UpdateConfigMap(m, value)
 }
 
 func (m *Manager) setAllowedProcessList() error {
