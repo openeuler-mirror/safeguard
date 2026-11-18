@@ -179,16 +179,27 @@ func checkBPFLSM(readActive, readBoot, readConfig func() (string, error)) error 
 		return errors.New("BPF LSM is not present in the active LSM list")
 	}
 
+	bootEnablesBPF := false
 	if cmdline, err := readBoot(); err == nil {
 		if present, enabled := cmdlineBPFLSM(cmdline); present {
-			if enabled {
-				return nil
+			if !enabled {
+				return errors.New("BPF LSM is not included in the boot lsm= override")
 			}
-			return errors.New("BPF LSM is not included in the boot lsm= override")
+			bootEnablesBPF = true
 		}
 	}
 
-	if kernelConfig, err := readConfig(); err == nil && kernelConfigHasBPFLSM(kernelConfig) {
+	if kernelConfig, err := readConfig(); err == nil {
+		for _, line := range strings.Split(kernelConfig, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "# CONFIG_BPF_LSM is not set" || line == "CONFIG_BPF_LSM=n" {
+				return errors.New("BPF LSM is disabled in kernel configuration")
+			}
+		}
+		if bootEnablesBPF || kernelConfigHasBPFLSM(kernelConfig) {
+			return nil
+		}
+	} else if bootEnablesBPF {
 		return nil
 	}
 

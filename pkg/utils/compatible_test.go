@@ -58,6 +58,22 @@ func TestCheckBPFLSMBootOverride(t *testing.T) {
 	}
 }
 
+func TestCheckBPFLSMDisabledKernelConfig(t *testing.T) {
+	unavailable := func() (string, error) { return "", errors.New("unavailable") }
+	for _, boot := range []string{"quiet", "lsm=capability,bpf"} {
+		for _, disabled := range []string{"# CONFIG_BPF_LSM is not set", "CONFIG_BPF_LSM=n"} {
+			readBoot := func() (string, error) { return boot, nil }
+			readConfig := func() (string, error) { return "CONFIG_LSM=\"bpf\"\n" + disabled, nil }
+			assert.ErrorContains(t, checkBPFLSM(unavailable, readBoot, readConfig), "disabled")
+		}
+	}
+	boot := func() (string, error) { return "lsm=bpf", nil }
+	assert.NoError(t, checkBPFLSM(unavailable, boot, unavailable))
+	active := func() (string, error) { return "capability,bpf", nil }
+	disabled := func() (string, error) { return "CONFIG_BPF_LSM=n", nil }
+	assert.NoError(t, checkBPFLSM(active, boot, disabled))
+}
+
 func TestLSMListContainsBPF(t *testing.T) {
 	assert.True(t, lsmListContainsBPF("lockdown,capability,landlock,bpf,yama"))
 	assert.True(t, lsmListContainsBPF("lockdown, capability, bpf"))
