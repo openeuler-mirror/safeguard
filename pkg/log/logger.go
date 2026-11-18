@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"strconv"
@@ -16,7 +17,7 @@ import (
 var (
 	Logger      *log.Entry
 	outputMu    sync.Mutex
-	ownedOutput *os.File
+	ownedOutput io.Closer
 )
 
 func init() {
@@ -98,12 +99,14 @@ func SetRotation(path string, maxSize, maxAge int) {
 	outputMu.Lock()
 	defer outputMu.Unlock()
 
-	Logger.Logger.SetOutput(&lumberjack.Logger{
+	rotated := &lumberjack.Logger{
 		Filename: path,
 		MaxSize:  maxSize,
 		MaxAge:   maxAge,
-	})
+	}
+	Logger.Logger.SetOutput(rotated)
 	closeOwnedOutput()
+	ownedOutput = rotated
 }
 
 func closeOwnedOutput() {
