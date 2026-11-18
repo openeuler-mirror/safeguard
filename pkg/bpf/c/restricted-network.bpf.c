@@ -67,6 +67,7 @@ static inline void report_ipv4_event(void *ctx, u64 cg, enum action action,
   BPF_CORE_READ_INTO(&ev.hdr.nodename, current_task, nsproxy, uts_ns, name.nodename);
   ev.hdr.cgroup = cg;
   ev.hdr.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+  ev.hdr.uid = (u32)bpf_get_current_uid_gid();
   ev.hdr.type = BLOCKED_IPV4;
   bpf_get_current_comm(&ev.hdr.task, sizeof(ev.hdr.task));
 
@@ -100,6 +101,7 @@ static inline void report_ipv6_event(void *ctx, u64 cg, enum action action,
 
   ev.hdr.cgroup = cg;
   ev.hdr.pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+  ev.hdr.uid = (u32)bpf_get_current_uid_gid();
   ev.hdr.type = BLOCKED_IPV6;
   bpf_get_current_comm(&ev.hdr.task, sizeof(ev.hdr.task));
 

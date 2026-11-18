@@ -24,3 +24,11 @@ func TestParseEventHeader_EmptyBuffer(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestNetworkHeaderUIDFromWire(t *testing.T) {
+	raw := make([]byte, 120)
+	binary.LittleEndian.PutUint32(raw[116:120], 1234)
+	header, err := parseEventHeader(bytes.NewBuffer(raw))
+	assert.NoError(t, err)
+	result := newAuditLog(header, detectEventIPv4{}, nil)
+	assert.Equal(t, uint32(1234), result.UID)
+}

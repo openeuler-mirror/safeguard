@@ -24,7 +24,7 @@ const (
 	UPDATE_INTERVAL = 5
 	TASK_COMM_LEN   = 16
 	NEW_UTS_LEN     = 64
-	PADDING_LEN     = 7
+	PADDING_LEN     = 3
 	SRCIP_V4_LEN    = 4
 	DSTIP_V4_LEN    = 4
 	SRCIP_V6_LEN    = 16
@@ -52,6 +52,7 @@ type eventHeader struct {
 	Command       [TASK_COMM_LEN]byte
 	ParentCommand [TASK_COMM_LEN]byte
 	_             [PADDING_LEN]byte
+	UID           uint32
 }
 
 type detectEvent interface {
@@ -273,6 +274,7 @@ func newAuditLog(header eventHeader, body detectEvent, caches ...*dnsNameCache) 
 		Action:     body.ActionResult(),
 		Hostname:   helpers.NodenameToString(header.Nodename),
 		PID:        header.PID,
+		UID:        header.UID,
 		Comm:       helpers.CommToString(header.Command),
 		ParentComm: helpers.CommToString(header.ParentCommand),
 	}
