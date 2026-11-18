@@ -197,6 +197,7 @@ func (l *RestrictedNetworkLog) Info() {
 		"Action":     l.Action,
 		"Hostname":   l.Hostname,
 		"PID":        l.PID,
+		"UID":        l.UID,
 		"Comm":       l.Comm,
 		"ParentComm": l.ParentComm,
 		"Addr":       l.Addr,

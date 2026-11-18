@@ -25,7 +25,10 @@ struct audit_event_header
   char nodename[NEW_UTS_LEN + 1];
   char task[TASK_COMM_LEN];
   char parent_task[TASK_COMM_LEN];
+  u32 uid;
 };
+_Static_assert(__builtin_offsetof(struct audit_event_header, uid) == 116, "network UID offset changed");
+_Static_assert(sizeof(struct audit_event_header) == 120, "network event header size changed");
 struct allowed_command_key
 {
   char comm[TASK_COMM_LEN];
