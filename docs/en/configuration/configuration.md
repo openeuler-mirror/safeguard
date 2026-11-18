@@ -34,7 +34,7 @@ safeguard's configuration file is a YAML file containing top-level configuration
 | `dns_proxy` | Map (see [DNS Proxy](./dns_proxy.md)) | DNS proxy configuration. |
 | `log` | Map containing the following sub-keys: <br><li>`level: [TRACE|DEBUG|INFO|WARN|ERROR|FATAL]`</li><li>`format: [json|text]`</li><li>`output: <path>`</li><li>`max_size:`: Maximum size to rotate (MB). Default: 100MB</li><li>`max_age`: Backup retention in days. Default: 0 (no age-based removal)</li><li>`labels`: Key / Value to be added to the log.</li>| Log configuration. |
 
-Log levels are case-insensitive; `WARNING` is an alias for `WARN`. Unknown values are rejected.
+Log levels are case-insensitive; `WARNING` is an alias for `WARN`. `SAFEGUARD_LOG` overrides the configured level when audit modules start. Unknown values in either source are rejected.
 
 `log.labels.safeguard_pid` is reserved for the running process ID and is rejected.
 

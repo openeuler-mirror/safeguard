@@ -17,13 +17,15 @@ func TestSetLevelSupportedLevels(t *testing.T) {
 	}{
 		{"warn", log.WarnLevel}, {"WARNING", log.WarnLevel},
 		{"error", log.ErrorLevel}, {"fatal", log.FatalLevel},
-		{"invalid", log.InfoLevel},
 	} {
 		SetLevel(tc.input)
 		assert.Equal(t, tc.want, log.GetLevel(), tc.input)
 	}
 	t.Setenv("SAFEGUARD_LOG", "dEbUg")
 	SetLevel("ERROR")
+	assert.Equal(t, log.DebugLevel, log.GetLevel())
+	t.Setenv("SAFEGUARD_LOG", "unknown")
+	assert.Error(t, SetLevel("INFO"))
 	assert.Equal(t, log.DebugLevel, log.GetLevel())
 }
 

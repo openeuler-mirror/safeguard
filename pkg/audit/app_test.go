@@ -96,3 +96,18 @@ func TestAppClosesLogOnStartupError(t *testing.T) {
 	require.ErrorContains(t, err, "startup timeout")
 	assert.Same(t, os.Stdout, log.Logger.Logger.Out)
 }
+
+func TestAppRejectsInvalidLogEnvironment(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("audit startup requires root")
+	}
+	previous := log.Logger.Logger.Out
+	t.Cleanup(func() { log.Logger.Logger.SetOutput(previous) })
+	t.Setenv("SKIP_COMPATIBLE_CHECK", "1")
+	t.Setenv("SAFEGUARD_LOG", "bad-level")
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte("process:\n  enable: true\n"), 0600))
+	err := NewApp("test").Run([]string{"safeguard", "--config", configPath, "--startup-timeout", "-1s"})
+	require.ErrorContains(t, err, "BAD-LEVEL")
+	assert.Same(t, os.Stdout, log.Logger.Logger.Out)
+}

@@ -33,7 +33,7 @@ safeguard 的配置文件是 YAML 格式，包含顶层配置节。每个限制�
 | `dns_proxy` | 映射 | DNS 代理配置，详见[DNS 代理](../configuration/dns_proxy.md) |
 | `policy` | 枚举：`blacklist`、`whitelist` | 策略模式。`blacklist`（默认允许，阻止拒绝项）或 `whitelist`（默认阻止，允许白名单项） |
 
-日志级别支持 TRACE、DEBUG、INFO、WARN、ERROR、FATAL，不区分大小写；WARNING 是 WARN 的别名，未知级别会被拒绝。
+日志级别支持 TRACE、DEBUG、INFO、WARN、ERROR、FATAL，不区分大小写；WARNING 是 WARN 的别名。审计模块启动时，`SAFEGUARD_LOG` 会覆盖配置级别，两者的未知值均会被拒绝。
 
 `log.labels` 可设置附加标签；`safeguard_pid` 保留给当前进程 ID，配置该标签会被拒绝。
 

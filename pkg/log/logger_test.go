@@ -63,8 +63,8 @@ func TestSetLevelAndFormatter(t *testing.T) {
 
 	SetLevel("TRACE")
 	assert.Equal(t, log.TraceLevel, log.GetLevel())
-	SetLevel("invalid")
-	assert.Equal(t, log.InfoLevel, log.GetLevel())
+	assert.Error(t, SetLevel("invalid"))
+	assert.Equal(t, log.TraceLevel, log.GetLevel())
 
 	SetFormatter("text")
 	_, ok := Logger.Logger.Formatter.(*log.TextFormatter)
