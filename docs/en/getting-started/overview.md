@@ -39,7 +39,7 @@ Each restriction module is disabled by default. Set `enable: true` in the module
 - Monitoring and Blocking modes
     - Two modes are available: monitoring mode, which monitors and logs events, and blocking mode, which blocks events
 - For Containers
-    - Process and network rules compare mount namespaces; file and move-mount rules do not filter by target, and the other mount hook uses a fixed identifier
+    - Process, network and mount rules compare mount namespaces; file rules do not filter by target
 
 ## Demo
 

@@ -8,7 +8,7 @@ Linux Kernel >= 5.13 is required to use this option.
 |:------:|:----|:-----------:|
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable mount restrictions. Default is `false`. |
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, mount events are only logged. If `block` is specified, matching mount attempts are blocked. |
-| `target` | Enum with the following possible values: `host`, `container` | `container` uses a fixed namespace identifier for `sb_mount`; `move_mount` has no target filter. Both can affect host processes. |
+| `target` | Enum with the following possible values: `host`, `container` | `container` applies to processes outside host PID 1's mount namespace. |
 | `deny` | A list of denied mount source paths | Compared with the mount source path or device name, for example `/var/run/docker.sock`. |
 
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the mount restriction module disabled even when `mode`, `target`, or `deny` are configured.
@@ -49,9 +49,11 @@ Request container-targeted mount restrictions:
 
 !!! warning
 
-    The fixed identifier used by `sb_mount` may not match the host namespace,
-    and `move_mount` does not filter by target. Either hook can restrict host
-    processes; verify before using block mode.
+    Mount namespaces are a heuristic and do not identify containers. A host
+    service in a different mount namespace is also in scope; a container sharing
+    the host mount namespace is outside it. Startup requires access to host
+    PID 1's PID and mount namespaces. If the LSM cannot read the current mount
+    namespace, the operation is allowed rather than blocked.
 
 ```yaml
 mount:
