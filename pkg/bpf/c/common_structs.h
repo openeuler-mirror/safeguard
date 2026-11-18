@@ -85,6 +85,7 @@ struct fileopen_safeguard_config {
     u32 mode;
     u32 target;
     u32 policy;
+    u32 host_mnt_ns;
 };
 
 struct mount_audit_event {

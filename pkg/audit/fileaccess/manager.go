@@ -197,8 +197,8 @@ func (m *Manager) setDeniedFileAccessMap() error {
 	return nil
 }
 
-// ConfigKeySize is the size of the config key in bytes (3 uint32 fields: mode, target, policy)
-const ConfigKeySize = 12
+// ConfigKeySize is the size of the config value in bytes (four uint32 fields).
+const ConfigKeySize = 16
 
 func (m *Manager) setModeAndTarget() error {
 	key := make([]byte, ConfigKeySize)
@@ -226,7 +226,7 @@ func (m *Manager) setModeAndTarget() error {
 		binary.LittleEndian.PutUint32(key[8:12], POLICY_BLACKLIST)
 	}
 
-	err = helpers.UpdateConfigMap(configMap, key)
+	err = writeFileConfigMap(configMap, key, m.config.IsOnlyContainer("fileaccess"), helpers.HostMountNamespace)
 	if err != nil {
 		return err
 	}
@@ -236,6 +236,24 @@ func (m *Manager) setModeAndTarget() error {
 
 	m.ownsPin = true
 	return nil
+}
+
+func writeFileConfigMap(m interface {
+	KeySize() int
+	ValueSize() int
+	Update(unsafe.Pointer, unsafe.Pointer) error
+}, value []byte, container bool, hostNamespace func() (uint32, error)) error {
+	if container {
+		if len(value) < ConfigKeySize {
+			return fmt.Errorf("file configuration payload is too short")
+		}
+		inode, err := hostNamespace()
+		if err != nil {
+			return fmt.Errorf("identify host mount namespace: %w", err)
+		}
+		binary.LittleEndian.PutUint32(value[12:16], inode)
+	}
+	return helpers.UpdateConfigMap(m, value)
 }
 
 func pinFileConfig(pin func(string) error) error {
