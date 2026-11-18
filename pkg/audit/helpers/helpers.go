@@ -3,6 +3,8 @@ package helpers
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"syscall"
 	"unsafe"
 )
 
@@ -20,6 +22,39 @@ func cStringBytes(input []byte) string {
 		end = len(input)
 	}
 	return string(input[:end])
+}
+
+// HostMountNamespace returns PID 1's mount namespace after checking its PID namespace.
+func HostMountNamespace() (uint32, error) {
+	return hostMountNamespace(func(path string) (uint64, error) {
+		info, err := os.Stat(path)
+		if err != nil {
+			return 0, err
+		}
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok {
+			return 0, fmt.Errorf("namespace stat unavailable for %s", path)
+		}
+		return stat.Ino, nil
+	})
+}
+
+func hostMountNamespace(inode func(string) (uint64, error)) (uint32, error) {
+	pid, err := inode("/proc/1/ns/pid")
+	if err != nil {
+		return 0, fmt.Errorf("read PID 1 pid namespace: %w", err)
+	}
+	if pid != 0xeffffffc {
+		return 0, fmt.Errorf("PID 1 is not in the initial PID namespace")
+	}
+	mount, err := inode("/proc/1/ns/mnt")
+	if err != nil {
+		return 0, fmt.Errorf("read PID 1 mount namespace: %w", err)
+	}
+	if mount == 0 || mount > 1<<32-1 {
+		return 0, fmt.Errorf("invalid mount namespace inode %d", mount)
+	}
+	return uint32(mount), nil
 }
 
 // UpdateConfigMap writes the u32 zero key used by audit configuration maps.

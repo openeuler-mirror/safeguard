@@ -15,6 +15,44 @@ import (
 func bytesToNode(b [65]byte) [65]byte { return b }
 func bytesToComm(b [16]byte) [16]byte { return b }
 
+func TestHostMountNamespaceValidation(t *testing.T) {
+	cause := errors.New("namespace unavailable")
+	for _, tc := range []struct {
+		name       string
+		pid, mount uint64
+		fail       string
+		want       uint32
+	}{
+		{"valid", 0xeffffffc, 0xf0000001, "", 0xf0000001},
+		{"container pid namespace", 1234, 0xf0000001, "", 0},
+		{"zero mount namespace", 0xeffffffc, 0, "", 0},
+		{"oversized mount namespace", 0xeffffffc, 1 << 32, "", 0},
+		{"pid read failure", 0, 0, "/proc/1/ns/pid", 0},
+		{"mount read failure", 0xeffffffc, 0, "/proc/1/ns/mnt", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := hostMountNamespace(func(path string) (uint64, error) {
+				if path == tc.fail {
+					return 0, cause
+				}
+				if path == "/proc/1/ns/pid" {
+					return tc.pid, nil
+				}
+				return tc.mount, nil
+			})
+			assert.Equal(t, tc.want, got)
+			if tc.want == 0 {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			if tc.fail != "" {
+				assert.ErrorIs(t, err, cause)
+			}
+		})
+	}
+}
+
 func TestNodenameToString(t *testing.T) {
 	tests := []struct {
 		name   string
