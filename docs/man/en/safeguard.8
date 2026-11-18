@@ -40,9 +40,9 @@ Each module supports two scope targets:
 Apply restrictions globally, including host and container processes.
 .TP
 .B container
-Request container-only restrictions. Process, network and mount rules compare
-mount namespaces with host PID 1. File rules do not filter by target and can
-also affect host processes.
+Apply restrictions outside host PID 1's mount namespace. This is a heuristic:
+services with separate mount namespaces are included, while containers sharing
+the host mount namespace are excluded.
 .RE
 .sp
 The global policy supports two modes:

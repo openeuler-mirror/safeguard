@@ -6,7 +6,7 @@ Linux Kernel >= 5.13 is required to use this option.
 |:------:|:----|:-----------:|
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable file access restrictions. Default is `false`. |
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, file access events are only logged. If `block` is specified, matching file access is blocked. |
-| `target` | Enum with the following possible values: `host`, `container` | Accepted configuration value; the current file-access LSM does not filter by target. |
+| `target` | Enum with the following possible values: `host`, `container` | `container` applies to processes outside host PID 1's mount namespace. |
 | `policy` (top level) | Enum with the following possible values: `blacklist`, `whitelist` | If `blacklist` is specified (default), allow all except denied. If `whitelist` is specified, deny all except allowed. |
 | `allow` | A list of allow file paths | |
 | `deny` | A list of denied file paths | |
@@ -17,8 +17,11 @@ Check either example with `safeguard controller validate --config <path>` before
 
 !!! warning
 
-    `target: container` does not currently restrict this module to containers.
-    A file policy can also affect host processes; review it before using block mode.
+    Mount namespaces are a heuristic and do not identify containers. A host
+    service in a different mount namespace is also in scope; a container sharing
+    the host mount namespace is outside it. Startup requires access to host
+    PID 1's PID and mount namespaces. If the LSM cannot read the current mount
+    namespace, the operation is allowed rather than blocked.
 
 ## Policy Modes
 

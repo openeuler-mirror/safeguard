@@ -39,7 +39,7 @@ Each restriction module is disabled by default. Set `enable: true` in the module
 - Monitoring and Blocking modes
     - Two modes are available: monitoring mode, which monitors and logs events, and blocking mode, which blocks events
 - For Containers
-    - Process, network and mount rules compare mount namespaces; file rules do not filter by target
+    - All four restriction modules compare mount namespaces with host PID 1; this is a heuristic, not a container identity
 
 ## Demo
 
