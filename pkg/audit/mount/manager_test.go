@@ -3,9 +3,11 @@ package mount
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"testing"
 	"unsafe"
 
+	"culinux/pkg/audit/helpers"
 	"culinux/pkg/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -82,7 +84,13 @@ func Test_setModeAndTarget(t *testing.T) {
 				t.Fatalf("Failed to get value from eBPF map %s, err: %s", MOUNT_CONFIG, err)
 			}
 
-			assert.Equal(t, test.expected, actual)
+			hostNamespace, err := helpers.HostMountNamespace()
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := append(test.expected, make([]byte, 4)...)
+			binary.LittleEndian.PutUint32(expected[8:12], hostNamespace)
+			assert.Equal(t, expected, actual)
 		})
 	}
 }

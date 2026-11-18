@@ -124,7 +124,7 @@ func (m *Manager) SetConfigToMap() error {
 }
 
 func (m *Manager) setModeAndTarget() error {
-	key := make([]byte, 8)
+	key := make([]byte, 12)
 	configMap, err := m.mod.GetMap(MOUNT_CONFIG)
 	if err != nil {
 		return err
@@ -142,10 +142,23 @@ func (m *Manager) setModeAndTarget() error {
 		binary.LittleEndian.PutUint32(key[4:8], TARGET_HOST)
 	}
 
-	err = helpers.UpdateConfigMap(configMap, key)
-	if err != nil {
-		return err
-	}
+	return writeMountConfigMap(configMap, key, m.config.IsOnlyContainer("mount"), helpers.HostMountNamespace)
+}
 
-	return nil
+func writeMountConfigMap(m interface {
+	KeySize() int
+	ValueSize() int
+	Update(unsafe.Pointer, unsafe.Pointer) error
+}, value []byte, container bool, hostNamespace func() (uint32, error)) error {
+	if container {
+		if len(value) < 12 {
+			return fmt.Errorf("mount configuration payload is too short")
+		}
+		inode, err := hostNamespace()
+		if err != nil {
+			return fmt.Errorf("identify host mount namespace: %w", err)
+		}
+		binary.LittleEndian.PutUint32(value[8:12], inode)
+	}
+	return helpers.UpdateConfigMap(m, value)
 }
