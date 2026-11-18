@@ -157,6 +157,15 @@ int BPF_PROG(restricted_process_bprm_check, struct linux_binprm *bprm) {
         return 0;
     }
 
+    if (cfg->target == TARGET_CONTAINER) {
+        u32 current_mnt_ns = 0;
+        struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+        if (BPF_CORE_READ_INTO(&current_mnt_ns, task, nsproxy, mnt_ns, ns.inum))
+            return 0;
+        if (current_mnt_ns == cfg->host_mnt_ns)
+            return 0;
+    }
+
     // 仅白名单模式检查
     if (cfg->policy != POLICY_WHITELIST) {
         return 0;

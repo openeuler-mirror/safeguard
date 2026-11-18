@@ -107,7 +107,7 @@ struct process_safeguard_config {
     u32 mode;
     u32 target;
     u32 policy;
-    int has_allow_process;
+    u32 host_mnt_ns;
 };
 
 struct network_safeguard_config
