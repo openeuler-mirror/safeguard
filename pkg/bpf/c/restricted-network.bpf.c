@@ -208,7 +208,12 @@ static inline int get_net_perm(struct network_safeguard_config *c, struct sockad
   }
 
   if (c && c->target == TARGET_CONTAINER) {
-    if (!is_container()) {
+    u32 current_mnt_ns = 0;
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    if (BPF_CORE_READ_INTO(&current_mnt_ns, task, nsproxy, mnt_ns, ns.inum)) {
+      return 0;
+    }
+    if (current_mnt_ns == c->host_mnt_ns) {
       return 0;
     }
   }
