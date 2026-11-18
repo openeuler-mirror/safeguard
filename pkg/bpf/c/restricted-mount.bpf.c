@@ -37,7 +37,7 @@ int BPF_PROG(restricted_mount, const char* dev_name, const struct path *path, co
     bpf_probe_read_kernel_str(&event.parent_task, sizeof(event.parent_task), &parent_task->comm);
     bpf_probe_read_kernel_str(&event.path, sizeof(event.path), dev_name);
 
-#if 0 && LINUX_VERSION_CODE > VERSION_5_10
+#if LINUX_VERSION_CODE > VERSION_5_10
     struct callback_ctx cb = { .path = event.path, .found = false };
     bpf_for_each_map_elem(&mount_denied_source_list, cb_check_path, &cb, 0);
     if (cb.found) {
