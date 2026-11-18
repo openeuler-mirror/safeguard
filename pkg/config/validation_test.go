@@ -765,3 +765,15 @@ func TestDNSBindAddressFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestReservedLogProcessIDLabel(t *testing.T) {
+	conf := DefaultConfig()
+	conf.Log.Labels = map[string]string{"safeguard_pid": "spoofed"}
+	if err := conf.Validate(); err == nil || !strings.Contains(err.Error(), "log.labels.safeguard_pid") {
+		t.Fatalf("expected reserved label error, got %v", err)
+	}
+	conf.Log.Labels = map[string]string{"env": "test"}
+	if err := conf.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -119,6 +119,9 @@ func closeOwnedOutput() {
 // SetLabel sets persistent labels for all log entries.
 func SetLabel(labels map[string]string) {
 	for k, v := range labels {
+		if k == "safeguard_pid" {
+			continue
+		}
 		Logger = Logger.WithFields(log.Fields{k: v})
 	}
 }
