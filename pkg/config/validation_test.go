@@ -777,3 +777,20 @@ func TestReservedLogProcessIDLabel(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestProcessAllowRejectsPaths(t *testing.T) {
+	for _, name := range []string{"/bin/sh", "dir/tool"} {
+		conf := DefaultConfig()
+		conf.RestrictedProcessConfig.Enable = true
+		conf.RestrictedProcessConfig.Allow = []string{name}
+		if err := conf.Validate(); err == nil || !strings.Contains(err.Error(), "process.allow[0]") {
+			t.Fatalf("name %q: expected indexed error, got %v", name, err)
+		}
+	}
+	conf := DefaultConfig()
+	conf.RestrictedProcessConfig.Enable = true
+	conf.RestrictedProcessConfig.Allow = []string{"valid tool"}
+	if err := conf.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
