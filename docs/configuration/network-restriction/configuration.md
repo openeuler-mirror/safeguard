@@ -4,7 +4,7 @@
 |:------:|:----|:-----------:|
 | `enable` | Enum with the following possible values: `true`, `false` | Whether to enable network restrictions. Default is `false`. |
 | `mode` | Enum with the following possible values: `monitor`, `block` | If `monitor` is specified, events are only logged. If `block` is specified, network access is blocked. |
-| `target` | Enum with the following possible values: `host`, `container` | `container` uses a fixed mount namespace identifier and can also affect host processes. |
+| `target` | Enum with the following possible values: `host`, `container` | `container` applies to processes outside host PID 1's mount namespace. |
 | `cidr` | List containing the following sub-keys:<br><li>`allow: [cidr list]`</li><li>`deny: [cidr list]`</li>| Allow or Deny CIDRs. |
 | `domain` | List containing the following sub-keys:<br><li>`allow: [domain list]`</li><li>`deny: [domain list]`</li>| Allow or Deny Domains. |
 | `command` | List containing the following sub-keys:<br><li>`allow: [command list]`</li><li>`deny: [command list]`</li>| Allow or Deny commands. |
@@ -19,6 +19,14 @@ network:
   mode: block
   target: host
 ```
+
+!!! warning
+
+    Mount namespaces are a heuristic and do not identify containers. A host
+    service in a different mount namespace is also in scope; a container sharing
+    the host mount namespace is outside it. Startup requires access to host
+    PID 1's PID and mount namespaces. If the LSM cannot read the current mount
+    namespace, the operation is allowed rather than blocked.
 
 ## CIDR Rules
 
