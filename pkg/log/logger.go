@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -13,7 +14,9 @@ import (
 )
 
 var (
-	Logger *log.Entry
+	Logger      *log.Entry
+	outputMu    sync.Mutex
+	ownedOutput *os.File
 )
 
 func init() {
@@ -70,14 +73,19 @@ func SetFormatter(format string) {
 
 // SetOutput sets the log output file path.
 func SetOutput(path string) error {
+	outputMu.Lock()
+	defer outputMu.Unlock()
 	if path == "stdout" || path == "" {
 		Logger.Logger.SetOutput(os.Stdout)
+		closeOwnedOutput()
 	} else {
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			return fmt.Errorf("open log output %q: %w", path, err)
 		}
 		Logger.Logger.SetOutput(file)
+		closeOwnedOutput()
+		ownedOutput = file
 	}
 	return nil
 }
@@ -87,12 +95,22 @@ func SetRotation(path string, maxSize, maxAge int) {
 	if path == "stdout" || path == "" {
 		return
 	}
+	outputMu.Lock()
+	defer outputMu.Unlock()
 
-	log.SetOutput(&lumberjack.Logger{
+	Logger.Logger.SetOutput(&lumberjack.Logger{
 		Filename: path,
 		MaxSize:  maxSize,
 		MaxAge:   maxAge,
 	})
+	closeOwnedOutput()
+}
+
+func closeOwnedOutput() {
+	if ownedOutput != nil {
+		_ = ownedOutput.Close()
+		ownedOutput = nil
+	}
 }
 
 // SetLabel sets persistent labels for all log entries.
@@ -229,4 +247,5 @@ func (l *RestrictedProcessLog) Info() {
 		"ParentComm": l.ParentComm,
 	}).Info("Process event is trapped in th filter.")
 }
+
 // test: verify develop branch PR target
