@@ -277,6 +277,34 @@ func TestDNSProxyFlags(t *testing.T) {
 	}
 }
 
+func TestDNSProxyNXDomainCache(t *testing.T) {
+	for _, code := range []int{dns.RcodeNameError, dns.RcodeServerFailure} {
+		code := code
+		resolver := localResolver(t, func(w dns.ResponseWriter, q *dns.Msg) {
+			response := new(dns.Msg)
+			response.SetRcode(q, code)
+			w.WriteMsg(response)
+		})
+		cache := newDNSCache()
+		cache.Store("192.0.2.1", "gone.example.", 60)
+		cache.Store("192.0.2.1", "peer.example.", 60)
+		cache.Store("2001:db8::1", "gone.example.", 60)
+		proxy := &DNSProxy{client: resolver.client, dnsConfig: resolver.config, manager: &Manager{config: config.DefaultConfig(), dnsCache: cache}}
+		request := new(dns.Msg)
+		request.SetQuestion("gone.example.", dns.TypeA)
+		writer := new(proxyCapture)
+		proxy.ServeDNS(writer, request)
+		require.Equal(t, code, writer.msg.Rcode)
+		if code == dns.RcodeNameError {
+			require.Equal(t, "peer.example.", cache.Lookup("192.0.2.1"))
+			require.Empty(t, cache.Lookup("2001:db8::1"))
+		} else {
+			require.Contains(t, cache.Lookup("192.0.2.1"), "gone.example.")
+			require.Equal(t, "gone.example.", cache.Lookup("2001:db8::1"))
+		}
+	}
+}
+
 func TestDNSProxyRcode(t *testing.T) {
 	for _, code := range []int{dns.RcodeNameError, dns.RcodeServerFailure, -1} {
 		code := code
