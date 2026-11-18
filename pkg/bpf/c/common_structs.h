@@ -101,6 +101,7 @@ struct mount_audit_event {
 struct mount_safeguard_config {
     u32 mode;
     u32 target;
+    u32 host_mnt_ns;
 };
 
 struct process_safeguard_config {

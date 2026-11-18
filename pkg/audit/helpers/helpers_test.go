@@ -144,7 +144,7 @@ func TestAuditConfigMapKeyWidth(t *testing.T) {
 		valueSize    int
 	}{
 		{"network", "network_safeguard_config_map", 28}, {"file", "fileopen_safeguard_config_map", 12},
-		{"mount", "mount_safeguard_config_map", 8}, {"process", "process_safeguard_config_map", 16},
+		{"mount", "mount_safeguard_config_map", 12}, {"process", "process_safeguard_config_map", 16},
 	} {
 		data, err := bpf.EmbedFS.ReadFile("bytecode/restricted-" + tc.object + ".bpf.o")
 		require.NoError(t, err)
