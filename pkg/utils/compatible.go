@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -46,16 +47,27 @@ func readKernelConfig() (string, error) {
 		return "", fmt.Errorf("reading kernel config: %w", err)
 	}
 
-	configPath := fmt.Sprintf("/boot/config-%s", kernelVer)
-	f, err := os.Open(configPath)
+	return readKernelConfigPaths(fmt.Sprintf("/boot/config-%s", kernelVer), "/proc/config.gz")
+}
+
+func readKernelConfigPaths(plainPath, gzipPath string) (string, error) {
+	data, plainErr := os.ReadFile(plainPath)
+	if plainErr == nil {
+		return string(data), nil
+	}
+	f, err := os.Open(gzipPath)
 	if err != nil {
-		return "", fmt.Errorf("opening kernel config %s: %w", configPath, err)
+		return "", fmt.Errorf("read kernel config %q: %v; open %q: %w", plainPath, plainErr, gzipPath, err)
 	}
 	defer f.Close()
-
-	kernelConfig, err := io.ReadAll(f)
+	reader, err := gzip.NewReader(f)
 	if err != nil {
-		return "", fmt.Errorf("reading kernel config: %w", err)
+		return "", fmt.Errorf("open compressed kernel config %q: %w", gzipPath, err)
+	}
+	defer reader.Close()
+	kernelConfig, err := io.ReadAll(reader)
+	if err != nil {
+		return "", fmt.Errorf("read compressed kernel config %q: %w", gzipPath, err)
 	}
 
 	return string(kernelConfig), nil

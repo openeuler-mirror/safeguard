@@ -1,11 +1,38 @@
 package utils
 
 import (
+	"compress/gzip"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestReadKernelConfigPaths(t *testing.T) {
+	dir := t.TempDir()
+	plain, compressed := filepath.Join(dir, "config"), filepath.Join(dir, "config.gz")
+	f, err := os.Create(compressed)
+	require.NoError(t, err)
+	w := gzip.NewWriter(f)
+	_, err = w.Write([]byte("compressed"))
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+	require.NoError(t, f.Close())
+	value, err := readKernelConfigPaths(plain, compressed)
+	assert.NoError(t, err)
+	assert.Equal(t, "compressed", value)
+	require.NoError(t, os.WriteFile(plain, []byte("plain"), 0600))
+	value, err = readKernelConfigPaths(plain, compressed)
+	assert.NoError(t, err)
+	assert.Equal(t, "plain", value)
+	require.NoError(t, os.Remove(plain))
+	require.NoError(t, os.WriteFile(compressed, []byte("broken"), 0600))
+	_, err = readKernelConfigPaths(plain, compressed)
+	assert.ErrorContains(t, err, compressed)
+}
 
 func TestCheckBPFLSMActiveListIsAuthoritative(t *testing.T) {
 	for _, tc := range []struct {
