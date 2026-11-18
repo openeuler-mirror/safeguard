@@ -12,7 +12,7 @@ safeguard detects and controls four types of security events:
 safeguard can choose between the following restriction targets:
 
 - Host-wide — Apply restrictions to all processes on the host
-- Container Only — Request container scope; module limitations can also affect the host
+- Container scope — Compare mount namespaces with host PID 1
 
 ## Operation Modes
 

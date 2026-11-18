@@ -36,6 +36,14 @@ safeguard's configuration file is a YAML file containing top-level configuration
 
 `log.labels.safeguard_pid` is reserved for the running process ID and is rejected.
 
+## Container scope
+
+`target: container` compares each operation's mount namespace with host PID 1.
+A host service in another mount namespace is included, while a container sharing
+host mount namespaces is excluded. This is a heuristic, not container identity.
+Startup requires access to host PID 1's PID and mount namespaces; if the kernel
+hook cannot read the current mount namespace, the operation is allowed.
+
 ## Validate before deployment
 
 ```sh
