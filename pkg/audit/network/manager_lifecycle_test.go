@@ -1,9 +1,46 @@
 package network
 
 import (
+	"encoding/binary"
+	"errors"
 	"sync"
 	"testing"
+	"unsafe"
 )
+
+type networkConfigProbe struct {
+	writes int
+	value  [MAP_SIZE]byte
+}
+
+func (*networkConfigProbe) KeySize() int   { return 4 }
+func (*networkConfigProbe) ValueSize() int { return MAP_SIZE }
+func (p *networkConfigProbe) Update(_, value unsafe.Pointer) error {
+	p.writes++
+	p.value = *(*[MAP_SIZE]byte)(value)
+	return nil
+}
+
+func TestNetworkHostNamespaceConfig(t *testing.T) {
+	p := new(networkConfigProbe)
+	value := make([]byte, MAP_SIZE)
+	wantErr := errors.New("namespace unavailable")
+	if err := writeNetworkConfigMap(p, value, true, func() (uint32, error) { return 0, wantErr }); !errors.Is(err, wantErr) || p.writes != 0 {
+		t.Fatalf("namespace error=%v writes=%d", err, p.writes)
+	}
+	if err := writeNetworkConfigMap(p, value[:24], true, nil); err == nil || p.writes != 0 {
+		t.Fatalf("short value error=%v writes=%d", err, p.writes)
+	}
+	if err := writeNetworkConfigMap(p, value, true, func() (uint32, error) { return 0xf0000001, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if p.writes != 1 || binary.LittleEndian.Uint32(p.value[24:28]) != 0xf0000001 {
+		t.Fatalf("writes=%d value=%x", p.writes, p.value)
+	}
+	if err := writeNetworkConfigMap(p, make([]byte, MAP_SIZE), false, nil); err != nil || p.writes != 2 {
+		t.Fatalf("host config error=%v writes=%d", err, p.writes)
+	}
+}
 
 type lifecycleBuffer struct{ stops, closes int }
 
