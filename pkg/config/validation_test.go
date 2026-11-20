@@ -794,3 +794,20 @@ func TestProcessAllowRejectsPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestValidateLogLevel(t *testing.T) {
+	for _, level := range []string{"trace", "DEBUG", "info", "WARN", "warning", "ERROR", "fatal"} {
+		conf := DefaultConfig()
+		conf.Log.Level = level
+		if err := conf.Validate(); err != nil {
+			t.Errorf("level %q: %v", level, err)
+		}
+	}
+	for _, level := range []string{"", "verbose", "warnn"} {
+		conf := DefaultConfig()
+		conf.Log.Level = level
+		if err := conf.Validate(); err == nil || !strings.Contains(err.Error(), "log.level") {
+			t.Errorf("level %q: expected log.level error, got %v", level, err)
+		}
+	}
+}
