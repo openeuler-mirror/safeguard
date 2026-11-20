@@ -36,6 +36,8 @@ safeguard's configuration file is a YAML file containing top-level configuration
 
 Log levels are case-insensitive; `WARNING` is an alias for `WARN`. `SAFEGUARD_LOG` overrides the configured level when audit modules start. Unknown values in either source are rejected.
 
+`log.format` accepts `json` or `text` case-insensitively; unknown values are rejected.
+
 `log.labels.safeguard_pid` is reserved for the running process ID and is rejected.
 
 ## Container scope

@@ -219,6 +219,11 @@ func (c *Config) Validate() error {
 	default:
 		return fmt.Errorf("invalid log.level %q", c.Log.Level)
 	}
+	switch strings.ToLower(c.Log.Format) {
+	case "json", "text":
+	default:
+		return fmt.Errorf("invalid log.format %q", c.Log.Format)
+	}
 	if c.Policy != "blacklist" && c.Policy != "whitelist" {
 		return fmt.Errorf("invalid policy %q: must be blacklist or whitelist", c.Policy)
 	}

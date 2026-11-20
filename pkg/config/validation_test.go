@@ -811,3 +811,20 @@ func TestValidateLogLevel(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateLogFormat(t *testing.T) {
+	for _, format := range []string{"json", "JSON", "text", "TEXT"} {
+		conf := DefaultConfig()
+		conf.Log.Format = format
+		if err := conf.Validate(); err != nil {
+			t.Errorf("format %q: %v", format, err)
+		}
+	}
+	for _, format := range []string{"", "yaml", "textt"} {
+		conf := DefaultConfig()
+		conf.Log.Format = format
+		if err := conf.Validate(); err == nil || !strings.Contains(err.Error(), "log.format") {
+			t.Errorf("format %q: expected log.format error, got %v", format, err)
+		}
+	}
+}
