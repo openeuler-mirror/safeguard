@@ -57,7 +57,11 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 			return nil, nil, nil, nil, fmt.Errorf("read process %d exe: %w", pid, err)
 		}
 		if strings.HasSuffix(executable, " (deleted)") {
-			executable = ""
+			linkInfo, linkErr := os.Stat(filepath.Join(base, "exe"))
+			pathInfo, pathErr := os.Stat(executable)
+			if linkErr != nil || pathErr != nil || !os.SameFile(linkInfo, pathInfo) {
+				executable = ""
+			}
 		}
 
 		processes = append(processes, model.RunningProcess{

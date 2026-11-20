@@ -188,7 +188,7 @@ func normalizeProcessAllowEntry(process RunningProcess) string {
 
 func processAllowName(process RunningProcess) string {
 	if process.Executable != "" {
-		return strings.TrimSuffix(filepath.Base(process.Executable), " (deleted)")
+		return filepath.Base(process.Executable)
 	}
 	return process.Command
 }

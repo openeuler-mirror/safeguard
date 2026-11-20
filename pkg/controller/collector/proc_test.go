@@ -148,3 +148,19 @@ func TestProcExeErrors(t *testing.T) {
 	require.Nil(t, processes)
 	require.Nil(t, paths)
 }
+
+func TestReadProcProcessesRetainsLiveExecutableWithDeletedSuffix(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "1")
+	require.NoError(t, os.Mkdir(dir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
+	target := filepath.Join(root, "app (deleted)")
+	require.NoError(t, os.WriteFile(target, []byte("x"), 0755))
+	require.NoError(t, os.Symlink(target, filepath.Join(dir, "exe")))
+	processes, _, _, paths, err := readProcProcesses(root)
+	require.NoError(t, err)
+	require.Len(t, processes, 1)
+	assert.Equal(t, target, processes[0].Executable)
+	assert.Equal(t, []string{target}, paths)
+}
