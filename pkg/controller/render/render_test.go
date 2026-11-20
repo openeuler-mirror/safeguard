@@ -3,6 +3,7 @@ package render
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -187,4 +188,13 @@ func TestGeneratedConfigWithKernelThreadName(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "bash")
 	assert.NotContains(t, string(data), "kworker/0:1")
+}
+
+func TestGeneratedConfigWithOverlongFilePath(t *testing.T) {
+	long := "/" + strings.Repeat("a", 79)
+	whitelist := model.BuildWhitelist(model.HostSnapshot{ExecutablePaths: []string{long}}, time.Time{})
+	data, err := MarshalConfigYAML(whitelist, "monitor")
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), long)
+	assert.NotEmpty(t, whitelist.Warnings)
 }

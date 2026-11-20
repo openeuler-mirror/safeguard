@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -207,4 +208,14 @@ func TestBuildWhitelistSkipsProcessNamesWithSlash(t *testing.T) {
 	whitelist := BuildWhitelist(snapshot, time.Time{})
 	assert.Equal(t, []string{"bash"}, whitelist.Process.Allow)
 	assert.Contains(t, whitelist.Warnings, "skipped 2 process names containing '/' from process.allow")
+}
+
+func TestBuildWhitelistSkipsOverlongFilePaths(t *testing.T) {
+	valid := "/" + strings.Repeat("a", 78)
+	long := "/" + strings.Repeat("b", 79)
+	snapshot := HostSnapshot{ExecutablePaths: []string{valid, long, long}}
+	whitelist := BuildWhitelist(snapshot, time.Time{})
+	assert.Contains(t, whitelist.Files.Allow, valid)
+	assert.NotContains(t, whitelist.Files.Allow, long)
+	assert.Contains(t, whitelist.Warnings, fmt.Sprintf("skipped files.allow path %q: exceeds 79 bytes", long))
 }

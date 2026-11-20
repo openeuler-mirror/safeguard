@@ -42,6 +42,8 @@ service.go
     └─ WriteFile()          → Save JSON report (optional)
 ```
 
+When collection or rule conversion produces warnings, a report path is required so omitted rules remain visible.
+
 The CLI defaults to `demo-whitelist.yaml` and `demo-whitelist-report.json`. Override with `--output` and `--report`. The generated config can be applied via `safeguard --config demo-whitelist.yaml`.
 
 The YAML and optional report are encoded before either file is written. If the

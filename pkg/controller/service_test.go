@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -321,4 +322,20 @@ func TestServiceGenerateMissingDependencies(t *testing.T) {
 		})
 		require.NoFileExists(t, output)
 	}
+}
+
+func TestGenerateRequiresReportWhenPathsSkipped(t *testing.T) {
+	dir := t.TempDir()
+	output := filepath.Join(dir, "config.yaml")
+	svc := Service{Collector: fakeCollector{snapshot: model.HostSnapshot{
+		ExecutablePaths: []string{"/" + strings.Repeat("a", 79)},
+	}}, Now: time.Now}
+	err := svc.Generate(GenerateOptions{Mode: "monitor", OutputPath: output})
+	require.ErrorContains(t, err, "report")
+	assert.NoFileExists(t, output)
+	report := filepath.Join(dir, "report.json")
+	require.NoError(t, svc.Generate(GenerateOptions{Mode: "monitor", OutputPath: output, ReportPath: report}))
+	data, err := os.ReadFile(report)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "exceeds 79 bytes")
 }
