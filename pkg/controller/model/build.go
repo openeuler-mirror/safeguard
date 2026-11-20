@@ -51,10 +51,18 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 		})
 	}
 
+	skippedRootHomes := 0
 	for _, account := range snapshot.Accounts {
 		if account.HomeDir != "" {
+			if filepath.Clean(account.HomeDir) == "/" {
+				skippedRootHomes++
+				continue
+			}
 			fileAllow = append(fileAllow, account.HomeDir)
 		}
+	}
+	if skippedRootHomes > 0 {
+		warnings = append(warnings, fmt.Sprintf("skipped %d account home paths resolving to /", skippedRootHomes))
 	}
 
 	processNames := map[string]map[string]bool{}

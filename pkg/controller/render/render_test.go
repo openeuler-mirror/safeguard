@@ -198,3 +198,10 @@ func TestGeneratedConfigWithOverlongFilePath(t *testing.T) {
 	assert.NotContains(t, string(data), long)
 	assert.NotEmpty(t, whitelist.Warnings)
 }
+
+func TestGeneratedConfigDoesNotIncludeRootHome(t *testing.T) {
+	whitelist := model.BuildWhitelist(model.HostSnapshot{Accounts: []model.Account{{Username: "nobody", HomeDir: "/"}}}, time.Time{})
+	cfg := BuildConfig(whitelist, "monitor")
+	assert.NotContains(t, cfg.RestrictedFileAccessConfig.Allow, "/")
+	assert.NotEmpty(t, whitelist.Warnings)
+}
