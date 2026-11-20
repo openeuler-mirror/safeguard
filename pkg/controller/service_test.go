@@ -339,3 +339,19 @@ func TestGenerateRequiresReportWhenPathsSkipped(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "exceeds 79 bytes")
 }
+
+func TestGeneratePreservesConfigWhenWarningReportFails(t *testing.T) {
+	dir := t.TempDir()
+	output := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(output, []byte("original"), 0600))
+	reportDir := filepath.Join(dir, "report-dir")
+	require.NoError(t, os.Mkdir(reportDir, 0700))
+	svc := Service{Collector: fakeCollector{snapshot: model.HostSnapshot{
+		ExecutablePaths: []string{"/" + strings.Repeat("a", 79)},
+	}}, Now: time.Now}
+	err := svc.Generate(GenerateOptions{Mode: "monitor", OutputPath: output, ReportPath: reportDir})
+	require.ErrorContains(t, err, "write report")
+	content, err := os.ReadFile(output)
+	require.NoError(t, err)
+	assert.Equal(t, "original", string(content))
+}

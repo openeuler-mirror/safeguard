@@ -84,10 +84,16 @@ func (s Service) Generate(options GenerateOptions) error {
 			return fmt.Errorf("encode report: %w", err)
 		}
 	}
+	if len(whitelist.Warnings) > 0 && reportBytes != nil {
+		if err := render.WriteFile(options.ReportPath, reportBytes); err != nil {
+			return fmt.Errorf("write report %q: %w", options.ReportPath, err)
+		}
+		reportBytes = nil
+	}
 	if err := render.WriteFile(options.OutputPath, yamlBytes); err != nil {
 		return fmt.Errorf("write configuration %q: %w", options.OutputPath, err)
 	}
-	if options.ReportPath != "" {
+	if reportBytes != nil {
 		if err := render.WriteFile(options.ReportPath, reportBytes); err != nil {
 			return fmt.Errorf("write report %q: %w", options.ReportPath, err)
 		}

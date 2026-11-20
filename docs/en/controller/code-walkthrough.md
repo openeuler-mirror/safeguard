@@ -46,7 +46,8 @@ When collection or rule conversion produces warnings, a report path is required 
 
 The CLI defaults to `demo-whitelist.yaml` and `demo-whitelist-report.json`. Override with `--output` and `--report`. The generated config can be applied via `safeguard --config demo-whitelist.yaml`.
 
-The YAML and optional report are encoded before either file is written. If the
-report write fails, the already-written YAML is not rolled back. `processcheck`
+The YAML and optional report are encoded before either file is written. When warnings
+exist, the report is written first and a report failure leaves the config untouched.
+Otherwise YAML is written first and is not rolled back if the report write fails. `processcheck`
 is a separate matching utility; it is not part of this generation flow and does
 not represent kernel enforcement results.
