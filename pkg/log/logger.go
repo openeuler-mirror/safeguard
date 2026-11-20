@@ -39,7 +39,7 @@ func logLevel(level string) string {
 }
 
 // SetLevel sets the logging level (debug, info, warn, error, fatal).
-func SetLevel(level string) {
+func SetLevel(level string) error {
 	level = logLevel(level)
 
 	switch level {
@@ -56,8 +56,9 @@ func SetLevel(level string) {
 	case "FATAL":
 		log.SetLevel(log.FatalLevel)
 	default:
-		log.SetLevel(log.InfoLevel)
+		return fmt.Errorf("invalid log level %q", level)
 	}
+	return nil
 }
 
 // SetFormatter sets the log output format (text or json).

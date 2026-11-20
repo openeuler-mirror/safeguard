@@ -82,7 +82,9 @@ EXAMPLES:
 		log.SetRotation(conf.Log.Output, conf.Log.MaxSize, conf.Log.MaxAge)
 		defer log.SetOutput("stdout")
 		log.SetLabel(conf.Log.Labels)
-		log.SetLevel(conf.Log.Level)
+		if err := log.SetLevel(conf.Log.Level); err != nil {
+			return err
+		}
 
 		ctx, cancel := auditSignalContext(c.Context)
 		defer cancel()
