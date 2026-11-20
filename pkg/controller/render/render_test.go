@@ -205,3 +205,12 @@ func TestGeneratedConfigDoesNotIncludeRootHome(t *testing.T) {
 	assert.NotContains(t, cfg.RestrictedFileAccessConfig.Allow, "/")
 	assert.NotEmpty(t, whitelist.Warnings)
 }
+
+func TestGeneratedConfigWithInvalidAccountHome(t *testing.T) {
+	snapshot := model.HostSnapshot{Accounts: []model.Account{{Username: "service", HomeDir: "relative/home"}}}
+	whitelist := model.BuildWhitelist(snapshot, time.Time{})
+	data, err := MarshalConfigYAML(whitelist, "monitor")
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "relative/home")
+	assert.NotEmpty(t, whitelist.Warnings)
+}
