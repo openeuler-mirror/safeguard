@@ -44,5 +44,7 @@ service.go
 
 CLI 默认输出 `demo-whitelist.yaml` 和 `demo-whitelist-report.json`，可以通过 `--output` 和 `--report` 覆盖。默认生成的配置可通过 `safeguard --config demo-whitelist.yaml` 应用。
 
+当采集或规则转换产生警告时，必须提供报告路径，以免遗漏规则未被察觉。
+
 YAML 和可选报告先完成编码，再依次写入；如果报告写入失败，已写入的 YAML
 不会回滚。`processcheck` 是独立匹配工具，不参与上述生成流程，也不代表内核策略的执行结果。

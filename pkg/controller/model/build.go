@@ -89,7 +89,15 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	}
 
 	networkWhitelist, networkWarnings := buildNetworkWhitelist(snapshot.CIDRs, snapshot.UIDs, snapshot.GIDs)
-	fileAllow, fileAllowTruncated := clampStrings(uniqueExactStrings(fileAllow), bpfMapLimitEntries)
+	validFileAllow := make([]string, 0, len(fileAllow))
+	for _, path := range uniqueExactStrings(fileAllow) {
+		if len(path) > 79 {
+			warnings = append(warnings, fmt.Sprintf("skipped files.allow path %q: exceeds 79 bytes", path))
+			continue
+		}
+		validFileAllow = append(validFileAllow, path)
+	}
+	fileAllow, fileAllowTruncated := clampStrings(validFileAllow, bpfMapLimitEntries)
 	if fileAllowTruncated {
 		warnings = append(warnings, fmt.Sprintf("generated files.allow truncated to %d entries to fit eBPF map limits", bpfMapLimitEntries))
 	}

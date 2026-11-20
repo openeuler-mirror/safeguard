@@ -69,6 +69,9 @@ func (s Service) Generate(options GenerateOptions) error {
 	}
 
 	whitelist := model.BuildWhitelist(snapshot, s.Now())
+	if len(whitelist.Warnings) > 0 && options.ReportPath == "" {
+		return fmt.Errorf("report path is required when generation produces warnings")
+	}
 
 	yamlBytes, err := render.MarshalConfigYAML(whitelist, options.Mode)
 	if err != nil {
