@@ -177,3 +177,14 @@ func TestMarshalReportRejectsInvalidUTF8(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(data), "用户")
 }
+
+func TestGeneratedConfigWithKernelThreadName(t *testing.T) {
+	snapshot := model.HostSnapshot{RunningProcesses: []model.RunningProcess{
+		{Command: "kworker/0:1"}, {Command: "bash", Executable: "/bin/bash"},
+	}}
+	whitelist := model.BuildWhitelist(snapshot, time.Time{})
+	data, err := MarshalConfigYAML(whitelist, "monitor")
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "bash")
+	assert.NotContains(t, string(data), "kworker/0:1")
+}

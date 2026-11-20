@@ -198,3 +198,13 @@ func TestBuildWhitelistStableCollisions(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildWhitelistSkipsProcessNamesWithSlash(t *testing.T) {
+	snapshot := HostSnapshot{RunningProcesses: []RunningProcess{
+		{Command: "kworker/0:1"}, {Command: "kworker/1:2"},
+		{Command: "shell", Executable: "/usr/bin/bash"},
+	}}
+	whitelist := BuildWhitelist(snapshot, time.Time{})
+	assert.Equal(t, []string{"bash"}, whitelist.Process.Allow)
+	assert.Contains(t, whitelist.Warnings, "skipped 2 process names containing '/' from process.allow")
+}
