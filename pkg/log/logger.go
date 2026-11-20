@@ -38,26 +38,14 @@ func logLevel(level string) string {
 	return strings.ToUpper(level)
 }
 
-// SetLevel sets the logging level (debug, info, warn, error, fatal).
+// SetLevel sets the logging level supported by logrus.
 func SetLevel(level string) error {
 	level = logLevel(level)
-
-	switch level {
-	case "TRACE":
-		log.SetLevel(log.TraceLevel)
-	case "DEBUG":
-		log.SetLevel(log.DebugLevel)
-	case "INFO":
-		log.SetLevel(log.InfoLevel)
-	case "WARN", "WARNING":
-		log.SetLevel(log.WarnLevel)
-	case "ERROR":
-		log.SetLevel(log.ErrorLevel)
-	case "FATAL":
-		log.SetLevel(log.FatalLevel)
-	default:
+	parsed, err := log.ParseLevel(level)
+	if err != nil {
 		return fmt.Errorf("invalid log level %q", level)
 	}
+	log.SetLevel(parsed)
 	return nil
 }
 

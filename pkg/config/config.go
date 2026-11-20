@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -214,9 +215,7 @@ func (c *Config) Validate() error {
 	if _, exists := c.Log.Labels["safeguard_pid"]; exists {
 		return errors.New("log.labels.safeguard_pid is reserved")
 	}
-	switch strings.ToUpper(c.Log.Level) {
-	case "TRACE", "DEBUG", "INFO", "WARN", "WARNING", "ERROR", "FATAL":
-	default:
+	if _, err := logrus.ParseLevel(c.Log.Level); err != nil {
 		return fmt.Errorf("invalid log.level %q", c.Log.Level)
 	}
 	switch strings.ToLower(c.Log.Format) {

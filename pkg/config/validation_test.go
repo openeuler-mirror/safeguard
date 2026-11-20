@@ -796,7 +796,7 @@ func TestProcessAllowRejectsPaths(t *testing.T) {
 }
 
 func TestValidateLogLevel(t *testing.T) {
-	for _, level := range []string{"trace", "DEBUG", "info", "WARN", "warning", "ERROR", "fatal"} {
+	for _, level := range []string{"trace", "DEBUG", "info", "WARN", "warning", "ERROR", "fatal", "panic", "PANIC"} {
 		conf := DefaultConfig()
 		conf.Log.Level = level
 		if err := conf.Validate(); err != nil {

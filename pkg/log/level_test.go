@@ -16,7 +16,7 @@ func TestSetLevelSupportedLevels(t *testing.T) {
 		want  log.Level
 	}{
 		{"warn", log.WarnLevel}, {"WARNING", log.WarnLevel},
-		{"error", log.ErrorLevel}, {"fatal", log.FatalLevel},
+		{"error", log.ErrorLevel}, {"fatal", log.FatalLevel}, {"panic", log.PanicLevel},
 	} {
 		SetLevel(tc.input)
 		assert.Equal(t, tc.want, log.GetLevel(), tc.input)
