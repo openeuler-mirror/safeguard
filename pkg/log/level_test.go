@@ -50,3 +50,11 @@ func TestSetFormatter_JSONIsDefaultForInvalid(t *testing.T) {
 	_, ok := Logger.Logger.Formatter.(*log.JSONFormatter)
 	assert.True(t, ok)
 }
+
+func TestSetFormatterAcceptsMixedCase(t *testing.T) {
+	previous := Logger.Logger.Formatter
+	t.Cleanup(func() { Logger.Logger.SetFormatter(previous) })
+	SetFormatter("TeXt")
+	_, ok := Logger.Logger.Formatter.(*log.TextFormatter)
+	assert.True(t, ok)
+}

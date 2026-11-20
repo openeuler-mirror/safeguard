@@ -35,6 +35,8 @@ safeguard 的配置文件是 YAML 格式，包含顶层配置节。每个限制�
 
 日志级别支持 TRACE、DEBUG、INFO、WARN、ERROR、FATAL，不区分大小写；WARNING 是 WARN 的别名。审计模块启动时，`SAFEGUARD_LOG` 会覆盖配置级别，两者的未知值均会被拒绝。
 
+`log.format` 支持 `json` 或 `text`，不区分大小写；未知格式会被拒绝。
+
 `log.labels` 可设置附加标签；`safeguard_pid` 保留给当前进程 ID，配置该标签会被拒绝。
 
 ## 通用限制模块字段

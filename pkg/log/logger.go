@@ -63,7 +63,7 @@ func SetLevel(level string) error {
 
 // SetFormatter sets the log output format (text or json).
 func SetFormatter(format string) {
-	switch format {
+	switch strings.ToLower(format) {
 	case "json":
 		log.SetFormatter(&log.JSONFormatter{})
 	case "text":
