@@ -231,3 +231,17 @@ func TestBuildWhitelistSkipsRootAccountHomes(t *testing.T) {
 	assert.Contains(t, whitelist.Files.Allow, "/root")
 	assert.Contains(t, whitelist.Warnings, "skipped 2 account home paths resolving to /")
 }
+
+func TestBuildWhitelistSkipsInvalidFilePaths(t *testing.T) {
+	snapshot := HostSnapshot{Accounts: []Account{
+		{Username: "relative", HomeDir: "home/user"},
+		{Username: "nul", HomeDir: "/home/\x00user"},
+		{Username: "valid", HomeDir: "/home/user"},
+	}}
+	whitelist := BuildWhitelist(snapshot, time.Time{})
+	assert.NotContains(t, whitelist.Files.Allow, "home/user")
+	assert.NotContains(t, whitelist.Files.Allow, "/home/\x00user")
+	assert.Contains(t, whitelist.Files.Allow, "/home/user")
+	assert.Contains(t, whitelist.Warnings, `skipped files.allow path "home/user": not absolute or contains NUL`)
+	assert.Contains(t, whitelist.Warnings, `skipped files.allow path "/home/\x00user": not absolute or contains NUL`)
+}
