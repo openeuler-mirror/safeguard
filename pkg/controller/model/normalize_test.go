@@ -19,11 +19,11 @@ func TestNormalizeProcessAllowEntry_UsesCommandWhenNoExecutable(t *testing.T) {
 	assert.Equal(t, "bash", result)
 }
 
-func TestNormalizeProcessAllowEntry_TrimsDeletedSuffix(t *testing.T) {
-	result := normalizeProcessAllowEntry(RunningProcess{
-		Command: "nginx (deleted)",
-	})
-	assert.Equal(t, "nginx", result)
+func TestNormalizeProcessAllowEntry_PreservesDeletedInComm(t *testing.T) {
+	for _, name := range []string{"abc (deleted)", " (deleted)"} {
+		result := normalizeProcessAllowEntry(RunningProcess{Command: name})
+		assert.Equal(t, name, result)
+	}
 }
 
 func TestNormalizeProcessAllowEntry_SkipsEmptyCommand(t *testing.T) {

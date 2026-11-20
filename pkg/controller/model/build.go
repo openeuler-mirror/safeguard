@@ -187,12 +187,10 @@ func normalizeProcessAllowEntry(process RunningProcess) string {
 }
 
 func processAllowName(process RunningProcess) string {
-	candidate := process.Command
 	if process.Executable != "" {
-		candidate = filepath.Base(process.Executable)
+		return strings.TrimSuffix(filepath.Base(process.Executable), " (deleted)")
 	}
-	candidate = strings.TrimSuffix(candidate, " (deleted)")
-	return candidate
+	return process.Command
 }
 
 // truncateString truncates a string to at most maxLen bytes.
