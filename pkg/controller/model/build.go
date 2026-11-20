@@ -58,8 +58,13 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	}
 
 	processNames := map[string]map[string]bool{}
+	skippedProcessNames := 0
 	for _, process := range snapshot.RunningProcesses {
 		name := processAllowName(process)
+		if strings.ContainsRune(name, '/') {
+			skippedProcessNames++
+			continue
+		}
 		if normalized := truncateString(name, bpfProcessNameMaxLength); normalized != "" {
 			if processNames[normalized] == nil {
 				processNames[normalized] = map[string]bool{}
@@ -67,6 +72,9 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 			processNames[normalized][name] = true
 			processAllow = append(processAllow, normalized)
 		}
+	}
+	if skippedProcessNames > 0 {
+		warnings = append(warnings, fmt.Sprintf("skipped %d process names containing '/' from process.allow", skippedProcessNames))
 	}
 	for key, names := range processNames {
 		if len(names) < 2 {
