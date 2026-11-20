@@ -219,3 +219,15 @@ func TestBuildWhitelistSkipsOverlongFilePaths(t *testing.T) {
 	assert.NotContains(t, whitelist.Files.Allow, long)
 	assert.Contains(t, whitelist.Warnings, fmt.Sprintf("skipped files.allow path %q: exceeds 79 bytes", long))
 }
+
+func TestBuildWhitelistSkipsRootAccountHomes(t *testing.T) {
+	snapshot := HostSnapshot{Accounts: []Account{
+		{Username: "nobody", HomeDir: "/"}, {Username: "service", HomeDir: "/./"},
+		{Username: "root", HomeDir: "/root"},
+	}}
+	whitelist := BuildWhitelist(snapshot, time.Time{})
+	assert.NotContains(t, whitelist.Files.Allow, "/")
+	assert.NotContains(t, whitelist.Files.Allow, "/./")
+	assert.Contains(t, whitelist.Files.Allow, "/root")
+	assert.Contains(t, whitelist.Warnings, "skipped 2 account home paths resolving to /")
+}
