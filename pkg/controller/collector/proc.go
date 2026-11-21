@@ -12,16 +12,17 @@ import (
 	"culinux/pkg/controller/model"
 )
 
-func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint, []string, error) {
+func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint, []string, []string, error) {
 	entries, err := os.ReadDir(procRoot)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 
 	processes := []model.RunningProcess{}
 	uids := []uint{}
 	gids := []uint{}
 	executables := []string{}
+	warnings := []string{}
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
@@ -38,23 +39,24 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 			if processGone(err) {
 				continue
 			}
-			return nil, nil, nil, nil, fmt.Errorf("read process %d comm: %w", pid, err)
+			return nil, nil, nil, nil, nil, fmt.Errorf("read process %d comm: %w", pid, err)
 		}
 		statusBytes, err := os.ReadFile(filepath.Join(base, "status"))
 		if err != nil {
 			if processGone(err) {
 				continue
 			}
-			return nil, nil, nil, nil, fmt.Errorf("read process %d status: %w", pid, err)
+			return nil, nil, nil, nil, nil, fmt.Errorf("read process %d status: %w", pid, err)
 		}
 
 		if !validStatusIDs(string(statusBytes)) {
+			warnings = append(warnings, fmt.Sprintf("process %d: invalid UID or GID in status", pid))
 			continue
 		}
 		uid, gid := parseStatusIDs(string(statusBytes))
 		executable, err := os.Readlink(filepath.Join(base, "exe"))
 		if err != nil && !processGone(err) {
-			return nil, nil, nil, nil, fmt.Errorf("read process %d exe: %w", pid, err)
+			return nil, nil, nil, nil, nil, fmt.Errorf("read process %d exe: %w", pid, err)
 		}
 		if strings.HasSuffix(executable, " (deleted)") {
 			linkInfo, linkErr := os.Stat(filepath.Join(base, "exe"))
@@ -78,7 +80,7 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 		}
 	}
 
-	return processes, uids, gids, executables, nil
+	return processes, uids, gids, executables, warnings, nil
 }
 
 func parseStatusIDs(content string) (uint, uint) {
