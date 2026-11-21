@@ -222,3 +222,16 @@ func TestGeneratedConfigUsesAccountHomeWithoutTrailingSlash(t *testing.T) {
 	assert.Contains(t, cfg.RestrictedFileAccessConfig.Allow, "/run/svc")
 	assert.NotContains(t, cfg.RestrictedFileAccessConfig.Allow, "/run/svc/")
 }
+
+func TestGeneratedReportHandlesTruncatedUnicodeProcessName(t *testing.T) {
+	whitelist := model.BuildWhitelist(model.HostSnapshot{RunningProcesses: []model.RunningProcess{
+		{Executable: "/bin/a界界界界界"},
+		{Executable: "/bin/界界界界界"},
+	}}, time.Time{})
+	assert.Equal(t, []string{"界界界界界"}, whitelist.Process.Allow)
+	assert.Contains(t, whitelist.Warnings, "skipped 1 process names with non-UTF-8 process.allow keys")
+	_, err := MarshalReportJSON(whitelist)
+	require.NoError(t, err)
+	_, err = MarshalConfigYAML(whitelist, "monitor")
+	require.NoError(t, err)
+}

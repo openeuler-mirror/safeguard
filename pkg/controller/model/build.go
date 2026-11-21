@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // bpfMapLimitEntries is the maximum number of entries in a BPF map.
@@ -74,6 +75,7 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 
 	processNames := map[string]map[string]bool{}
 	skippedProcessNames := 0
+	skippedInvalidKeys := 0
 	for _, process := range snapshot.RunningProcesses {
 		name := processAllowName(process)
 		if strings.ContainsRune(name, '/') {
@@ -81,6 +83,10 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 			continue
 		}
 		if normalized := truncateString(name, bpfProcessNameMaxLength); normalized != "" {
+			if !utf8.ValidString(normalized) {
+				skippedInvalidKeys++
+				continue
+			}
 			if processNames[normalized] == nil {
 				processNames[normalized] = map[string]bool{}
 			}
@@ -90,6 +96,9 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	}
 	if skippedProcessNames > 0 {
 		warnings = append(warnings, fmt.Sprintf("skipped %d process names containing '/' from process.allow", skippedProcessNames))
+	}
+	if skippedInvalidKeys > 0 {
+		warnings = append(warnings, fmt.Sprintf("skipped %d process names with non-UTF-8 process.allow keys", skippedInvalidKeys))
 	}
 	for key, names := range processNames {
 		if len(names) < 2 {
