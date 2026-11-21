@@ -2,6 +2,7 @@ package collector
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -98,7 +99,7 @@ func TestReadPasswdAccounts_SkipsMalformedLines(t *testing.T) {
 	content := "root:x:0:0:root:/root:/bin/bash\nshortline\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n"
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
-	accounts, uids, gids, err := readPasswdAccounts(path)
+	accounts, uids, gids, _, err := readPasswdAccounts(path)
 	require.NoError(t, err)
 	assert.Len(t, accounts, 2)
 	assert.Contains(t, uids, uint(0))
@@ -111,14 +112,14 @@ func TestReadPasswdAccounts_SkipsNonNumericUID(t *testing.T) {
 	content := "baduser:x:abc:0:baduser:/home:/bin/bash\nroot:x:0:0:root:/root:/bin/bash\n"
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
-	accounts, uids, _, err := readPasswdAccounts(path)
+	accounts, uids, _, _, err := readPasswdAccounts(path)
 	require.NoError(t, err)
 	assert.Len(t, accounts, 1)
 	assert.Contains(t, uids, uint(0))
 }
 
 func TestReadPasswdAccounts_ReturnsErrorForMissingFile(t *testing.T) {
-	_, _, _, err := readPasswdAccounts("/nonexistent/passwd")
+	_, _, _, _, err := readPasswdAccounts("/nonexistent/passwd")
 	assert.Error(t, err)
 }
 
@@ -165,4 +166,22 @@ func TestSnapshotCollector_IdentifiesFailedStage(t *testing.T) {
 			assert.Empty(t, snapshot)
 		})
 	}
+}
+
+func TestSnapshotReportsMalformedPasswdEntries(t *testing.T) {
+	root := t.TempDir()
+	passwd := filepath.Join(root, "passwd")
+	proc := filepath.Join(root, "proc")
+	require.NoError(t, os.Mkdir(proc, 0755))
+	data := "root:x:0:0:root:/root:/bin/sh\ninvalid\nuser:x:bad:1:user:/home/user:/bin/sh\n\n# comment\n"
+	require.NoError(t, os.WriteFile(passwd, []byte(data), 0600))
+	collector := SnapshotCollector{PasswdPath: passwd, ProcRoot: proc,
+		HostnameFn:       func() (string, error) { return "host", nil },
+		InterfaceCIDRsFn: func() ([]string, error) { return nil, nil }}
+	snapshot, err := collector.Collect()
+	require.NoError(t, err)
+	require.Len(t, snapshot.Accounts, 1)
+	assert.Len(t, snapshot.Warnings, 2)
+	assert.Contains(t, snapshot.Warnings, fmt.Sprintf("%s:2: malformed passwd entry", passwd))
+	assert.Contains(t, snapshot.Warnings, fmt.Sprintf("%s:3: malformed passwd entry", passwd))
 }

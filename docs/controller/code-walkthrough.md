@@ -59,7 +59,8 @@ safeguard controller validate --config whitelist.yaml
 python3 -c 'import json; print("\n".join(json.load(open("report.json"))["warnings"]))'
 ```
 
-报告的 `warnings` 可能指出无法读取的网络表、超过长度限制的路径、
+报告的 `warnings` 可能指出无效 passwd 记录的文件及行号、无法读取的网络表、
+超过长度限制的路径、
 含斜杠的进程名、根目录账号 home，或超出 BPF 映射容量的条目。
 被跳过或截断的条目不会自动替换为更宽泛的规则；请根据实际业务需求
 核对报告和生成的 `files.allow`、`process.allow` 及网络列表。
