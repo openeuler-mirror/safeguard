@@ -58,7 +58,14 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 				skippedRootHomes++
 				continue
 			}
-			fileAllow = append(fileAllow, account.HomeDir)
+			home := account.HomeDir
+			if strings.HasPrefix(home, "/") {
+				home = strings.TrimRight(home, "/")
+				if home != account.HomeDir {
+					warnings = append(warnings, fmt.Sprintf("normalized account home %q to %q", account.HomeDir, home))
+				}
+			}
+			fileAllow = append(fileAllow, home)
 		}
 	}
 	if skippedRootHomes > 0 {
