@@ -207,3 +207,23 @@ func TestSnapshotReportsInvalidProcessIdentity(t *testing.T) {
 	require.Len(t, snapshot.RunningProcesses, 1)
 	assert.Equal(t, []string{"process 2: invalid UID or GID in status"}, snapshot.Warnings)
 }
+
+func TestSnapshotReportsDeletedExecutable(t *testing.T) {
+	root := t.TempDir()
+	passwd := filepath.Join(root, "passwd")
+	proc := filepath.Join(root, "proc")
+	dir := filepath.Join(proc, "12")
+	require.NoError(t, os.MkdirAll(dir, 0755))
+	require.NoError(t, os.WriteFile(passwd, []byte("root:x:0:0:root:/root:/bin/sh\n"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0600))
+	require.NoError(t, os.Symlink("/missing/app (deleted)", filepath.Join(dir, "exe")))
+	collector := SnapshotCollector{PasswdPath: passwd, ProcRoot: proc,
+		HostnameFn:       func() (string, error) { return "host", nil },
+		InterfaceCIDRsFn: func() ([]string, error) { return nil, nil }}
+	snapshot, err := collector.Collect()
+	require.NoError(t, err)
+	require.Len(t, snapshot.RunningProcesses, 1)
+	assert.Empty(t, snapshot.ExecutablePaths)
+	assert.Contains(t, snapshot.Warnings, `process 12: executable "/missing/app (deleted)" is deleted or cannot be verified`)
+}
