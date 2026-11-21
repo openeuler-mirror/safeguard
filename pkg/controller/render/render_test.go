@@ -249,3 +249,24 @@ func TestGeneratedReportSkipsNonUTF8FilePath(t *testing.T) {
 	_, err = MarshalConfigYAML(whitelist, "monitor")
 	require.NoError(t, err)
 }
+
+func TestGeneratedReportSkipsNonUTF8Accounts(t *testing.T) {
+	whitelist := model.BuildWhitelist(model.HostSnapshot{
+		Accounts: []model.Account{
+			{Username: "bad\xff", UID: 42, GID: 43, HomeDir: "/home/valid", Shell: "/bin/sh"},
+			{Username: "good", UID: 44, GID: 45, HomeDir: "/home/good", Shell: "/bin/sh"},
+			{Username: "bad-home", HomeDir: "/home/\xff"},
+			{Username: "bad-shell", HomeDir: "/home/shell", Shell: "\xff"},
+		},
+		UIDs: []uint{42, 44}, GIDs: []uint{43, 45},
+	}, time.Time{})
+	assert.Len(t, whitelist.Accounts, 1)
+	assert.Contains(t, whitelist.Warnings, `skipped account "bad\xff" from report: non-UTF-8 text`)
+	assert.Contains(t, whitelist.Warnings, `skipped account "bad-home" from report: non-UTF-8 text`)
+	assert.Contains(t, whitelist.Warnings, `skipped account "bad-shell" from report: non-UTF-8 text`)
+	assert.Contains(t, whitelist.Files.Allow, "/home/valid")
+	assert.Contains(t, whitelist.Network.UIDAllow, uint(42))
+	assert.Contains(t, whitelist.Network.GIDAllow, uint(43))
+	_, err := MarshalReportJSON(whitelist)
+	require.NoError(t, err)
+}
