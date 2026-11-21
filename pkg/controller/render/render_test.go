@@ -214,3 +214,11 @@ func TestGeneratedConfigWithInvalidAccountHome(t *testing.T) {
 	assert.NotContains(t, string(data), "relative/home")
 	assert.NotEmpty(t, whitelist.Warnings)
 }
+
+func TestGeneratedConfigUsesAccountHomeWithoutTrailingSlash(t *testing.T) {
+	snapshot := model.HostSnapshot{Accounts: []model.Account{{Username: "svc", HomeDir: "/run/svc/"}}}
+	whitelist := model.BuildWhitelist(snapshot, time.Time{})
+	cfg := BuildConfig(whitelist, "monitor")
+	assert.Contains(t, cfg.RestrictedFileAccessConfig.Allow, "/run/svc")
+	assert.NotContains(t, cfg.RestrictedFileAccessConfig.Allow, "/run/svc/")
+}
