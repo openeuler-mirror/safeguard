@@ -77,9 +77,10 @@ func TestReadProcProcessesDeletedExecutable(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
 		require.NoError(t, os.Symlink(target, filepath.Join(dir, "exe")))
 	}
-	processes, _, _, paths, _, err := readProcProcesses(root)
+	processes, _, _, paths, warnings, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Len(t, processes, 2)
+	assert.Equal(t, []string{`process 1: executable "/usr/bin/old (deleted)" is deleted or cannot be verified`}, warnings)
 	require.Empty(t, processes[0].Executable)
 	require.Equal(t, "app", processes[0].Command)
 	require.Equal(t, []string{"/usr/bin/live"}, paths)
@@ -158,9 +159,10 @@ func TestReadProcProcessesRetainsLiveExecutableWithDeletedSuffix(t *testing.T) {
 	target := filepath.Join(root, "app (deleted)")
 	require.NoError(t, os.WriteFile(target, []byte("x"), 0755))
 	require.NoError(t, os.Symlink(target, filepath.Join(dir, "exe")))
-	processes, _, _, paths, _, err := readProcProcesses(root)
+	processes, _, _, paths, warnings, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Len(t, processes, 1)
+	assert.Empty(t, warnings)
 	assert.Equal(t, target, processes[0].Executable)
 	assert.Equal(t, []string{target}, paths)
 }

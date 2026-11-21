@@ -59,7 +59,7 @@ safeguard controller validate --config whitelist.yaml
 python3 -c 'import json; print("\n".join(json.load(open("report.json"))["warnings"]))'
 ```
 
-报告的 `warnings` 可能指出无效 passwd 记录的文件及行号、身份字段无效的进程、
+报告的 `warnings` 可能指出无效 passwd 记录的文件及行号、身份字段无效或可执行路径无法核实的进程、
 无法读取的网络表、超过长度限制的路径、含斜杠的进程名、根目录账号 home，
 或超出 BPF 映射容量的条目。网络表打开失败时会记录系统错误，便于区分
 缺失与权限问题。

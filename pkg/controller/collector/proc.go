@@ -62,6 +62,7 @@ func readProcProcesses(procRoot string) ([]model.RunningProcess, []uint, []uint,
 			linkInfo, linkErr := os.Stat(filepath.Join(base, "exe"))
 			pathInfo, pathErr := os.Stat(executable)
 			if linkErr != nil || pathErr != nil || !os.SameFile(linkInfo, pathInfo) {
+				warnings = append(warnings, fmt.Sprintf("process %d: executable %q is deleted or cannot be verified", pid, executable))
 				executable = ""
 			}
 		}
