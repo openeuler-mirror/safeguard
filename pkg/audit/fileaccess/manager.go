@@ -162,7 +162,7 @@ func (m *Manager) setDeniedFileAccessMap() error {
 		return err
 	}
 
-	denied_paths := config.UniqueStrings(m.config.RestrictedFileAccessConfig.Deny)
+	denied_paths := config.ExpandFileDeny(m.config.RestrictedFileAccessConfig.Deny)
 
 	for i, path := range denied_paths {
 		if path == "" {

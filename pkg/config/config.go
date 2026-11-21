@@ -266,7 +266,11 @@ func (c *Config) Validate() error {
 		}{
 			{"allow", c.RestrictedFileAccessConfig.Allow}, {"deny", c.RestrictedFileAccessConfig.Deny},
 		} {
-			if count := len(UniqueStrings(list.values)); count > 256 {
+			entries := UniqueStrings(list.values)
+			if list.name == "deny" {
+				entries = ExpandFileDeny(list.values)
+			}
+			if count := len(entries); count > 256 {
 				return fmt.Errorf("files.%s: %d unique paths exceed map capacity 256", list.name, count)
 			}
 			for i, value := range list.values {
@@ -541,6 +545,19 @@ func validateCommRules(field string, values []string) error {
 		}
 	}
 	return nil
+}
+
+// ExpandFileDeny decodes legacy leading-pipe lists and preserves unique paths.
+func ExpandFileDeny(values []string) []string {
+	var paths []string
+	for _, value := range values {
+		if strings.HasPrefix(value, "|") {
+			paths = append(paths, strings.Split(value[1:], "|")...)
+		} else {
+			paths = append(paths, value)
+		}
+	}
+	return UniqueStrings(paths)
 }
 
 // UniqueStrings preserves first-seen order and does not modify the input slice.

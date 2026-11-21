@@ -828,3 +828,17 @@ func TestValidateLogFormat(t *testing.T) {
 		}
 	}
 }
+
+func TestExpandedFileDenyCapacity(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.RestrictedFileAccessConfig.Enable = true
+	cfg.RestrictedFileAccessConfig.Deny = []string{"|/a|/b", "/a", "/literal|pipe"}
+	require.Equal(t, []string{"/a", "/b", "/literal|pipe"}, ExpandFileDeny(cfg.RestrictedFileAccessConfig.Deny))
+	require.NoError(t, cfg.Validate())
+	for i := 0; i < 253; i++ {
+		cfg.RestrictedFileAccessConfig.Deny = append(cfg.RestrictedFileAccessConfig.Deny, fmt.Sprintf("/p%d", i))
+	}
+	require.NoError(t, cfg.Validate())
+	cfg.RestrictedFileAccessConfig.Deny = append(cfg.RestrictedFileAccessConfig.Deny, "/overflow")
+	require.ErrorContains(t, cfg.Validate(), "files.deny")
+}
