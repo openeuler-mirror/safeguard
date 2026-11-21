@@ -33,7 +33,14 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	warnings := append([]string{}, snapshot.Warnings...)
 	var accounts []Account
 	if snapshot.Accounts != nil {
-		accounts = append([]Account{}, snapshot.Accounts...)
+		accounts = make([]Account, 0, len(snapshot.Accounts))
+		for _, account := range snapshot.Accounts {
+			if !utf8.ValidString(account.Username) || !utf8.ValidString(account.HomeDir) || !utf8.ValidString(account.Shell) {
+				warnings = append(warnings, fmt.Sprintf("skipped account %q from report: non-UTF-8 text", account.Username))
+				continue
+			}
+			accounts = append(accounts, account)
+		}
 		sort.Slice(accounts, func(i, j int) bool {
 			a, b := accounts[i], accounts[j]
 			if a.Username != b.Username {
