@@ -268,6 +268,10 @@ static long get_path_str_from_path(u_char **path_str, const struct path *path, s
 }
 
 static u64 cb_check_path(struct bpf_map *map, u32 *key, struct file_path *map_path, struct callback_ctx *ctx) {
+  if (map_path->path[0] == '/' && map_path->path[1] == '\0' && ctx->path[0] == '/') {
+    ctx->found = true;
+    return 1;
+  }
   #pragma unroll
   for (int i = 0; i < LOOP_NAME; i++) {
     unsigned char policy_char = map_path->path[i];
