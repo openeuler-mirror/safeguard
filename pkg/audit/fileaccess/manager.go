@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"unsafe"
 
@@ -147,7 +146,7 @@ func (m *Manager) setAllowedFileAccessMap() error {
 		}
 		key := uint32(i)
 		value := make([]byte, PATH_MAX)
-		copy(value, normalizeFileRulePath(path))
+		copy(value, helpers.NormalizeRulePath(path))
 		err = map_allowed_files.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
 		if err != nil {
 			return err
@@ -171,7 +170,7 @@ func (m *Manager) setDeniedFileAccessMap() error {
 		}
 		key := uint32(i)
 		value := make([]byte, PATH_MAX)
-		copy(value, normalizeFileRulePath(path))
+		copy(value, helpers.NormalizeRulePath(path))
 
 		keyPtr := unsafe.Pointer(&key)
 		valuePtr := unsafe.Pointer(&value[0])
@@ -196,14 +195,6 @@ func (m *Manager) setDeniedFileAccessMap() error {
 	*/
 
 	return nil
-}
-
-func normalizeFileRulePath(path string) string {
-	trimmed := strings.TrimRight(path, "/")
-	if trimmed == "" && path != "" {
-		return "/"
-	}
-	return trimmed
 }
 
 // ConfigKeySize is the size of the config value in bytes (four uint32 fields).

@@ -3,6 +3,7 @@ package mount
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -113,7 +114,7 @@ func (m *Manager) SetConfigToMap() error {
 	for i, path := range denied_source_paths {
 		key := uint32(i)
 		value := make([]byte, PATH_MAX)
-		copy(value, path)
+		copy(value, normalizeMountSource(path))
 		err = map_denied_source_paths.Update(unsafe.Pointer(&key), unsafe.Pointer(&value[0]))
 		if err != nil {
 			return err
@@ -121,6 +122,13 @@ func (m *Manager) SetConfigToMap() error {
 	}
 
 	return nil
+}
+
+func normalizeMountSource(source string) string {
+	if strings.HasPrefix(source, "/") {
+		return helpers.NormalizeRulePath(source)
+	}
+	return source
 }
 
 func (m *Manager) setModeAndTarget() error {
