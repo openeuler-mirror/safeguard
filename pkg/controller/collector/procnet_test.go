@@ -96,3 +96,17 @@ func TestReadProcNetHeaderValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestReadProcNetOpenErrorIncludesCause(t *testing.T) {
+	root := t.TempDir()
+	missing := filepath.Join(root, "missing")
+	valid := filepath.Join(root, "tcp")
+	require.NoError(t, os.WriteFile(valid, []byte("sl local_address rem_address st\n0: ignored 0100007F:0035\n"), 0600))
+	cidrs, warnings := readProcNetCIDRs([]string{missing, valid})
+	assert.Equal(t, []string{"127.0.0.1/32"}, cidrs)
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0], missing)
+	_, openErr := os.Open(missing)
+	require.ErrorIs(t, openErr, os.ErrNotExist)
+	assert.Contains(t, warnings[0], openErr.Error())
+}

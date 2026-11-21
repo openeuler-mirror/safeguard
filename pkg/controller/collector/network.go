@@ -75,7 +75,7 @@ func readProcNetCIDRs(paths []string) ([]string, []string) {
 	for _, path := range paths {
 		file, err := os.Open(path)
 		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s unreadable", path))
+			warnings = append(warnings, fmt.Sprintf("%s unreadable: %v", path, err))
 			continue
 		}
 
