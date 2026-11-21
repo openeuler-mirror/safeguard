@@ -115,6 +115,10 @@ func BuildWhitelist(snapshot HostSnapshot, generatedAt time.Time) WhitelistModel
 	networkWhitelist, networkWarnings := buildNetworkWhitelist(snapshot.CIDRs, snapshot.UIDs, snapshot.GIDs)
 	validFileAllow := make([]string, 0, len(fileAllow))
 	for _, path := range uniqueExactStrings(fileAllow) {
+		if !utf8.ValidString(path) {
+			warnings = append(warnings, fmt.Sprintf("skipped files.allow path %q: not UTF-8", path))
+			continue
+		}
 		if !strings.HasPrefix(path, "/") || strings.ContainsRune(path, 0) {
 			warnings = append(warnings, fmt.Sprintf("skipped files.allow path %q: not absolute or contains NUL", path))
 			continue

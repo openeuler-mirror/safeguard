@@ -235,3 +235,17 @@ func TestGeneratedReportHandlesTruncatedUnicodeProcessName(t *testing.T) {
 	_, err = MarshalConfigYAML(whitelist, "monitor")
 	require.NoError(t, err)
 }
+
+func TestGeneratedReportSkipsNonUTF8FilePath(t *testing.T) {
+	bad := "/opt/invalid-\xff"
+	whitelist := model.BuildWhitelist(model.HostSnapshot{
+		ExecutablePaths: []string{bad, "/opt/valid"},
+	}, time.Time{})
+	assert.NotContains(t, whitelist.Files.Allow, bad)
+	assert.Contains(t, whitelist.Files.Allow, "/opt/valid")
+	assert.Contains(t, whitelist.Warnings, `skipped files.allow path "/opt/invalid-\xff": not UTF-8`)
+	_, err := MarshalReportJSON(whitelist)
+	require.NoError(t, err)
+	_, err = MarshalConfigYAML(whitelist, "monitor")
+	require.NoError(t, err)
+}
