@@ -11,6 +11,8 @@ Linux Kernel >= 5.13 is required to use this option.
 | `allow` | A list of allow file paths | |
 | `deny` | A list of denied file paths | |
 
+When file rules are loaded, trailing `/` characters are removed except for the root rule `/`.
+
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the file access restriction module disabled even when `mode`, `policy`, `allow`, or `deny` are configured.
 Use `monitor` mode first when validating a new file access policy, then switch to `block` after the required paths are confirmed.
 Check either example with `safeguard controller validate --config <path>` before applying it.
