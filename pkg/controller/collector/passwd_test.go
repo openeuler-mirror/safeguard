@@ -16,7 +16,7 @@ func TestReadPasswdAccounts_ValidFile(t *testing.T) {
 	defer os.Remove(f.Name())
 	f.WriteString("root:x:0:0:root:/root:/bin/bash\nmalformed-line\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n")
 	f.Close()
-	accounts, _, _, err := readPasswdAccounts(f.Name())
+	accounts, _, _, _, err := readPasswdAccounts(f.Name())
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(accounts))
 	assert.Equal(t, uint(0), accounts[0].UID)
@@ -38,7 +38,7 @@ func TestReadPasswdAccounts_BoundsIdentifiersToUint32(t *testing.T) {
 	} {
 		t.Run(tc.ids, func(t *testing.T) {
 			require.NoError(t, os.WriteFile(path, []byte("user:x:"+tc.ids+":user:/home/user:/bin/sh\n"), 0o600))
-			accounts, uids, gids, err := readPasswdAccounts(path)
+			accounts, uids, gids, _, err := readPasswdAccounts(path)
 			require.NoError(t, err)
 			if tc.valid {
 				require.Len(t, accounts, 1)
@@ -58,12 +58,12 @@ func TestReadPasswdAccountsScanContext(t *testing.T) {
 	path := filepath.Join(root, "passwd")
 	data := "root:x:0:0:root:/root:/bin/sh\n" + strings.Repeat("x", 65536) + "\n"
 	require.NoError(t, os.WriteFile(path, []byte(data), 0600))
-	accounts, _, _, err := readPasswdAccounts(path)
+	accounts, _, _, _, err := readPasswdAccounts(path)
 	require.Error(t, err)
 	require.ErrorContains(t, err, path)
 	require.ErrorContains(t, err, "line 2")
 	require.Len(t, accounts, 1)
-	_, _, _, err = readPasswdAccounts(root)
+	_, _, _, _, err = readPasswdAccounts(root)
 	require.ErrorIs(t, err, syscall.EISDIR)
 	require.ErrorContains(t, err, "line 1")
 }
@@ -72,7 +72,7 @@ func TestReadPasswdEmptyUsername(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "passwd")
 	data := ":x:0:0:missing:/root:/bin/sh\nworker:x:1000:1001:worker:/home/worker:/bin/sh\n"
 	require.NoError(t, os.WriteFile(path, []byte(data), 0600))
-	accounts, uids, gids, err := readPasswdAccounts(path)
+	accounts, uids, gids, _, err := readPasswdAccounts(path)
 	require.NoError(t, err)
 	require.Len(t, accounts, 1)
 	require.Equal(t, "worker", accounts[0].Username)
