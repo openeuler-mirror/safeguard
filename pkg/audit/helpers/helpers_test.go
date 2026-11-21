@@ -203,3 +203,11 @@ func TestAuditStringBytes(t *testing.T) {
 	host = [65]byte{0xc3, 0xa9, 0, 0xff}
 	require.Equal(t, "é", NodenameToString(host))
 }
+
+func TestNormalizeRulePath(t *testing.T) {
+	for input, want := range map[string]string{"/": "/", "///": "/", "/tmp/": "/tmp", "/tmp/a": "/tmp/a", "": ""} {
+		if got := NormalizeRulePath(input); got != want {
+			t.Errorf("path %q: got %q, want %q", input, got, want)
+		}
+	}
+}

@@ -47,4 +47,11 @@ func TestMountMultipleRulesVM(t *testing.T) {
 		syscall.Unmount("/tmp/sg-dest", 0)
 	}
 	require.ErrorIs(t, err, syscall.EPERM)
+	conf.RestrictedMountConfig.DenySourcePath = []string{"/tmp/sg-second-extra/"}
+	require.NoError(t, mgr.SetConfigToMap())
+	err = syscall.Mount("/tmp/sg-second-extra", "/tmp/sg-dest", "", syscall.MS_BIND, "")
+	if err == nil {
+		syscall.Unmount("/tmp/sg-dest", 0)
+	}
+	require.ErrorIs(t, err, syscall.EPERM)
 }

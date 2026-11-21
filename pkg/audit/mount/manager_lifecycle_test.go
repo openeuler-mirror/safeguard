@@ -68,3 +68,11 @@ func TestManagerLifecycleSafety(t *testing.T) {
 		t.Fatal("started closed manager")
 	}
 }
+
+func TestNormalizeMountSource(t *testing.T) {
+	for input, want := range map[string]string{"/": "/", "/tmp/": "/tmp", "tmpfs/": "tmpfs/", "overlay": "overlay"} {
+		if got := normalizeMountSource(input); got != want {
+			t.Errorf("source %q: got %q, want %q", input, got, want)
+		}
+	}
+}

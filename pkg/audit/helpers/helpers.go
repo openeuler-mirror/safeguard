@@ -4,9 +4,19 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"syscall"
 	"unsafe"
 )
+
+// NormalizeRulePath removes trailing separators while preserving the root path.
+func NormalizeRulePath(path string) string {
+	trimmed := strings.TrimRight(path, "/")
+	if trimmed == "" && path != "" {
+		return "/"
+	}
+	return trimmed
+}
 
 func CommToString(commBytes [16]byte) string {
 	return cStringBytes(commBytes[:])

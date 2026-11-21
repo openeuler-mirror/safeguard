@@ -11,6 +11,8 @@ Linux Kernel >= 5.13 is required to use this option.
 | `target` | Enum with the following possible values: `host`, `container` | `container` applies to processes outside host PID 1's mount namespace. |
 | `deny` | A list of denied mount source paths | Compared with the mount source path or device name, for example `/var/run/docker.sock`. |
 
+When mount rules are loaded, trailing `/` characters are removed from absolute sources except for the root rule `/`; non-path device names are unchanged.
+
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the mount restriction module disabled even when `mode`, `target`, or `deny` are configured.
 Use `monitor` mode first when validating a new mount policy, then switch to `block` after the denied source paths or device names are confirmed.
 
