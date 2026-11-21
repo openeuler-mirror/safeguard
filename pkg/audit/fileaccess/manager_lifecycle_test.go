@@ -89,3 +89,11 @@ func TestManagerLifecycleSafety(t *testing.T) {
 		t.Fatal("started closed manager")
 	}
 }
+
+func TestNormalizeFileRulePath(t *testing.T) {
+	for input, want := range map[string]string{"/": "/", "///": "/", "/tmp/": "/tmp", "/tmp/a": "/tmp/a", "": ""} {
+		if got := normalizeFileRulePath(input); got != want {
+			t.Errorf("path %q: got %q, want %q", input, got, want)
+		}
+	}
+}
