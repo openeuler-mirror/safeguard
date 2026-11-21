@@ -7,7 +7,7 @@ import (
 )
 
 func TestReadProcProcesses_NonexistentRoot(t *testing.T) {
-	processes, _, _, _, err := readProcProcesses("/nonexistent/proc")
+	processes, _, _, _, _, err := readProcProcesses("/nonexistent/proc")
 	assert.Error(t, err)
 	assert.Empty(t, processes)
 }

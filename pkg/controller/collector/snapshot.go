@@ -52,7 +52,7 @@ func (c SnapshotCollector) Collect() (model.HostSnapshot, error) {
 		return model.HostSnapshot{}, fmt.Errorf("read passwd %q: %w", c.PasswdPath, err)
 	}
 
-	processes, processUIDs, processGIDs, executablePaths, err := readProcProcesses(c.ProcRoot)
+	processes, processUIDs, processGIDs, executablePaths, processWarnings, err := readProcProcesses(c.ProcRoot)
 	if err != nil {
 		return model.HostSnapshot{}, fmt.Errorf("read processes %q: %w", c.ProcRoot, err)
 	}
@@ -64,6 +64,7 @@ func (c SnapshotCollector) Collect() (model.HostSnapshot, error) {
 
 	procNetCIDRs, warnings := readProcNetCIDRs(c.ProcNetPaths)
 	warnings = append(accountWarnings, warnings...)
+	warnings = append(warnings, processWarnings...)
 
 	return model.HostSnapshot{
 		Hostname:         hostname,

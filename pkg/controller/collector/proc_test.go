@@ -18,7 +18,7 @@ func TestReadProcProcesses_SkipsNonNumericDirs(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "101", "comm"), []byte("bash\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "101", "status"), []byte("Uid:\t0\t0\t0\t0\nGid:\t0\t0\t0\t0\n"), 0o644))
 
-	processes, _, _, _, err := readProcProcesses(root)
+	processes, _, _, _, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	assert.Len(t, processes, 1)
 	assert.Equal(t, "bash", processes[0].Command)
@@ -28,7 +28,7 @@ func TestReadProcProcesses_SkipsMissingCommFile(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "102"), 0o755))
 
-	processes, _, _, _, err := readProcProcesses(root)
+	processes, _, _, _, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	assert.Empty(t, processes)
 }
@@ -46,7 +46,7 @@ func TestReadProcProcessesInvalidIdentity(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte(status), 0644))
 	}
-	processes, uids, gids, _, err := readProcProcesses(root)
+	processes, uids, gids, _, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Len(t, processes, 2)
 	require.Equal(t, []uint{0, 4294967295}, uids)
@@ -61,7 +61,7 @@ func TestReadProcProcessesPIDRange(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
 	}
-	processes, _, _, _, err := readProcProcesses(root)
+	processes, _, _, _, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Len(t, processes, 2)
 	require.Equal(t, 1, processes[0].PID)
@@ -77,7 +77,7 @@ func TestReadProcProcessesDeletedExecutable(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
 		require.NoError(t, os.Symlink(target, filepath.Join(dir, "exe")))
 	}
-	processes, _, _, paths, err := readProcProcesses(root)
+	processes, _, _, paths, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Len(t, processes, 2)
 	require.Empty(t, processes[0].Executable)
@@ -95,7 +95,7 @@ func TestReadProcProcessesCommandWhitespace(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte(command), 0644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
 	}
-	processes, _, _, _, err := readProcProcesses(root)
+	processes, _, _, _, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Len(t, processes, len(expected))
 	for i, want := range expected {
@@ -115,7 +115,7 @@ func TestProcReadErrors(t *testing.T) {
 		if badFile == "status" {
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0644))
 		}
-		processes, uids, gids, paths, err := readProcProcesses(root)
+		processes, uids, gids, paths, _, err := readProcProcesses(root)
 		require.ErrorIs(t, err, syscall.EISDIR)
 		require.ErrorContains(t, err, filepath.Join(dir, badFile))
 		require.Nil(t, processes)
@@ -125,7 +125,7 @@ func TestProcReadErrors(t *testing.T) {
 	}
 	root := t.TempDir()
 	require.NoError(t, os.Mkdir(filepath.Join(root, "1"), 0755))
-	processes, _, _, _, err := readProcProcesses(root)
+	processes, _, _, _, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Empty(t, processes)
 }
@@ -136,13 +136,13 @@ func TestProcExeErrors(t *testing.T) {
 	require.NoError(t, os.Mkdir(dir, 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("worker\n"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte("Uid: 1\nGid: 2\n"), 0644))
-	processes, _, _, paths, err := readProcProcesses(root)
+	processes, _, _, paths, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Len(t, processes, 1)
 	require.Empty(t, paths)
 	exe := filepath.Join(dir, "exe")
 	require.NoError(t, os.WriteFile(exe, nil, 0644))
-	processes, _, _, paths, err = readProcProcesses(root)
+	processes, _, _, paths, _, err = readProcProcesses(root)
 	require.ErrorIs(t, err, syscall.EINVAL)
 	require.ErrorContains(t, err, exe)
 	require.Nil(t, processes)
@@ -158,7 +158,7 @@ func TestReadProcProcessesRetainsLiveExecutableWithDeletedSuffix(t *testing.T) {
 	target := filepath.Join(root, "app (deleted)")
 	require.NoError(t, os.WriteFile(target, []byte("x"), 0755))
 	require.NoError(t, os.Symlink(target, filepath.Join(dir, "exe")))
-	processes, _, _, paths, err := readProcProcesses(root)
+	processes, _, _, paths, _, err := readProcProcesses(root)
 	require.NoError(t, err)
 	require.Len(t, processes, 1)
 	assert.Equal(t, target, processes[0].Executable)

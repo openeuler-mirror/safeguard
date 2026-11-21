@@ -63,7 +63,7 @@ python3 -c 'import json; print("\n".join(json.load(open("report.json"))["warning
 ```
 
 The report's `warnings` can identify malformed passwd entries by file and line,
-unreadable network tables, overlong file paths, process names containing slashes, root account homes, or entries exceeding
+processes with invalid identity fields, unreadable network tables, overlong file paths, process names containing slashes, root account homes, or entries exceeding
 BPF map capacity. Skipped or truncated entries are not replaced with broader
 rules. Review the report and generated file, process, and network allow lists
 against actual workload needs. Validation checks syntax and static constraints;

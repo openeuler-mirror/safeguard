@@ -185,3 +185,25 @@ func TestSnapshotReportsMalformedPasswdEntries(t *testing.T) {
 	assert.Contains(t, snapshot.Warnings, fmt.Sprintf("%s:2: malformed passwd entry", passwd))
 	assert.Contains(t, snapshot.Warnings, fmt.Sprintf("%s:3: malformed passwd entry", passwd))
 }
+
+func TestSnapshotReportsInvalidProcessIdentity(t *testing.T) {
+	root := t.TempDir()
+	passwd := filepath.Join(root, "passwd")
+	proc := filepath.Join(root, "proc")
+	require.NoError(t, os.Mkdir(proc, 0755))
+	require.NoError(t, os.WriteFile(passwd, []byte("root:x:0:0:root:/root:/bin/sh\n"), 0600))
+	for pid, status := range map[string]string{"1": "Uid: 0\nGid: 0\n", "2": "Uid: invalid\nGid: 1\n"} {
+		dir := filepath.Join(proc, pid)
+		require.NoError(t, os.Mkdir(dir, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "comm"), []byte("app\n"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "status"), []byte(status), 0600))
+	}
+	require.NoError(t, os.Mkdir(filepath.Join(proc, "3"), 0755))
+	collector := SnapshotCollector{PasswdPath: passwd, ProcRoot: proc,
+		HostnameFn:       func() (string, error) { return "host", nil },
+		InterfaceCIDRsFn: func() ([]string, error) { return nil, nil }}
+	snapshot, err := collector.Collect()
+	require.NoError(t, err)
+	require.Len(t, snapshot.RunningProcesses, 1)
+	assert.Equal(t, []string{"process 2: invalid UID or GID in status"}, snapshot.Warnings)
+}
