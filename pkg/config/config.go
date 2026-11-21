@@ -296,6 +296,9 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("mount.deny: %d unique sources exceed map capacity 256", count)
 		}
 		for i, source := range c.RestrictedMountConfig.DenySourcePath {
+			if strings.Contains(source, "|/") {
+				return fmt.Errorf("mount.deny[%d]: ambiguous |/ encoding; use separate YAML entries", i)
+			}
 			if len(source) > 79 {
 				return fmt.Errorf("mount.deny[%d]: encoded source exceeds 79 bytes", i)
 			}

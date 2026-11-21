@@ -26,7 +26,9 @@ mount:
   mode: block
   target: host
   deny:
-    - '/dev/vdx1|/home/test|/dev/sdx1'
+    - '/dev/vdx1'
+    - '/home/test'
+    - '/dev/sdx1'
 
 process:
   enable: true

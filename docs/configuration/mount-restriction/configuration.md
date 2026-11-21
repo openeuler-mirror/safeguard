@@ -12,6 +12,7 @@ Linux Kernel >= 5.13 is required to use this option.
 | `deny` | A list of denied mount source paths | Compared with the mount source path or device name, for example `/var/run/docker.sock`. |
 
 When mount rules are loaded, trailing `/` characters are removed from absolute sources except for the root rule `/`; non-path device names are unchanged.
+Specify each denied source as a separate YAML list item. The ambiguous `|/` encoding is rejected; it is not interpreted as multiple sources.
 
 Set `enable: true` before applying the policy. If `enable` is omitted, safeguard keeps the mount restriction module disabled even when `mode`, `target`, or `deny` are configured.
 Use `monitor` mode first when validating a new mount policy, then switch to `block` after the denied source paths or device names are confirmed.

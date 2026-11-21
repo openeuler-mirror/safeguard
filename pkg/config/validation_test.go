@@ -842,3 +842,14 @@ func TestExpandedFileDenyCapacity(t *testing.T) {
 	cfg.RestrictedFileAccessConfig.Deny = append(cfg.RestrictedFileAccessConfig.Deny, "/overflow")
 	require.ErrorContains(t, cfg.Validate(), "files.deny")
 }
+
+func TestMountDenyRejectsAmbiguousEncodedSources(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.RestrictedMountConfig.Enable = true
+	for _, source := range []string{"/dev/a|/dev/b", "|/dev/a|/dev/b"} {
+		cfg.RestrictedMountConfig.DenySourcePath = []string{source}
+		require.ErrorContains(t, cfg.Validate(), "mount.deny[0]")
+	}
+	cfg.RestrictedMountConfig.DenySourcePath = []string{"/dev/a", "/dev/b", "device|literal"}
+	require.NoError(t, cfg.Validate())
+}
